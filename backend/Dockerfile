@@ -4,6 +4,7 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     libpq-dev \
+    python3-dev \
     gcc \
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -13,9 +14,11 @@ WORKDIR /app
 # Copy requirements first for better caching
 COPY requirements.txt .
 
+# Upgrade pip and core tools before installing dependencies
+RUN pip install --upgrade pip setuptools wheel
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
-
 # Copy application code
 COPY . .
 
