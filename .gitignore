@@ -32,8 +32,11 @@ wheels/
 # Environment variables
 .env
 .env.local
-*.env.*
+.env.*
 
+# Logs and temp files
+*.log
+*.tmp
 # Testing
 .coverage
 coverage/
@@ -51,4 +54,21 @@ coverage-final.json
 # OS
 .DS_Store
 Thumbs.db
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Build artifacts
+backend/dist/
+backend/build/
+backend/target/
+
+# Python specific
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg-info/
 ```
