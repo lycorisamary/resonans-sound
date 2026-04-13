@@ -41,9 +41,6 @@ aiohttp==3.9.1
 # Rate Limiting
 slowapi==0.1.9
 
-# CORS
-python-cors==1.0.0
-
 # Utilities
 python-dotenv==1.0.0
 tenacity==8.2.3
