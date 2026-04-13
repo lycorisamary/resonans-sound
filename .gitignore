@@ -1,1 +1,1 @@
-Nothing needs to be added to .gitignore since only a markdown file (LOCAL_SETUP.md) was added, which is a source/config file and should not be ignored.
+Nothing should be ignored based on the provided file changes. The only added file is `QUICK_START_RU.md`, which is a markdown documentation file and should not be ignored.
