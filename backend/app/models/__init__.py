@@ -262,7 +262,7 @@ class AnalyticsEvent(Base):
     event_type = Column(String(50), nullable=False, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"))
     track_id = Column(Integer, ForeignKey("tracks.id", ondelete="SET NULL"))
-    metadata = Column(JSON)
+    event_data = Column(JSON)
     ip_address = Column(String(45))
     user_agent = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
