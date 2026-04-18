@@ -168,7 +168,11 @@ Current live API surface in this repository:
 - `GET /api/v1/categories` - Active public categories with track counts
 - `GET /api/v1/categories/:slug` - Active public category details
 - `GET /api/v1/tracks` - Approved public tracks with pagination and simple filters
+- `GET /api/v1/tracks/mine` - Authenticated user's tracks
+- `POST /api/v1/tracks` - Create track metadata
 - `GET /api/v1/tracks/:id` - Approved public track details
+- `PUT /api/v1/tracks/:id` - Update owned track metadata
+- `DELETE /api/v1/tracks/:id` - Soft-delete owned track
 
 Everything else below is still planned API surface, not fully implemented yet.
 

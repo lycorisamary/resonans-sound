@@ -1,12 +1,27 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+from app.core.security import get_current_user
 from app.db.session import get_db
+from app.models import User
 from app.schemas import PaginatedResponse, TrackResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
+from app.services.tracks import create_track_metadata, delete_track_metadata, list_user_tracks, update_track_metadata
+from app.schemas import TrackCreate, TrackUpdate
 
 
 router = APIRouter()
+
+
+@router.get("/mine", response_model=PaginatedResponse)
+def get_my_tracks(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse:
+    """Return the authenticated user's tracks, including pending items."""
+    return list_user_tracks(db=db, current_user=current_user, page=page, size=size)
 
 
 @router.get("", response_model=PaginatedResponse)
@@ -29,6 +44,16 @@ def get_tracks(
     )
 
 
+@router.post("", response_model=TrackResponse, status_code=201)
+def create_track(
+    payload: TrackCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TrackResponse:
+    """Create track metadata for the authenticated user."""
+    return create_track_metadata(db=db, current_user=current_user, payload=payload)
+
+
 @router.get("/{track_id}", response_model=TrackResponse)
 def get_track(track_id: int, db: Session = Depends(get_db)) -> TrackResponse:
     """Return a single approved public track."""
@@ -36,3 +61,25 @@ def get_track(track_id: int, db: Session = Depends(get_db)) -> TrackResponse:
     if track is None:
         raise HTTPException(status_code=404, detail="Track not found")
     return track
+
+
+@router.put("/{track_id}", response_model=TrackResponse)
+def update_track(
+    track_id: int,
+    payload: TrackUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TrackResponse:
+    """Update track metadata for the owner."""
+    return update_track_metadata(db=db, current_user=current_user, track_id=track_id, payload=payload)
+
+
+@router.delete("/{track_id}")
+def delete_track(
+    track_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict[str, str]:
+    """Soft-delete a track for the owner."""
+    delete_track_metadata(db=db, current_user=current_user, track_id=track_id)
+    return {"detail": "Track deleted"}
