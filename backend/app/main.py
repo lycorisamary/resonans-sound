@@ -11,7 +11,7 @@ from app.db.session import engine, Base
 from app.models import User, Category, Track  # Import models to create tables
 
 # Import currently active routers
-from app.api import categories, tracks
+from app.api import auth, categories, tracks, users
 
 
 # Configure structured logging
@@ -147,12 +147,12 @@ async def metrics():
 
 
 # Include currently active routers
+app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
 app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories", tags=["Categories"])
 app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
+app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 
 # Include routers planned for later phases
-# app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
-# app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 # app.include_router(playlists.router, prefix=f"{settings.API_PREFIX}/playlists", tags=["Playlists"])
 # app.include_router(interactions.router, prefix=f"{settings.API_PREFIX}/interactions", tags=["Interactions"])
 # app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
@@ -169,6 +169,8 @@ async def root():
         "redoc": "/api/redoc",
         "health": "/api/v1/health",
         "metrics": "/metrics" if settings.PROMETHEUS_ENABLED else None,
+        "auth": "/api/v1/auth/login",
+        "me": "/api/v1/users/me",
         "categories": "/api/v1/categories",
         "category_detail_example": "/api/v1/categories/beats",
         "tracks": "/api/v1/tracks",

@@ -1,3 +1,3 @@
-from app.api import categories, tracks
+from app.api import auth, categories, tracks, users
 
-__all__ = ["categories", "tracks"]
+__all__ = ["auth", "categories", "tracks", "users"]

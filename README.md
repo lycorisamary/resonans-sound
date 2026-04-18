@@ -160,6 +160,11 @@ Current live API surface in this repository:
 - `GET /` - API info
 - `GET /api/v1/health` - Health check
 - `GET /metrics` - Prometheus metrics
+- `POST /api/v1/auth/register` - User registration
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/refresh` - Refresh JWT token pair
+- `POST /api/v1/auth/logout` - Refresh token revocation
+- `GET /api/v1/users/me` - Current authenticated user
 - `GET /api/v1/categories` - Active public categories with track counts
 - `GET /api/v1/categories/:slug` - Active public category details
 - `GET /api/v1/tracks` - Approved public tracks with pagination and simple filters
