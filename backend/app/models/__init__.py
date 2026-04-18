@@ -56,8 +56,18 @@ class User(Base):
     # Relationships
     tracks = relationship("Track", back_populates="user", cascade="all, delete-orphan")
     playlists = relationship("Playlist", back_populates="user", cascade="all, delete-orphan")
-    interactions = relationship("Interaction", back_populates="user", cascade="all, delete-orphan")
-    notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    interactions = relationship(
+        "Interaction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Interaction.user_id",
+    )
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="Notification.user_id",
+    )
     
     # Follow relationships
     followers = relationship(
@@ -174,7 +184,8 @@ class Interaction(Base):
     is_deleted = Column(Boolean, default=False)
 
     # Relationships
-    user = relationship("User", back_populates="interactions")
+    user = relationship("User", back_populates="interactions", foreign_keys=[user_id])
+    target_user = relationship("User", foreign_keys=[target_user_id])
     track = relationship("Track", back_populates="interactions")
     parent = relationship("Interaction", remote_side=[id], backref="replies")
 
@@ -236,7 +247,10 @@ class Notification(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     # Relationships
-    user = relationship("User", back_populates="notifications")
+    user = relationship("User", back_populates="notifications", foreign_keys=[user_id])
+    related_user = relationship("User", foreign_keys=[related_user_id])
+    related_track = relationship("Track", foreign_keys=[related_track_id])
+    related_interaction = relationship("Interaction", foreign_keys=[related_interaction_id])
 
 
 class Report(Base):

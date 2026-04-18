@@ -100,6 +100,27 @@ def list_public_categories(db: Session) -> list[CategoryResponse]:
     return [serialize_category(category, track_count) for category, track_count in rows]
 
 
+def get_public_category(db: Session, slug: str) -> CategoryResponse | None:
+    row = (
+        db.query(Category, func.count(Track.id).label("track_count"))
+        .outerjoin(
+            Track,
+            (Track.category_id == Category.id)
+            & Track.is_public.is_(True)
+            & (Track.status == TrackStatus.approved),
+        )
+        .filter(Category.slug == slug, Category.is_active.is_(True))
+        .group_by(Category.id)
+        .first()
+    )
+
+    if row is None:
+        return None
+
+    category, track_count = row
+    return serialize_category(category, track_count)
+
+
 def build_public_tracks_page(
     db: Session,
     page: int,

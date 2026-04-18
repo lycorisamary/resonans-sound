@@ -162,6 +162,7 @@ async def root():
         "redoc": "/api/redoc",
         "health": "/api/v1/health",
         "categories": "/api/v1/categories",
+        "category_detail_example": "/api/v1/categories/beats",
         "tracks": "/api/v1/tracks",
     }
 
