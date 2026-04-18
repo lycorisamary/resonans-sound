@@ -46,8 +46,9 @@ class ApiClient {
               refresh_token: refreshToken,
             });
 
-            const { access_token } = response.data;
+            const { access_token, refresh_token } = response.data;
             localStorage.setItem('access_token', access_token);
+            localStorage.setItem('refresh_token', refresh_token);
 
             originalRequest.headers.Authorization = `Bearer ${access_token}`;
             return this.client(originalRequest);
@@ -81,9 +82,15 @@ class ApiClient {
   }
 
   async logout() {
-    await this.client.post('/auth/logout');
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
+    const refreshToken = localStorage.getItem('refresh_token');
+    try {
+      if (refreshToken) {
+        await this.client.post('/auth/logout', { refresh_token: refreshToken });
+      }
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
   }
 
   async refreshToken(refreshToken: string) {
@@ -115,8 +122,18 @@ class ApiClient {
     return response.data;
   }
 
+  async getMyTracks(params?: any) {
+    const response = await this.client.get('/tracks/mine', { params });
+    return response.data;
+  }
+
   async getTrack(id: number) {
     const response = await this.client.get(`/tracks/${id}`);
+    return response.data;
+  }
+
+  async createTrackMetadata(data: any) {
+    const response = await this.client.post('/tracks', data);
     return response.data;
   }
 
