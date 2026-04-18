@@ -159,6 +159,7 @@ CREATE TABLE admin_logs (
 Current live API surface in this repository:
 - `GET /` - API info
 - `GET /api/v1/health` - Health check
+- `GET /metrics` - Prometheus metrics
 - `GET /api/v1/categories` - Active public categories with track counts
 - `GET /api/v1/categories/:slug` - Active public category details
 - `GET /api/v1/tracks` - Approved public tracks with pagination and simple filters

@@ -249,6 +249,7 @@ sudo certbot renew --dry-run
 Судя по коду, проект задуман как аудиоплатформа с загрузкой, хранением, конвертацией и стримингом треков, но текущее состояние пока раннее:
 
 - в `backend/app/main.py` активны root, health, `GET /api/v1/categories`, `GET /api/v1/categories/{slug}`, `GET /api/v1/tracks` и `GET /api/v1/tracks/{id}`
+- Prometheus scrape endpoint `/metrics` теперь соответствует `infra/prometheus.yml`
 - auth, playlists, interactions и admin router-ы пока не подключены
 - модели БД и схемы уже довольно подробно подготовлены
 - frontend сейчас минимальный и проверяет доступность backend

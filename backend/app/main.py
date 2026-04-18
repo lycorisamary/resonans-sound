@@ -73,6 +73,9 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+if settings.PROMETHEUS_ENABLED:
+    app.mount("/metrics", make_asgi_app())
+
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -101,16 +104,17 @@ async def log_and_metrics(request: Request, call_next):
     )
     
     # Record metrics
-    REQUEST_COUNT.labels(
-        method=request.method,
-        endpoint=request.url.path,
-        status=response.status_code
-    ).inc()
-    
-    REQUEST_LATENCY.labels(
-        method=request.method,
-        endpoint=request.url.path
-    ).observe(process_time)
+    if request.url.path != "/metrics":
+        REQUEST_COUNT.labels(
+            method=request.method,
+            endpoint=request.url.path,
+            status=response.status_code
+        ).inc()
+        
+        REQUEST_LATENCY.labels(
+            method=request.method,
+            endpoint=request.url.path
+        ).observe(process_time)
     
     return response
 
@@ -161,6 +165,7 @@ async def root():
         "docs": "/api/docs",
         "redoc": "/api/redoc",
         "health": "/api/v1/health",
+        "metrics": "/metrics" if settings.PROMETHEUS_ENABLED else None,
         "categories": "/api/v1/categories",
         "category_detail_example": "/api/v1/categories/beats",
         "tracks": "/api/v1/tracks",
