@@ -18,6 +18,7 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: ['resonance-sound.ru', 'www.resonance-sound.ru', 'api.resonance-sound.ru'],
     proxy: {
       '/api': {
         target: 'http://backend:8000',
