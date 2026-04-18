@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from hashlib import sha256
+from uuid import uuid4
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -30,12 +31,15 @@ def hash_token(token: str) -> str:
 
 
 def _build_token_payload(user: User, expires_delta: timedelta, token_type: str) -> dict:
-    expire = datetime.now(timezone.utc) + expires_delta
+    issued_at = datetime.now(timezone.utc)
+    expire = issued_at + expires_delta
     return {
         "sub": str(user.id),
         "username": user.username,
         "role": user.role.value,
         "type": token_type,
+        "iat": issued_at,
+        "jti": uuid4().hex,
         "exp": expire,
     }
 
