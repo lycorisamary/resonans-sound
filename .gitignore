@@ -33,6 +33,7 @@ wheels/
 .env
 .env.local
 .env.*
+!infra/.env.example
 
 # Logs and temp files
 *.log
