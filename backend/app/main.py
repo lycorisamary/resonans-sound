@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
-from prometheus_client import make_asgi_app, Counter, Histogram
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 import time
 import structlog
 
@@ -73,9 +73,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-if settings.PROMETHEUS_ENABLED:
-    app.mount("/metrics", make_asgi_app())
-
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
@@ -141,6 +138,12 @@ async def health_check():
         "status": "healthy",
         "version": settings.APP_VERSION,
     }
+
+
+@app.get("/metrics", include_in_schema=False)
+async def metrics():
+    """Expose Prometheus metrics without a trailing-slash redirect."""
+    return Response(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 # Include currently active routers
