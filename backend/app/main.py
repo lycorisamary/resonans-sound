@@ -10,8 +10,8 @@ from app.core.config import settings
 from app.db.session import engine, Base
 from app.models import User, Category, Track  # Import models to create tables
 
-# Import routers (will be created)
-# from app.api import auth, tracks, users, categories, playlists, interactions, admin
+# Import currently active routers
+from app.api import categories, tracks
 
 
 # Configure structured logging
@@ -139,11 +139,13 @@ async def health_check():
     }
 
 
-# Include routers (commented out until created)
+# Include currently active routers
+app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories", tags=["Categories"])
+app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
+
+# Include routers planned for later phases
 # app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
 # app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
-# app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
-# app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories", tags=["Categories"])
 # app.include_router(playlists.router, prefix=f"{settings.API_PREFIX}/playlists", tags=["Playlists"])
 # app.include_router(interactions.router, prefix=f"{settings.API_PREFIX}/interactions", tags=["Interactions"])
 # app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
@@ -159,6 +161,8 @@ async def root():
         "docs": "/api/docs",
         "redoc": "/api/redoc",
         "health": "/api/v1/health",
+        "categories": "/api/v1/categories",
+        "tracks": "/api/v1/tracks",
     }
 
 

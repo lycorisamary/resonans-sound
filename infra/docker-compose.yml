@@ -87,8 +87,6 @@ services:
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
       CORS_ORIGINS: ${CORS_ORIGINS}
-    volumes:
-      - ../backend:/app
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -102,7 +100,7 @@ services:
         condition: service_healthy
     networks:
       - audio_network
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
 
   # Celery Worker for Audio Processing
   celery_worker:
@@ -119,13 +117,15 @@ services:
       MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_SECURE: ${MINIO_SECURE}
-    volumes:
-      - ../backend:/app
     depends_on:
-      - backend
-      - rabbitmq
-      - redis
-      - minio
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      disable: true
     networks:
       - audio_network
     command: celery -A app.celery worker --loglevel=info

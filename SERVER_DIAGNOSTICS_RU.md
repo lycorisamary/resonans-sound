@@ -41,6 +41,8 @@ Backend ожидает Linux-окружение с `ffmpeg`.
 - запуск Docker Compose: `/root/resonans-sound/infra`
 - production-конфиг: `/root/resonans-sound/infra/.env`
 - HTTPS и reverse proxy: host Nginx на сервере
+- frontend внутри Docker раздаёт статическую production-сборку
+- backend и `celery_worker` запускаются из собранного image без bind-mount исходников
 
 Реальные секреты должны храниться только в `infra/.env` на сервере и не должны попадать в tracked-файлы репозитория.
 
@@ -127,6 +129,19 @@ curl https://resonance-sound.ru/api/v1/health
 
 ```json
 {"status":"healthy","version":"1.0.0"}
+```
+
+### Проверка bootstrap для Celery worker
+
+```bash
+cd /root/resonans-sound/infra
+docker compose exec backend python -c "from app.tasks import smoke_check; result = smoke_check.delay(); print(result.get(timeout=30))"
+```
+
+Ожидаемый ответ:
+
+```python
+{'status': 'ok', 'broker': 'rabbitmq', 'result_backend': 'redis'}
 ```
 
 ### Проверка PostgreSQL / Redis / RabbitMQ / MinIO
@@ -233,11 +248,13 @@ sudo certbot renew --dry-run
 
 Судя по коду, проект задуман как аудиоплатформа с загрузкой, хранением, конвертацией и стримингом треков, но текущее состояние пока раннее:
 
-- в `backend/app/main.py` реально активны только root и health endpoint
-- основные API router-ы пока не подключены
+- в `backend/app/main.py` активны root, health, `GET /api/v1/categories`, `GET /api/v1/tracks` и `GET /api/v1/tracks/{id}`
+- auth, playlists, interactions и admin router-ы пока не подключены
 - модели БД и схемы уже довольно подробно подготовлены
 - frontend сейчас минимальный и проверяет доступность backend
 - production frontend уже переведён на статическую сборку и раздаётся через Nginx в контейнере
+- backend в production не должен запускаться через `uvicorn --reload`
+- `celery_worker` поднимается через `app.celery`; для быстрой проверки доступна smoke task `app.tasks.smoke_check`
 
 ## 9. Что прислать для следующего шага
 

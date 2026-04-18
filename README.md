@@ -156,6 +156,15 @@ CREATE TABLE admin_logs (
 
 ## API Endpoints
 
+Current live API surface in this repository:
+- `GET /` - API info
+- `GET /api/v1/health` - Health check
+- `GET /api/v1/categories` - Active public categories with track counts
+- `GET /api/v1/tracks` - Approved public tracks with pagination and simple filters
+- `GET /api/v1/tracks/:id` - Approved public track details
+
+Everything else below is still planned API surface, not fully implemented yet.
+
 ### Authentication
 - `POST /api/v1/auth/register` - User registration
 - `POST /api/v1/auth/login` - User login
@@ -380,6 +389,12 @@ docker compose config
 docker compose up -d --build
 ```
 
+Production runtime notes:
+- frontend is served as a static build from its own `nginx:alpine` container
+- backend runs from the built image without a source bind mount
+- backend is started without `uvicorn --reload`
+- `celery_worker` now boots through `app.celery` and can be smoke-checked before the real audio pipeline exists
+
 Recommended verification:
 
 ```bash
@@ -387,6 +402,7 @@ docker compose ps
 curl -I https://resonance-sound.ru/
 curl -I https://resonance-sound.ru/login
 curl https://resonance-sound.ru/api/v1/health
+docker compose exec backend python -c "from app.tasks import smoke_check; result = smoke_check.delay(); print(result.get(timeout=30))"
 ```
 
 ## License
