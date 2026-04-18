@@ -80,7 +80,7 @@ docker compose ps
 | **API Документация** | http://localhost/api/docs | Swagger UI для тестирования API |
 | **Admin Panel** | http://localhost/admin | Админ-панель |
 | **Health Check** | http://localhost/api/v1/health | Проверка статуса API |
-| **RabbitMQ Admin** | http://localhost:15672 | Панель управления очередями (логин/пароль: audioplatform / secure_password_change_me) |
+| **RabbitMQ Admin** | http://localhost:15672 | Панель управления очередями, логин и пароль берутся из `infra/.env` |
 | **Grafana** | http://localhost:3000 | Мониторинг (логин/пароль: admin / admin) |
 
 ---

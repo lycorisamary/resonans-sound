@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     API_PREFIX: str = "/api/v1"
     
     # Database
+    # Defaults below are intended for local development only.
     DATABASE_URL: str = "postgresql://audioplatform:password@localhost:5432/audio_platform"
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
@@ -32,7 +33,7 @@ class Settings(BaseSettings):
     MINIO_SECURE: bool = False
     
     # Security & Authentication
-    SECRET_KEY: str = "your-secret-key-change-in-production"
+    SECRET_KEY: str = "change_me_application_secret"
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7

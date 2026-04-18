@@ -363,7 +363,31 @@ npm run dev
 ```
 
 ### Production Deployment
-See `DEPLOYMENT.md` for detailed production setup instructions.
+
+Current production layout:
+- host Nginx terminates HTTPS and proxies traffic
+- Docker Compose is run from `infra/`
+- production configuration lives in `infra/.env` on the server
+
+Recommended deploy flow:
+
+```bash
+cd /root/resonans-sound
+git pull origin main
+cd infra
+test -f .env || cp .env.example .env
+docker compose config
+docker compose up -d --build
+```
+
+Recommended verification:
+
+```bash
+docker compose ps
+curl -I https://resonance-sound.ru/
+curl -I https://resonance-sound.ru/login
+curl https://resonance-sound.ru/api/v1/health
+```
 
 ## License
 

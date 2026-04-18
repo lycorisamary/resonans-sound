@@ -94,7 +94,7 @@ MINIO_ENDPOINT=minio:9000
 
 # Application
 APP_ENV=development
-SECRET_KEY=your-secret-key-change-in-production
+SECRET_KEY=change_me_application_secret
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 

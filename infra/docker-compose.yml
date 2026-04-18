@@ -4,9 +4,9 @@ services:
     image: postgres:15-alpine
     container_name: audio_platform_db
     environment:
-      POSTGRES_USER: audioplatform
-      POSTGRES_PASSWORD: secure_password_change_me
-      POSTGRES_DB: audio_platform
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
@@ -38,8 +38,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: audio_platform_rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: audioplatform
-      RABBITMQ_DEFAULT_PASS: secure_password_change_me
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS}
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
     networks:
@@ -55,8 +55,8 @@ services:
     image: minio/minio:latest
     container_name: audio_platform_minio
     environment:
-      MINIO_ROOT_USER: audioplatform
-      MINIO_ROOT_PASSWORD: secure_password_change_me
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -75,16 +75,18 @@ services:
       dockerfile: Dockerfile
     container_name: audio_platform_backend
     environment:
-      DATABASE_URL: postgresql://audioplatform:secure_password_change_me@postgres:5432/audio_platform
-      REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://audioplatform:secure_password_change_me@rabbitmq:5672//
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: audioplatform
-      MINIO_SECRET_KEY: secure_password_change_me
-      MINIO_BUCKET: audio-tracks
-      SECRET_KEY: change_this_secret_key_in_production
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 15
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: ${MINIO_SECURE}
+      SECRET_KEY: ${SECRET_KEY}
+      ALGORITHM: ${ALGORITHM}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      CORS_ORIGINS: ${CORS_ORIGINS}
     volumes:
       - ../backend:/app
     ports:
@@ -109,13 +111,14 @@ services:
       dockerfile: Dockerfile
     container_name: audio_platform_celery
     environment:
-      DATABASE_URL: postgresql://audioplatform:secure_password_change_me@postgres:5432/audio_platform
-      REDIS_URL: redis://redis:6379/0
-      RABBITMQ_URL: amqp://audioplatform:secure_password_change_me@rabbitmq:5672//
-      MINIO_ENDPOINT: minio:9000
-      MINIO_ACCESS_KEY: audioplatform
-      MINIO_SECRET_KEY: secure_password_change_me
-      MINIO_BUCKET: audio-tracks
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      RABBITMQ_URL: ${RABBITMQ_URL}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY}
+      MINIO_BUCKET: ${MINIO_BUCKET}
+      MINIO_SECURE: ${MINIO_SECURE}
     volumes:
       - ../backend:/app
     depends_on:
@@ -133,18 +136,14 @@ services:
       context: ../frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=/api/v1
+        - VITE_API_URL=${VITE_API_URL}
     container_name: audio_platform_frontend
-    volumes:
-      - ../frontend:/app
-      - /app/node_modules
     ports:
-      - "127.0.0.1:3000:5173"
+      - "127.0.0.1:3000:80"
     depends_on:
       - backend
     networks:
       - audio_network
-    command: npm run dev -- --host
 
   # Nginx Reverse Proxy
   nginx:
@@ -176,8 +175,8 @@ services:
     image: grafana/grafana:latest
     container_name: audio_platform_grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:

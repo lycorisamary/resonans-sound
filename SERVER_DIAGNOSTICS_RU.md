@@ -1,44 +1,50 @@
 # Диагностика сервера и SSL для `resonans-sound`
 
-Этот документ привязан к текущему репозиторию и помогает проверить, готов ли сервер к запуску проекта, а также правильно включить HTTPS.
+Этот документ привязан к текущему репозиторию и помогает проверить, готов ли сервер к запуску проекта, а также как сейчас правильно обновлять production.
 
-## 1. Что требует проект
+## 1. Что использует проект
 
-По [`infra/docker-compose.yml`](./infra/docker-compose.yml) проект рассчитывает на такой стек:
+По [`infra/docker-compose.yml`](./infra/docker-compose.yml) проект использует такой стек:
 
-- `postgres` для основной БД
-- `redis` для кеша
-- `rabbitmq` для очередей
-- `minio` для хранения аудиофайлов
-- `backend` на FastAPI
-- `celery_worker` для фоновой обработки аудио
-- `frontend` на React/Vite
-- `nginx` как reverse proxy
-- `prometheus` и `grafana` для мониторинга
+- `postgres`
+- `redis`
+- `rabbitmq`
+- `minio`
+- `backend`
+- `celery_worker`
+- `frontend`
+- `nginx`
+- `prometheus`
+- `grafana`
 
-По [`backend/Dockerfile`](./backend/Dockerfile) backend ожидает Linux-окружение с `ffmpeg`.
+Backend ожидает Linux-окружение с `ffmpeg`.
 
 ## 2. Рекомендуемые ресурсы сервера
 
-Оценка ниже сделана по составу сервисов в репозитории.
-
-Минимум для тестового прод-сервера:
+Минимум для тестового production-сервера:
 
 - 2 vCPU
 - 4 GB RAM
 - 25-30 GB SSD
 
-Рекомендуемо для нормальной работы всего стека из `docker-compose`:
+Комфортнее для полного docker-стека:
 
 - 4 vCPU
 - 8 GB RAM
 - 40+ GB SSD
 
-Если Prometheus, Grafana, MinIO и RabbitMQ действительно нужны на том же сервере, лучше ориентироваться именно на рекомендованный вариант.
+## 3. Production source of truth
 
-## 3. Быстрая диагностика сервера
+Текущая production-схема для этого проекта:
 
-Все команды ниже предполагают Linux-сервер с Docker и Nginx.
+- код на сервере: `/root/resonans-sound`
+- запуск Docker Compose: `/root/resonans-sound/infra`
+- production-конфиг: `/root/resonans-sound/infra/.env`
+- HTTPS и reverse proxy: host Nginx на сервере
+
+Реальные секреты должны храниться только в `infra/.env` на сервере и не должны попадать в tracked-файлы репозитория.
+
+## 4. Быстрая диагностика сервера
 
 ### ОС, CPU, RAM, диск
 
@@ -64,11 +70,11 @@ docker info
 sudo ss -tulpn | egrep ':(22|80|443|3000|3001|5432|5672|6379|8000|9000|9001|9090|15672)\b'
 ```
 
-В проде наружу обычно должны смотреть только:
+В production наружу обычно должны смотреть только:
 
-- `22/tcp` для SSH
-- `80/tcp` для HTTP и получения сертификата
-- `443/tcp` для HTTPS
+- `22/tcp`
+- `80/tcp`
+- `443/tcp`
 
 Порты `5432`, `6379`, `5672`, `15672`, `9000`, `9001`, `9090`, `3001`, `8000`, `3000` лучше не открывать в интернет.
 
@@ -82,10 +88,9 @@ sudo ufw status numbered
 
 Желаемое состояние:
 
-- разрешены `OpenSSH`
+- разрешён `OpenSSH`
 - разрешены `80/tcp`
 - разрешены `443/tcp`
-- всё остальное либо закрыто, либо ограничено внутренней сетью
 
 ### Nginx
 
@@ -97,29 +102,28 @@ sudo journalctl -u nginx -n 200 --no-pager
 
 ### Docker-сервисы проекта
 
-Из корня репозитория:
-
 ```bash
-docker compose -f infra/docker-compose.yml ps
-docker compose -f infra/docker-compose.yml logs backend --tail=200
-docker compose -f infra/docker-compose.yml logs frontend --tail=200
-docker compose -f infra/docker-compose.yml logs nginx --tail=200
-docker compose -f infra/docker-compose.yml logs postgres --tail=100
-docker compose -f infra/docker-compose.yml logs redis --tail=100
-docker compose -f infra/docker-compose.yml logs rabbitmq --tail=100
-docker compose -f infra/docker-compose.yml logs minio --tail=100
+cd /root/resonans-sound/infra
+docker compose ps
+docker compose logs backend --tail=200
+docker compose logs frontend --tail=200
+docker compose logs postgres --tail=100
+docker compose logs redis --tail=100
+docker compose logs rabbitmq --tail=100
+docker compose logs minio --tail=100
 ```
 
-### Проверка HTTP-эндпоинтов
+### Проверка HTTP endpoint-ов
 
 ```bash
 curl -I http://127.0.0.1
-curl http://127.0.0.1/api/v1/health
-curl -I http://YOUR_DOMAIN
-curl -I https://YOUR_DOMAIN
+curl http://127.0.0.1:8000/api/v1/health
+curl -I https://resonance-sound.ru/
+curl -I https://resonance-sound.ru/login
+curl https://resonance-sound.ru/api/v1/health
 ```
 
-Ожидаемо backend должен отдавать:
+Ожидаемый ответ healthcheck:
 
 ```json
 {"status":"healthy","version":"1.0.0"}
@@ -128,22 +132,43 @@ curl -I https://YOUR_DOMAIN
 ### Проверка PostgreSQL / Redis / RabbitMQ / MinIO
 
 ```bash
-docker compose -f infra/docker-compose.yml exec postgres pg_isready -U audioplatform
-docker compose -f infra/docker-compose.yml exec redis redis-cli ping
-docker compose -f infra/docker-compose.yml exec rabbitmq rabbitmq-diagnostics -q ping
+cd /root/resonans-sound/infra
+docker compose exec postgres pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"
+docker compose exec redis redis-cli ping
+docker compose exec rabbitmq rabbitmq-diagnostics -q ping
 curl -f http://127.0.0.1:9000/minio/health/live
 ```
 
-## 4. Важные проектные риски, которые стоит проверить
+## 5. Деплой и обновление
 
-### Не держите одновременно два Nginx на 80/443
+Рекомендуемая последовательность обновления production:
 
-В репозитории уже есть контейнерный `nginx`, который хочет слушать `80:80` и `443:443`.
+```bash
+cd /root/resonans-sound
+git pull origin main
+cd infra
+test -f .env || cp .env.example .env
+docker compose config
+docker compose up -d --build
+docker compose ps
+curl -I https://resonance-sound.ru/
+curl -I https://resonance-sound.ru/login
+curl https://resonance-sound.ru/api/v1/health
+```
 
-Если у вас на сервере установлен host Nginx через `apt`, нужно выбрать одну схему:
+Если меняются только backend, frontend или celery worker:
 
-- либо host Nginx обслуживает `80/443`, а Docker-контейнер `nginx` не публикует эти порты
-- либо Docker Nginx обслуживает `80/443`, а systemd-сервис `nginx` на хосте выключен
+```bash
+cd /root/resonans-sound/infra
+docker compose up -d --build backend frontend celery_worker
+```
+
+## 6. Важные проектные риски
+
+### Не держите два публичных Nginx на 80/443
+
+Если на сервере уже работает host Nginx через systemd, именно он должен обслуживать `80/443`.
+Контейнерный Nginx не должен пытаться публиковать эти порты наружу.
 
 Проверка:
 
@@ -151,30 +176,24 @@ curl -f http://127.0.0.1:9000/minio/health/live
 sudo ss -tulpn | egrep ':(80|443)\b'
 ```
 
-### Для продакшена сейчас наружу опубликовано слишком много портов
+### Не храните production-секреты в репозитории
 
-В текущем `docker-compose` наружу проброшены БД, Redis, RabbitMQ, MinIO, Prometheus и Grafana. Для продакшена это нужно либо убрать из `ports`, либо закрыть firewall.
+Все реальные значения должны жить в `/root/resonans-sound/infra/.env`.
+В tracked-файлах должны оставаться только шаблоны и безопасные placeholder-значения.
 
 ### Frontend должен ходить в API через тот же домен
 
-В коде frontend базовый API URL теперь по умолчанию выставлен как `/api/v1`, а не `http://localhost:8000/api/v1`. Это нужно, чтобы браузер на проде не пытался обращаться к своему локальному `localhost`.
-
-Если вы всё же захотите задавать адрес явно, используйте:
+Для production используется:
 
 ```bash
-VITE_API_URL=https://YOUR_DOMAIN/api/v1
+VITE_API_URL=/api/v1
 ```
 
-## 5. SSL через Let's Encrypt
+Это позволяет браузеру работать через тот же домен и host Nginx.
 
-Ниже рекомендуемая схема: SSL завершает **host Nginx**, а приложение работает в Docker за ним.
+## 7. SSL через Let's Encrypt
 
-### Предварительные условия
-
-- домен уже указывает на IP сервера
-- открыты `80/tcp` и `443/tcp`
-- только один процесс слушает `80/443`
-- `nginx -t` проходит без ошибок
+Рекомендуемая схема: SSL завершает host Nginx, а приложение работает в Docker за ним.
 
 ### Установка Certbot на Ubuntu/Debian
 
@@ -185,17 +204,11 @@ sudo apt install -y certbot python3-certbot-nginx
 
 ### Шаблон Nginx-конфига
 
-В репозитории добавлен пример:
+В репозитории есть пример:
 
 - [`infra/nginx.host.example.conf`](./infra/nginx.host.example.conf)
 
-Скопируйте его в `/etc/nginx/sites-available/YOUR_DOMAIN`, замените:
-
-- `YOUR_DOMAIN`
-- `www.YOUR_DOMAIN`
-- при необходимости upstream-порты
-
-Потом включите сайт:
+Скопируйте его в `/etc/nginx/sites-available/YOUR_DOMAIN`, замените домены и upstream-порты, затем включите сайт:
 
 ```bash
 sudo ln -s /etc/nginx/sites-available/YOUR_DOMAIN /etc/nginx/sites-enabled/YOUR_DOMAIN
@@ -216,42 +229,33 @@ systemctl status certbot.timer --no-pager
 sudo certbot renew --dry-run
 ```
 
-## 6. Что реально реализовано в проекте сейчас
+## 8. Что реально реализовано в проекте сейчас
 
-Судя по коду, проект задуман как платформа для публикации и стриминга аудио:
+Судя по коду, проект задуман как аудиоплатформа с загрузкой, хранением, конвертацией и стримингом треков, но текущее состояние пока раннее:
 
-- загрузка треков
-- хранение аудио в S3-совместимом хранилище
-- конвертация в несколько битрейтов
-- стриминг
-- плейлисты
-- лайки, комментарии, подписки
-- админка и модерация
+- в `backend/app/main.py` реально активны только root и health endpoint
+- основные API router-ы пока не подключены
+- модели БД и схемы уже довольно подробно подготовлены
+- frontend сейчас минимальный и проверяет доступность backend
+- production frontend уже переведён на статическую сборку и раздаётся через Nginx в контейнере
 
-Но фактическое состояние репозитория пока раннее:
+## 9. Что прислать для следующего шага
 
-- в `backend/app/main.py` реально есть только root и health endpoint
-- роутеры API там закомментированы
-- модели БД уже довольно подробно описаны
-- frontend-клиент API написан как заготовка, но сам UI ещё не собран
-
-## 7. Что прислать для следующего шага
-
-Если хотите, следующим сообщением можно прислать вывод этих команд:
+Если понадобится дополнительная диагностика, полезно прислать вывод:
 
 ```bash
 sudo ss -tulpn | egrep ':(80|443|8000|3000|5432|6379|5672|9000|9001|9090|15672)\b'
 sudo nginx -t
 sudo systemctl status nginx --no-pager
-docker compose -f infra/docker-compose.yml ps
-curl -I http://YOUR_DOMAIN
-curl -I https://YOUR_DOMAIN
-curl http://127.0.0.1/api/v1/health
+cd /root/resonans-sound/infra && docker compose ps
+curl -I https://resonance-sound.ru/
+curl -I https://resonance-sound.ru/login
+curl https://resonance-sound.ru/api/v1/health
 ```
 
-По ним уже можно будет точно сказать:
+По ним уже можно точно понять:
 
-- кто у вас держит `80/443`
-- где именно ставить сертификат
-- какие порты надо закрыть
-- что из проекта реально работает на сервере прямо сейчас
+- кто держит `80/443`
+- корректно ли обновился docker-стек
+- жив ли backend
+- правильно ли отдаётся frontend после деплоя

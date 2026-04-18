@@ -53,8 +53,8 @@ Wait until all services show "healthy" status (approximately 1-2 minutes).
 | Frontend | http://localhost | Auto-login or register |
 | API Docs | http://localhost/api/docs | - |
 | Admin Panel | http://localhost/admin | admin@audioplatform.com / admin123 |
-| MinIO Console | http://localhost:9001 | audioplatform / secure_password_change_me |
-| RabbitMQ Management | http://localhost:15672 | audioplatform / secure_password_change_me |
+| MinIO Console | http://localhost:9001 | `MINIO_ROOT_USER` / `MINIO_ROOT_PASSWORD` from `infra/.env` |
+| RabbitMQ Management | http://localhost:15672 | `RABBITMQ_DEFAULT_USER` / `RABBITMQ_DEFAULT_PASS` from `infra/.env` |
 | Prometheus | http://localhost:9090 | - |
 | Grafana | http://localhost:3001 | admin / admin |
 
@@ -92,46 +92,28 @@ npm run dev
 
 ### Environment Variables
 
-Create a `.env` file in the backend directory:
+Copy the infrastructure env template and customize it:
 
-```env
-# Database
-DATABASE_URL=postgresql://audioplatform:secure_password_change_me@postgres:5432/audio_platform
-
-# Redis
-REDIS_URL=redis://redis:6379/0
-
-# RabbitMQ
-RABBITMQ_URL=amqp://audioplatform:secure_password_change_me@rabbitmq:5672//
-
-# MinIO
-MINIO_ENDPOINT=minio:9000
-MINIO_ACCESS_KEY=audioplatform
-MINIO_SECRET_KEY=secure_password_change_me
-MINIO_BUCKET=audio-tracks
-
-# Security
-SECRET_KEY=your-super-secret-key-change-in-production
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=15
-
-# CORS
-CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+```bash
+cd infra
+cp .env.example .env
 ```
 
 ### Changing Default Passwords
 
-Edit `infra/docker-compose.yml` and change:
+Edit `infra/.env` and change:
 - `POSTGRES_PASSWORD`
 - `RABBITMQ_DEFAULT_PASS`
 - `MINIO_ROOT_PASSWORD`
+- `MINIO_SECRET_KEY`
+- `SECRET_KEY`
 - `GF_SECURITY_ADMIN_PASSWORD`
 
 Then recreate containers:
 
 ```bash
-docker-compose down -v
-docker-compose up -d
+docker compose config
+docker compose up -d --build
 ```
 
 ## Common Tasks
