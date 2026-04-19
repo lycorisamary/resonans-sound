@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
@@ -6,6 +7,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas import PaginatedResponse, TrackResponse, TrackUploadResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
+from app.services.streaming import build_track_stream_response
 from app.services.tracks import (
     create_track_metadata,
     delete_track_metadata,
@@ -73,6 +75,22 @@ def upload_track(
         current_user=current_user,
         track_id=track_id,
         upload_file_object=file,
+    )
+
+
+@router.get("/{track_id}/stream")
+def stream_track(
+    track_id: int,
+    quality: str = Query("320"),
+    range_header: str | None = Header(default=None, alias="Range"),
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """Stream an approved public track with optional HTTP Range support."""
+    return build_track_stream_response(
+        db=db,
+        track_id=track_id,
+        quality=quality,
+        range_header=range_header,
     )
 
 

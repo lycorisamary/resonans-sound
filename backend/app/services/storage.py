@@ -8,6 +8,7 @@ from typing import Iterable
 from uuid import uuid4
 
 from minio import Minio
+from urllib3.response import BaseHTTPResponse
 from app.core.config import settings
 
 
@@ -20,6 +21,14 @@ class StoredObject:
     object_key: str
     content_type: str | None = None
     size_bytes: int | None = None
+
+
+@dataclass(frozen=True)
+class ObjectInfo:
+    bucket: str
+    object_key: str
+    size_bytes: int
+    content_type: str | None = None
 
 
 def get_storage_client() -> Minio:
@@ -83,6 +92,23 @@ def download_file(object_key: str, destination_path: str) -> None:
     destination = Path(destination_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     client.fget_object(settings.MINIO_BUCKET, object_key, str(destination))
+
+
+def stat_object(object_key: str) -> ObjectInfo:
+    client = ensure_bucket_exists()
+    result = client.stat_object(settings.MINIO_BUCKET, object_key)
+    return ObjectInfo(
+        bucket=settings.MINIO_BUCKET,
+        object_key=object_key,
+        size_bytes=result.size,
+        content_type=getattr(result, "content_type", None),
+    )
+
+
+def get_object_stream(object_key: str, offset: int = 0, length: int | None = None) -> BaseHTTPResponse:
+    client = ensure_bucket_exists()
+    request_length = 0 if length is None else length
+    return client.get_object(settings.MINIO_BUCKET, object_key, offset=offset, length=request_length)
 
 
 def delete_objects(object_keys: Iterable[str]) -> None:
