@@ -70,6 +70,11 @@ export interface TrackMetadata {
   format?: string;
 }
 
+export interface TrackModerationPayload {
+  status: 'approved' | 'rejected';
+  rejection_reason?: string | null;
+}
+
 export interface Playlist {
   id: number;
   user_id: number;

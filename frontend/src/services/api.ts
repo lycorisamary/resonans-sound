@@ -157,7 +157,7 @@ class ApiClient {
     await this.client.delete(`/tracks/${id}`);
   }
 
-  async streamTrack(id: number, quality: number = 320) {
+  async streamTrack(id: number, quality: number | string = 320) {
     // Return the stream URL - actual streaming is handled by browser
     return `${API_BASE_URL}/tracks/${id}/stream?quality=${quality}`;
   }

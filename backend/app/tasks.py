@@ -113,7 +113,7 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
         metadata_json["storage"]["original_object_key"] = original_object_key
         metadata_json["storage"]["processed_object_keys"] = processed_object_keys
         metadata_json.setdefault("processing", {})
-        metadata_json["processing"]["status"] = "approved"
+        metadata_json["processing"]["status"] = "processed"
         metadata_json["processing"]["completed_at"] = _utcnow_iso()
         metadata_json["processing"].pop("error", None)
 
@@ -125,13 +125,13 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
         track.mp3_320_url = stream_urls["320"]
         track.waveform_data_json = processed_assets.waveform_data_json
         track.metadata_json = metadata_json
-        track.status = TrackStatus.approved
+        track.status = TrackStatus.pending
         track.rejection_reason = None
         db.add(track)
         db.commit()
 
         return {
-            "status": "approved",
+            "status": "processed",
             "track_id": track_id,
             "task_id": self.request.id,
         }

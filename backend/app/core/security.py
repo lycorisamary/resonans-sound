@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from uuid import uuid4
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.db.session import get_db
-from app.models import User, UserStatus
+from app.models import User, UserRole, UserStatus
 from app.schemas import TokenData
 
 
@@ -102,3 +102,36 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         )
 
     return user
+
+
+def get_optional_current_user(
+    authorization: str | None = Header(default=None, alias="Authorization"),
+    db: Session = Depends(get_db),
+) -> User | None:
+    if not authorization:
+        return None
+
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token:
+        return None
+
+    try:
+        token_data = decode_token(token, expected_type="access")
+    except HTTPException:
+        return None
+
+    user = db.query(User).filter(User.id == token_data.user_id).first()
+    if user is None or user.status != UserStatus.active:
+        return None
+
+    return user
+
+
+def get_moderator_user(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role not in {UserRole.moderator, UserRole.admin}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Moderator or admin access required",
+        )
+
+    return current_user

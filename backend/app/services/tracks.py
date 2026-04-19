@@ -207,12 +207,6 @@ def _assert_uploadable_track(track: Track) -> None:
             detail="Track is already being processed",
         )
 
-    if track.status == TrackStatus.approved:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Approved tracks cannot be replaced yet",
-        )
-
     if track.status == TrackStatus.deleted:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

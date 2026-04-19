@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -19,7 +19,7 @@ import {
 } from '@mui/material';
 
 import api from './services/api';
-import { AuthTokens, Category, PaginatedResponse, Track, User } from './types';
+import { AuthTokens, Category, PaginatedResponse, SystemStats, Track, TrackModerationPayload, User } from './types';
 
 
 type HealthResponse = {
@@ -54,6 +54,64 @@ const initialTrackForm: TrackFormState = {
   bpm: '',
   key_signature: '',
 };
+
+type StreamQuality = '128' | '320' | 'original';
+
+
+function WaveformPreview({ track, active }: { track: Track; active: boolean }) {
+  const samples = Array.isArray(track.waveform_data_json?.samples) ? track.waveform_data_json.samples : [];
+  if (samples.length === 0) {
+    return (
+      <Box
+        sx={{
+          height: 56,
+          borderRadius: 3,
+          border: '1px dashed rgba(15,118,110,0.25)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'text.secondary',
+          fontSize: 12,
+        }}
+      >
+        Waveform will appear after media processing.
+      </Box>
+    );
+  }
+
+  const step = Math.max(1, Math.floor(samples.length / 64));
+  const downsampled = samples.filter((_: number, index: number) => index % step === 0).slice(0, 64);
+
+  return (
+    <Stack
+      direction="row"
+      spacing={0.4}
+      alignItems="end"
+      sx={{
+        height: 56,
+        px: 1,
+        py: 0.75,
+        borderRadius: 3,
+        bgcolor: active ? 'rgba(15,118,110,0.12)' : 'rgba(15,118,110,0.06)',
+        border: '1px solid rgba(15,118,110,0.14)',
+      }}
+    >
+      {downsampled.map((value: number, index: number) => (
+        <Box
+          key={`${track.id}-${index}`}
+          sx={{
+            width: 4,
+            minHeight: 6,
+            height: `${Math.max(10, Math.round(Number(value || 0) * 100))}%`,
+            borderRadius: 999,
+            bgcolor: active ? '#0f766e' : 'rgba(15,118,110,0.45)',
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </Stack>
+  );
+}
 
 
 function saveTokens(tokens: AuthTokens) {
@@ -107,6 +165,15 @@ export default function App() {
   const [trackForm, setTrackForm] = useState<TrackFormState>(initialTrackForm);
   const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
   const [uploadingTrackId, setUploadingTrackId] = useState<number | null>(null);
+  const [moderationQueue, setModerationQueue] = useState<Track[]>([]);
+  const [moderationBusy, setModerationBusy] = useState(false);
+  const [moderationStats, setModerationStats] = useState<SystemStats | null>(null);
+  const [moderationReasonByTrack, setModerationReasonByTrack] = useState<Record<number, string>>({});
+  const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
+  const [playerQuality, setPlayerQuality] = useState<StreamQuality>('320');
+  const [currentStreamUrl, setCurrentStreamUrl] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const loadPublicCatalog = async (category: string) => {
     setCatalogBusy(true);
@@ -125,14 +192,29 @@ export default function App() {
     }
   };
 
-  const loadAuthenticatedState = async () => {
-    const [currentUser, myTracksResponse] = await Promise.all([
-      api.getCurrentUser(),
-      api.getMyTracks(),
+  const loadModeratorState = async (currentUser: User) => {
+    if (!['moderator', 'admin'].includes(currentUser.role)) {
+      setModerationQueue([]);
+      setModerationStats(null);
+      return;
+    }
+
+    const [statsResponse, moderationResponse] = await Promise.all([
+      api.getSystemStats(),
+      api.getModerationQueue(),
     ]);
 
-    setUser(currentUser as User);
-    setMyTracks((myTracksResponse as PaginatedResponse<Track>).items);
+    setModerationStats(statsResponse as SystemStats);
+    setModerationQueue((moderationResponse as PaginatedResponse<Track>).items);
+  };
+
+  const loadAuthenticatedState = async () => {
+    const currentUser = (await api.getCurrentUser()) as User;
+    const myTracksResponse = (await api.getMyTracks()) as PaginatedResponse<Track>;
+
+    setUser(currentUser);
+    setMyTracks(myTracksResponse.items);
+    await loadModeratorState(currentUser);
   };
 
   useEffect(() => {
@@ -172,6 +254,27 @@ export default function App() {
 
     void loadPublicCatalog(selectedCategory);
   }, [selectedCategory, initialLoading]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    const onPlay = () => setIsPlaying(true);
+    const onPause = () => setIsPlaying(false);
+    const onEnded = () => setIsPlaying(false);
+
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('ended', onEnded);
+
+    return () => {
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, []);
 
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -332,6 +435,76 @@ export default function App() {
   };
 
   const canUploadTrackMedia = (track: Track) => track.status === 'pending' || track.status === 'rejected';
+  const isModerator = user?.role === 'moderator' || user?.role === 'admin';
+  const hasPlayableMedia = (track: Track) => Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
+
+  const resolvePlayableQuality = (track: Track, preferredQuality: StreamQuality): StreamQuality | null => {
+    if (preferredQuality === 'original' && track.original_url) {
+      return 'original';
+    }
+    if (preferredQuality === '320' && track.mp3_320_url) {
+      return '320';
+    }
+    if (preferredQuality === '128' && track.mp3_128_url) {
+      return '128';
+    }
+    if (track.mp3_320_url) {
+      return '320';
+    }
+    if (track.mp3_128_url) {
+      return '128';
+    }
+    if (track.original_url) {
+      return 'original';
+    }
+    return null;
+  };
+
+  const handlePlayTrack = async (track: Track) => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    if (activeTrackId === track.id && isPlaying) {
+      audio.pause();
+      return;
+    }
+
+    setPageError(null);
+    try {
+      const quality = resolvePlayableQuality(track, playerQuality);
+      if (!quality) {
+        throw new Error('No streamable media asset is ready for this track');
+      }
+
+      const streamUrl = await api.streamTrack(track.id, quality);
+      setActiveTrackId(track.id);
+      setCurrentStreamUrl(streamUrl);
+      if (audio.src !== streamUrl) {
+        audio.src = streamUrl;
+      }
+      await audio.play();
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : 'Could not start playback');
+    }
+  };
+
+  const handleModerateTrack = async (track: Track, payload: TrackModerationPayload) => {
+    setModerationBusy(true);
+    setPageError(null);
+    setBanner(null);
+
+    try {
+      await api.moderateTrack(track.id, payload);
+      setBanner(`Moderation updated for "${track.title}".`);
+      await Promise.all([loadAuthenticatedState(), loadPublicCatalog(selectedCategory)]);
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : 'Could not moderate track');
+    } finally {
+      setModerationBusy(false);
+    }
+  };
 
   return (
     <Box
@@ -392,6 +565,34 @@ export default function App() {
 
             {pageError ? <Alert severity="error">{pageError}</Alert> : null}
             {banner ? <Alert severity="success">{banner}</Alert> : null}
+
+            <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
+              <Stack spacing={2}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                  <Box>
+                    <Typography variant="h5">Player</Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      Public tracks stream for everyone. Private or non-public media streams are available only to the owner and moderator roles.
+                    </Typography>
+                  </Box>
+                  <TextField
+                    select
+                    label="Stream quality"
+                    value={playerQuality}
+                    onChange={(event) => setPlayerQuality(event.target.value as StreamQuality)}
+                    sx={{ minWidth: 180 }}
+                  >
+                    <MenuItem value="128">128 kbps</MenuItem>
+                    <MenuItem value="320">320 kbps</MenuItem>
+                    <MenuItem value="original">Original</MenuItem>
+                  </TextField>
+                </Stack>
+                <audio ref={audioRef} controls src={currentStreamUrl ?? undefined} style={{ width: '100%' }} />
+                <Typography variant="body2" color="text.secondary">
+                  {activeTrackId ? `Current loaded track: #${activeTrackId}${isPlaying ? ' (playing)' : ' (paused)'}` : 'Choose any playable track below.'}
+                </Typography>
+              </Stack>
+            </Paper>
 
             <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
               <Paper variant="outlined" sx={{ flex: 1.2, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
@@ -544,6 +745,12 @@ export default function App() {
                               {(track.user?.username ?? 'Unknown artist')} | {track.category?.name ?? 'Без категории'}
                             </Typography>
                             {track.description ? <Typography>{track.description}</Typography> : null}
+                            <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
+                            <Stack direction="row" spacing={1}>
+                              <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
+                                {activeTrackId === track.id && isPlaying ? 'Pause' : 'Play'}
+                              </Button>
+                            </Stack>
                           </Stack>
                         </CardContent>
                       </Card>
@@ -727,7 +934,11 @@ export default function App() {
                                 </Typography>
                               ) : null}
                               {track.rejection_reason ? <Alert severity="error">{track.rejection_reason}</Alert> : null}
+                              <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
                               <Stack direction="row" spacing={1}>
+                                <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
+                                  {activeTrackId === track.id && isPlaying ? 'Pause' : 'Play'}
+                                </Button>
                                 <Button variant="outlined" size="small" onClick={() => startEditingTrack(track)}>
                                   Редактировать
                                 </Button>
@@ -766,6 +977,94 @@ export default function App() {
                 </Stack>
               </Paper>
             </Stack>
+
+            {isModerator ? (
+              <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
+                <Stack spacing={3}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="h5">Moderation queue</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Tracks land here after media processing and wait for explicit approve/reject review.
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip label={`Pending review: ${moderationStats?.tracks_pending_moderation ?? 0}`} color="warning" variant="outlined" />
+                      <Chip label={`Users: ${moderationStats?.total_users ?? 0}`} variant="outlined" />
+                      <Chip label={`Tracks: ${moderationStats?.total_tracks ?? 0}`} variant="outlined" />
+                    </Stack>
+                  </Stack>
+
+                  {moderationQueue.length === 0 ? (
+                    <Alert severity="info">No tracks are waiting for moderation right now.</Alert>
+                  ) : (
+                    <Stack spacing={2}>
+                      {moderationQueue.map((track) => (
+                        <Card key={`moderation-${track.id}`} variant="outlined" sx={{ borderRadius: 5 }}>
+                          <CardContent>
+                            <Stack spacing={2}>
+                              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                                <Box>
+                                  <Typography variant="h6">{track.title}</Typography>
+                                  <Typography color="text.secondary">
+                                    {(track.user?.username ?? 'Unknown artist')} | {track.genre ?? 'No genre'}
+                                  </Typography>
+                                </Box>
+                                <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
+                              </Stack>
+                              {track.description ? <Typography>{track.description}</Typography> : null}
+                              <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
+                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                                <Chip label={`Format: ${track.metadata?.format ?? '-'}`} variant="outlined" size="small" />
+                                <Chip label={`Duration: ${track.metadata?.duration_seconds ?? '-'}s`} variant="outlined" size="small" />
+                                <Chip label={`BPM: ${track.bpm ?? '-'}`} variant="outlined" size="small" />
+                              </Stack>
+                              <TextField
+                                label="Rejection reason"
+                                value={moderationReasonByTrack[track.id] ?? ''}
+                                onChange={(event) =>
+                                  setModerationReasonByTrack((current) => ({ ...current, [track.id]: event.target.value }))
+                                }
+                                multiline
+                                minRows={2}
+                              />
+                              <Stack direction="row" spacing={1}>
+                                <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
+                                  {activeTrackId === track.id && isPlaying ? 'Pause' : 'Preview'}
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="success"
+                                  size="small"
+                                  disabled={moderationBusy}
+                                  onClick={() => void handleModerateTrack(track, { status: 'approved' })}
+                                >
+                                  Approve
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  color="error"
+                                  size="small"
+                                  disabled={moderationBusy}
+                                  onClick={() =>
+                                    void handleModerateTrack(track, {
+                                      status: 'rejected',
+                                      rejection_reason: moderationReasonByTrack[track.id] || 'Rejected during moderation',
+                                    })
+                                  }
+                                >
+                                  Reject
+                                </Button>
+                              </Stack>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </Stack>
+                  )}
+                </Stack>
+              </Paper>
+            ) : null}
           </Stack>
         </Paper>
       </Container>

@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.models import Track, TrackStatus
+from app.models import Track, TrackStatus, User, UserRole
 from app.services.storage import get_object_stream, stat_object
 
 
@@ -35,16 +35,8 @@ class ByteRange:
         return self.end - self.start + 1
 
 
-def _get_public_streamable_track(db: Session, track_id: int) -> Track:
-    track = (
-        db.query(Track)
-        .filter(
-            Track.id == track_id,
-            Track.status == TrackStatus.approved,
-            Track.is_public.is_(True),
-        )
-        .first()
-    )
+def _get_streamable_track(db: Session, track_id: int) -> Track:
+    track = db.query(Track).filter(Track.id == track_id).first()
     if track is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
     return track
@@ -130,13 +122,34 @@ def _iter_stream(object_key: str, byte_range: ByteRange | None) -> Iterator[byte
         response.release_conn()
 
 
+def _can_stream_track(track: Track, current_user: User | None) -> bool:
+    is_public_approved = track.status == TrackStatus.approved and track.is_public
+    if is_public_approved:
+        return True
+
+    if current_user is None:
+        return False
+
+    if current_user.role in {UserRole.moderator, UserRole.admin}:
+        return track.status != TrackStatus.deleted
+
+    if current_user.id == track.user_id:
+        return track.status in {TrackStatus.pending, TrackStatus.processing, TrackStatus.approved, TrackStatus.rejected}
+
+    return False
+
+
 def build_track_stream_response(
     db: Session,
     track_id: int,
     quality: str,
+    current_user: User | None = None,
     range_header: str | None = None,
 ) -> StreamingResponse:
-    track = _get_public_streamable_track(db, track_id)
+    track = _get_streamable_track(db, track_id)
+    if not _can_stream_track(track, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Track is not available for streaming")
+
     object_key, original_content_type = _resolve_object_key(track, quality)
     object_info = stat_object(object_key)
     byte_range = _parse_range(range_header, object_info.size_bytes)
