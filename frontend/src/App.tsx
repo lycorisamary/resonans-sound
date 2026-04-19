@@ -171,7 +171,6 @@ export default function App() {
   const [moderationReasonByTrack, setModerationReasonByTrack] = useState<Record<number, string>>({});
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
   const [playerQuality, setPlayerQuality] = useState<StreamQuality>('320');
-  const [currentStreamUrl, setCurrentStreamUrl] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
@@ -471,6 +470,17 @@ export default function App() {
       return;
     }
 
+    if (activeTrackId === track.id && !isPlaying) {
+      try {
+        await audio.play();
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          setPageError(err instanceof Error ? err.message : 'Could not resume playback');
+        }
+      }
+      return;
+    }
+
     setPageError(null);
     try {
       const quality = resolvePlayableQuality(track, playerQuality);
@@ -479,12 +489,23 @@ export default function App() {
       }
 
       const streamUrl = await api.streamTrack(track.id, quality);
+      const currentLoadedUrl = audio.dataset.streamUrl ?? '';
       setActiveTrackId(track.id);
-      setCurrentStreamUrl(streamUrl);
-      if (audio.src !== streamUrl) {
+
+      if (currentLoadedUrl !== streamUrl) {
+        audio.pause();
         audio.src = streamUrl;
+        audio.dataset.streamUrl = streamUrl;
+        audio.load();
       }
-      await audio.play();
+
+      try {
+        await audio.play();
+      } catch (err) {
+        if (!(err instanceof DOMException && err.name === 'AbortError')) {
+          throw err;
+        }
+      }
     } catch (err) {
       setPageError(err instanceof Error ? err.message : 'Could not start playback');
     }
@@ -587,7 +608,7 @@ export default function App() {
                     <MenuItem value="original">Original</MenuItem>
                   </TextField>
                 </Stack>
-                <audio ref={audioRef} controls src={currentStreamUrl ?? undefined} style={{ width: '100%' }} />
+                <audio ref={audioRef} controls style={{ width: '100%' }} />
                 <Typography variant="body2" color="text.secondary">
                   {activeTrackId ? `Current loaded track: #${activeTrackId}${isPlaying ? ' (playing)' : ' (paused)'}` : 'Choose any playable track below.'}
                 </Typography>
