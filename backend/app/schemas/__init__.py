@@ -200,9 +200,10 @@ class TrackResponse(TrackBase):
 
 
 class TrackUploadResponse(TrackResponse):
-    original_url: str
+    original_url: Optional[str] = None
     mp3_128_url: Optional[str] = None
     mp3_320_url: Optional[str] = None
+    rejection_reason: Optional[str] = None
 
 
 # Playlist Schemas

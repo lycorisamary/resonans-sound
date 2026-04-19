@@ -58,6 +58,7 @@ export interface Track {
   original_url?: string;
   mp3_128_url?: string;
   mp3_320_url?: string;
+  rejection_reason?: string;
 }
 
 export interface TrackMetadata {

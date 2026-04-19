@@ -1,11 +1,27 @@
-from math import ceil
+from __future__ import annotations
 
-from fastapi import HTTPException, status
+import copy
+import os
+from datetime import datetime, timezone
+from math import ceil
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.celery import celery_app
+from app.core.config import settings
 from app.models import Category, Track, TrackStatus, User
-from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate
+from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate, TrackUploadResponse
 from app.services.catalog import serialize_track
+from app.services.storage import (
+    build_original_object_key,
+    delete_objects,
+    guess_content_type,
+    sanitize_filename,
+    upload_file,
+)
 
 
 def _get_active_category(db: Session, category_id: int | None) -> Category | None:
@@ -21,6 +37,196 @@ def _get_active_category(db: Session, category_id: int | None) -> Category | Non
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Category not found")
 
     return category
+
+
+def _utcnow_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _clone_json_document(value):
+    if isinstance(value, (dict, list)):
+        return copy.deepcopy(value)
+    return value
+
+
+def _snapshot_track_state(track: Track) -> dict[str, object]:
+    return {
+        "status": track.status,
+        "file_size_bytes": track.file_size_bytes,
+        "duration_seconds": track.duration_seconds,
+        "original_url": track.original_url,
+        "mp3_128_url": track.mp3_128_url,
+        "mp3_320_url": track.mp3_320_url,
+        "waveform_data_json": _clone_json_document(track.waveform_data_json),
+        "metadata_json": _clone_json_document(track.metadata_json),
+        "rejection_reason": track.rejection_reason,
+    }
+
+
+def _restore_track_state(track: Track, snapshot: dict[str, object]) -> None:
+    for field, value in snapshot.items():
+        setattr(track, field, value)
+
+
+def _get_track_stream_urls(track_id: int) -> dict[str, str]:
+    base_url = f"{settings.API_PREFIX}/tracks/{track_id}/stream"
+    return {
+        "original": f"{base_url}?quality=original",
+        "128": f"{base_url}?quality=128",
+        "320": f"{base_url}?quality=320",
+    }
+
+
+def _extract_storage_keys(metadata_json: dict | None) -> list[str]:
+    if not isinstance(metadata_json, dict):
+        return []
+
+    storage = metadata_json.get("storage")
+    if not isinstance(storage, dict):
+        return []
+
+    keys: list[str] = []
+    original_key = storage.get("original_object_key")
+    if isinstance(original_key, str) and original_key:
+        keys.append(original_key)
+
+    processed_object_keys = storage.get("processed_object_keys")
+    if isinstance(processed_object_keys, dict):
+        for value in processed_object_keys.values():
+            if isinstance(value, str) and value:
+                keys.append(value)
+
+    return keys
+
+
+def _detect_upload_content_type(upload_file_object: UploadFile, extension: str) -> str:
+    provided_content_type = upload_file_object.content_type
+    guessed_content_type = guess_content_type(upload_file_object.filename)
+    allowed_content_types = set(settings.ALLOWED_AUDIO_FORMATS)
+
+    if provided_content_type in allowed_content_types:
+        return provided_content_type
+
+    if guessed_content_type in allowed_content_types:
+        return guessed_content_type
+
+    if extension == ".mp3":
+        return "audio/mpeg"
+
+    if extension == ".wav":
+        return "audio/wav"
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported audio content type",
+    )
+
+
+def _validate_upload(upload_file_object: UploadFile) -> tuple[str, str]:
+    safe_filename = sanitize_filename(upload_file_object.filename)
+    extension = Path(safe_filename).suffix.lower()
+
+    if extension not in set(settings.ALLOWED_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported audio file extension",
+        )
+
+    content_type = _detect_upload_content_type(upload_file_object, extension)
+    return safe_filename, content_type
+
+
+def _write_upload_to_temp_file(upload_file_object: UploadFile, suffix: str) -> tuple[str, int]:
+    max_file_size = int(settings.MAX_FILE_SIZE)
+    total_size = 0
+    temp_file_path = ""
+
+    try:
+        with NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+            temp_file_path = temp_file.name
+            while True:
+                chunk = upload_file_object.file.read(1024 * 1024)
+                if not chunk:
+                    break
+
+                total_size += len(chunk)
+                if total_size > max_file_size:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                        detail=f"File exceeds max size of {max_file_size} bytes",
+                    )
+
+                temp_file.write(chunk)
+    except Exception:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise
+
+    if total_size == 0:
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Empty files cannot be uploaded",
+        )
+
+    return temp_file_path, total_size
+
+
+def _build_track_upload_metadata(
+    current_metadata: dict | None,
+    original_object_key: str,
+    file_size_bytes: int,
+    original_filename: str,
+    content_type: str,
+) -> dict:
+    metadata_json = copy.deepcopy(current_metadata) if isinstance(current_metadata, dict) else {}
+    metadata_json["file_size_bytes"] = file_size_bytes
+    metadata_json["upload"] = {
+        "original_filename": original_filename,
+        "content_type": content_type,
+        "uploaded_at": _utcnow_iso(),
+    }
+    metadata_json["storage"] = {
+        "bucket": settings.MINIO_BUCKET,
+        "original_object_key": original_object_key,
+        "processed_object_keys": {},
+    }
+    metadata_json["processing"] = {
+        "status": "queued",
+        "queued_at": _utcnow_iso(),
+        "pipeline_version": 1,
+    }
+    return metadata_json
+
+
+def _assert_uploadable_track(track: Track) -> None:
+    if track.status == TrackStatus.processing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Track is already being processed",
+        )
+
+    if track.status == TrackStatus.approved:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Approved tracks cannot be replaced yet",
+        )
+
+    if track.status == TrackStatus.deleted:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Deleted tracks cannot accept uploads",
+        )
+
+
+def _hydrate_track(db: Session, track_id: int) -> Track | None:
+    return (
+        db.query(Track)
+        .options(joinedload(Track.user), joinedload(Track.category))
+        .filter(Track.id == track_id)
+        .first()
+    )
 
 
 def create_track_metadata(db: Session, current_user: User, payload: TrackCreate) -> TrackResponse:
@@ -44,12 +250,7 @@ def create_track_metadata(db: Session, current_user: User, payload: TrackCreate)
     db.commit()
     db.refresh(track)
 
-    hydrated_track = (
-        db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
-        .filter(Track.id == track.id)
-        .first()
-    )
+    hydrated_track = _hydrate_track(db, track.id)
     return serialize_track(hydrated_track)
 
 
@@ -68,7 +269,7 @@ def list_user_tracks(db: Session, current_user: User, page: int, size: int) -> P
     )
 
     return PaginatedResponse(
-        items=[serialize_track(track).model_dump() for track in items],
+        items=[serialize_track(track, include_private_media=True).model_dump() for track in items],
         total=total,
         page=page,
         size=size,
@@ -120,3 +321,85 @@ def delete_track_metadata(db: Session, current_user: User, track_id: int) -> Non
     track.is_public = False
     db.add(track)
     db.commit()
+
+
+def upload_track_source(
+    db: Session,
+    current_user: User,
+    track_id: int,
+    upload_file_object: UploadFile,
+) -> TrackUploadResponse:
+    track = _get_owned_track(db, current_user, track_id)
+    _assert_uploadable_track(track)
+
+    safe_filename, content_type = _validate_upload(upload_file_object)
+    previous_state = _snapshot_track_state(track)
+    previous_storage_keys = _extract_storage_keys(track.metadata_json if isinstance(track.metadata_json, dict) else None)
+
+    temp_file_path = ""
+    new_original_key = ""
+
+    try:
+        temp_file_path, file_size_bytes = _write_upload_to_temp_file(
+            upload_file_object,
+            suffix=Path(safe_filename).suffix.lower(),
+        )
+        new_original_key = build_original_object_key(current_user.id, track.id, safe_filename)
+        upload_file(temp_file_path, new_original_key, content_type=content_type)
+
+        stream_urls = _get_track_stream_urls(track.id)
+        track.file_size_bytes = file_size_bytes
+        track.duration_seconds = None
+        track.waveform_data_json = None
+        track.original_url = stream_urls["original"]
+        track.mp3_128_url = None
+        track.mp3_320_url = None
+        track.status = TrackStatus.processing
+        track.rejection_reason = None
+        track.metadata_json = _build_track_upload_metadata(
+            current_metadata=track.metadata_json if isinstance(track.metadata_json, dict) else None,
+            original_object_key=new_original_key,
+            file_size_bytes=file_size_bytes,
+            original_filename=safe_filename,
+            content_type=content_type,
+        )
+        db.add(track)
+        db.commit()
+        db.refresh(track)
+
+        try:
+            task_result = celery_app.send_task("app.tasks.process_track_upload", args=[track.id])
+        except Exception as exc:
+            delete_objects([new_original_key])
+            _restore_track_state(track, previous_state)
+            db.add(track)
+            db.commit()
+            db.refresh(track)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Upload saved but background processing queue is unavailable",
+            ) from exc
+
+        metadata_json = copy.deepcopy(track.metadata_json) if isinstance(track.metadata_json, dict) else {}
+        processing = metadata_json.get("processing")
+        if not isinstance(processing, dict):
+            processing = {}
+        processing["status"] = "queued"
+        processing["task_id"] = task_result.id
+        metadata_json["processing"] = processing
+        track.metadata_json = metadata_json
+        db.add(track)
+        db.commit()
+        db.refresh(track)
+
+        delete_objects([key for key in previous_storage_keys if key != new_original_key])
+
+        hydrated_track = _hydrate_track(db, track.id)
+        return serialize_track(hydrated_track, include_private_media=True)
+    finally:
+        try:
+            upload_file_object.file.close()
+        except Exception:
+            pass
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)

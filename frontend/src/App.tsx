@@ -106,6 +106,7 @@ export default function App() {
   const [registerUsername, setRegisterUsername] = useState('');
   const [trackForm, setTrackForm] = useState<TrackFormState>(initialTrackForm);
   const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
+  const [uploadingTrackId, setUploadingTrackId] = useState<number | null>(null);
 
   const loadPublicCatalog = async (category: string) => {
     setCatalogBusy(true);
@@ -256,10 +257,10 @@ export default function App() {
     try {
       if (editingTrackId) {
         await api.updateTrack(editingTrackId, payload);
-        setBanner('Metadata трека обновлены.');
+        setBanner('Metadata updated.');
       } else {
         await api.createTrackMetadata(payload);
-        setBanner('Metadata трека созданы. Сейчас он виден только в разделе "Мои треки".');
+        setBanner('Track metadata created. Upload the source file from "My tracks" to start media processing.');
       }
 
       setEditingTrackId(null);
@@ -307,6 +308,30 @@ export default function App() {
       setStudioBusy(false);
     }
   };
+
+  const handleTrackUpload = async (track: Track, file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    setStudioBusy(true);
+    setUploadingTrackId(track.id);
+    setPageError(null);
+    setBanner(null);
+
+    try {
+      await api.uploadTrack(track.id, file);
+      setBanner(`Upload queued for "${track.title}". The track is now processing.`);
+      await loadAuthenticatedState();
+    } catch (err) {
+      setPageError(err instanceof Error ? err.message : 'Could not upload audio file');
+    } finally {
+      setUploadingTrackId(null);
+      setStudioBusy(false);
+    }
+  };
+
+  const canUploadTrackMedia = (track: Track) => track.status === 'pending' || track.status === 'rejected';
 
   return (
     <Box
@@ -676,10 +701,57 @@ export default function App() {
                                 <Chip label={`Public: ${track.is_public ? 'yes' : 'no'}`} variant="outlined" size="small" />
                                 <Chip label={`BPM: ${track.bpm ?? '-'}`} variant="outlined" size="small" />
                                 <Chip label={`Tags: ${track.tags?.join(', ') || '-'}`} variant="outlined" size="small" />
+                                <Chip
+                                  label={track.original_url ? 'Source uploaded' : 'Source missing'}
+                                  variant="outlined"
+                                  size="small"
+                                  color={track.original_url ? 'success' : 'default'}
+                                />
+                                <Chip
+                                  label={track.mp3_128_url ? '128 ready' : '128 pending'}
+                                  variant="outlined"
+                                  size="small"
+                                  color={track.mp3_128_url ? 'success' : 'default'}
+                                />
+                                <Chip
+                                  label={track.mp3_320_url ? '320 ready' : '320 pending'}
+                                  variant="outlined"
+                                  size="small"
+                                  color={track.mp3_320_url ? 'success' : 'default'}
+                                />
                               </Stack>
+                              {track.metadata ? (
+                                <Typography variant="body2" color="text.secondary">
+                                  Media: {track.metadata.format ?? 'unknown'} | duration {track.metadata.duration_seconds ?? '-'}s |
+                                  size {track.metadata.file_size_bytes ?? '-'} bytes
+                                </Typography>
+                              ) : null}
+                              {track.rejection_reason ? <Alert severity="error">{track.rejection_reason}</Alert> : null}
                               <Stack direction="row" spacing={1}>
                                 <Button variant="outlined" size="small" onClick={() => startEditingTrack(track)}>
                                   Редактировать
+                                </Button>
+                                <Button
+                                  variant="contained"
+                                  size="small"
+                                  component="label"
+                                  disabled={studioBusy || !canUploadTrackMedia(track)}
+                                >
+                                  {uploadingTrackId === track.id
+                                    ? 'Uploading...'
+                                    : track.original_url
+                                      ? 'Replace audio'
+                                      : 'Upload audio'}
+                                  <input
+                                    hidden
+                                    type="file"
+                                    accept=".mp3,.wav,audio/mpeg,audio/wav"
+                                    onChange={(event) => {
+                                      const file = event.target.files?.[0] ?? null;
+                                      void handleTrackUpload(track, file);
+                                      event.target.value = '';
+                                    }}
+                                  />
                                 </Button>
                                 <Button variant="outlined" color="error" size="small" onClick={() => void handleDeleteTrack(track.id)}>
                                   Удалить

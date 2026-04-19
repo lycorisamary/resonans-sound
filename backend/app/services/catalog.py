@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Category, Track, TrackStatus
-from app.schemas import CategoryResponse, PaginatedResponse, TrackMetadata, TrackResponse, UserPublic
+from app.schemas import CategoryResponse, PaginatedResponse, TrackMetadata, TrackResponse, TrackUploadResponse, UserPublic
 
 
 def serialize_user_public(user: Any | None) -> UserPublic | None:
@@ -43,7 +43,7 @@ def serialize_category(category: Any | None, track_count: int = 0) -> CategoryRe
     )
 
 
-def serialize_track(track: Any) -> TrackResponse:
+def serialize_track(track: Any, include_private_media: bool = False) -> TrackResponse | TrackUploadResponse:
     metadata = None
     if isinstance(track.metadata_json, dict):
         metadata = TrackMetadata.model_validate(track.metadata_json)
@@ -53,33 +53,44 @@ def serialize_track(track: Any) -> TrackResponse:
     if getattr(track, "category", None) is not None and track.category.is_active:
         category = serialize_category(track.category)
 
-    return TrackResponse.model_validate(
-        {
-            "id": track.id,
-            "user_id": track.user_id,
-            "title": track.title,
-            "description": track.description,
-            "genre": track.genre,
-            "category_id": track.category_id,
-            "status": track.status,
-            "created_at": track.created_at,
-            "updated_at": track.updated_at or track.created_at,
-            "play_count": track.play_count,
-            "like_count": track.like_count,
-            "comment_count": track.comment_count,
-            "duration_seconds": track.duration_seconds,
-            "is_public": track.is_public,
-            "is_downloadable": track.is_downloadable,
-            "license_type": track.license_type,
-            "tags": track.tags,
-            "bpm": track.bpm,
-            "key_signature": track.key_signature,
-            "waveform_data_json": waveform_data,
-            "metadata": metadata,
-            "user": serialize_user_public(getattr(track, "user", None)),
-            "category": category,
-        }
-    )
+    payload = {
+        "id": track.id,
+        "user_id": track.user_id,
+        "title": track.title,
+        "description": track.description,
+        "genre": track.genre,
+        "category_id": track.category_id,
+        "status": track.status,
+        "created_at": track.created_at,
+        "updated_at": track.updated_at or track.created_at,
+        "play_count": track.play_count,
+        "like_count": track.like_count,
+        "comment_count": track.comment_count,
+        "duration_seconds": track.duration_seconds,
+        "is_public": track.is_public,
+        "is_downloadable": track.is_downloadable,
+        "license_type": track.license_type,
+        "tags": track.tags,
+        "bpm": track.bpm,
+        "key_signature": track.key_signature,
+        "waveform_data_json": waveform_data,
+        "metadata": metadata,
+        "user": serialize_user_public(getattr(track, "user", None)),
+        "category": category,
+    }
+
+    if include_private_media:
+        payload.update(
+            {
+                "original_url": track.original_url,
+                "mp3_128_url": track.mp3_128_url,
+                "mp3_320_url": track.mp3_320_url,
+                "rejection_reason": track.rejection_reason,
+            }
+        )
+        return TrackUploadResponse.model_validate(payload)
+
+    return TrackResponse.model_validate(payload)
 
 
 def list_public_categories(db: Session) -> list[CategoryResponse]:

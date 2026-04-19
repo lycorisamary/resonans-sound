@@ -1,12 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import PaginatedResponse, TrackResponse
+from app.schemas import PaginatedResponse, TrackResponse, TrackUploadResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
-from app.services.tracks import create_track_metadata, delete_track_metadata, list_user_tracks, update_track_metadata
+from app.services.tracks import (
+    create_track_metadata,
+    delete_track_metadata,
+    list_user_tracks,
+    update_track_metadata,
+    upload_track_source,
+)
 from app.schemas import TrackCreate, TrackUpdate
 
 
@@ -52,6 +58,22 @@ def create_track(
 ) -> TrackResponse:
     """Create track metadata for the authenticated user."""
     return create_track_metadata(db=db, current_user=current_user, payload=payload)
+
+
+@router.post("/upload", response_model=TrackUploadResponse, status_code=202)
+def upload_track(
+    track_id: int = Form(..., gt=0),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TrackUploadResponse:
+    """Attach an audio upload to an existing owned track and queue processing."""
+    return upload_track_source(
+        db=db,
+        current_user=current_user,
+        track_id=track_id,
+        upload_file_object=file,
+    )
 
 
 @router.get("/{track_id}", response_model=TrackResponse)

@@ -137,8 +137,12 @@ class ApiClient {
     return response.data;
   }
 
-  async createTrack(data: FormData) {
-    const response = await this.client.post('/tracks/upload', data, {
+  async uploadTrack(trackId: number, file: File) {
+    const formData = new FormData();
+    formData.append('track_id', String(trackId));
+    formData.append('file', file);
+
+    const response = await this.client.post('/tracks/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;

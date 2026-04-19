@@ -40,7 +40,13 @@ class Settings(BaseSettings):
     
     # File Upload Limits
     MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100 MB
-    ALLOWED_AUDIO_FORMATS: list = ["audio/mpeg", "audio/wav", "audio/x-wav"]
+    ALLOWED_AUDIO_FORMATS: list = [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/x-wav",
+        "audio/wave",
+        "audio/vnd.wave",
+    ]
     ALLOWED_EXTENSIONS: list = [".mp3", ".wav"]
     
     # Audio Processing
