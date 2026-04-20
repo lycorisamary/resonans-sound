@@ -909,7 +909,7 @@ export default function App() {
 
                       <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
                         <Typography variant="body2" color="text.secondary">
-                          {formatTime(playerCurrentTime)} / {formatTime(playerDuration || activeTrack?.duration_seconds ?? 0)}
+                          {formatTime(playerCurrentTime)} / {formatTime(playerDuration || (activeTrack?.duration_seconds ?? 0))}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           {activeTrack
