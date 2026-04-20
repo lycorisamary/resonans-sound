@@ -88,6 +88,8 @@ services:
       SECRET_KEY: ${SECRET_KEY}
       ALGORITHM: ${ALGORITHM}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE}
+      MAX_COVER_IMAGE_SIZE: ${MAX_COVER_IMAGE_SIZE}
       CORS_ORIGINS: ${CORS_ORIGINS}
     ports:
       - "127.0.0.1:8000:8000"
@@ -122,6 +124,8 @@ services:
       MINIO_BUCKET: ${MINIO_BUCKET}
       MINIO_SECURE: ${MINIO_SECURE}
       SECRET_KEY: ${SECRET_KEY}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE}
+      MAX_COVER_IMAGE_SIZE: ${MAX_COVER_IMAGE_SIZE}
     depends_on:
       rabbitmq:
         condition: service_healthy

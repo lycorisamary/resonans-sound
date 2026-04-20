@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     STREAM_TOKEN_EXPIRE_MINUTES: int = 120
 
-    MAX_FILE_SIZE: int = 100 * 1024 * 1024
+    MAX_FILE_SIZE: int = 512 * 1024 * 1024
     ALLOWED_AUDIO_FORMATS: list[str] = [
         "audio/mpeg",
         "audio/wav",

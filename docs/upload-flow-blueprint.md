@@ -43,6 +43,8 @@ The current flow covers:
 - fields:
   - `track_id`
   - `file`
+- current default max audio upload size:
+  - `512 MB`
 - allowed source states:
   - `pending`
   - `rejected`
