@@ -22,6 +22,11 @@ user_status_enum = sa.Enum("active", "inactive", "banned", name="user_status")
 track_status_enum = sa.Enum("pending", "processing", "approved", "rejected", "deleted", name="track_status")
 interaction_type_enum = sa.Enum("like", "comment", "repost", "follow", name="interaction_type")
 
+user_role_enum_ref = sa.Enum("user", "moderator", "admin", name="user_role", create_type=False)
+user_status_enum_ref = sa.Enum("active", "inactive", "banned", name="user_status", create_type=False)
+track_status_enum_ref = sa.Enum("pending", "processing", "approved", "rejected", "deleted", name="track_status", create_type=False)
+interaction_type_enum_ref = sa.Enum("like", "comment", "repost", "follow", name="interaction_type", create_type=False)
+
 
 def upgrade() -> None:
     bind = op.get_bind()
@@ -36,13 +41,13 @@ def upgrade() -> None:
         sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("password_hash", sa.String(length=255), nullable=False),
         sa.Column("username", sa.String(length=100), nullable=False),
-        sa.Column("role", user_role_enum, nullable=True),
+        sa.Column("role", user_role_enum_ref, nullable=True),
         sa.Column("avatar_url", sa.Text(), nullable=True),
         sa.Column("bio", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
         sa.Column("last_login", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("status", user_status_enum, nullable=True),
+        sa.Column("status", user_status_enum_ref, nullable=True),
         sa.Column("email_verified", sa.Boolean(), nullable=True),
         sa.Column("verification_token", sa.String(length=255), nullable=True),
         sa.Column("reset_token", sa.String(length=255), nullable=True),
@@ -103,7 +108,7 @@ def upgrade() -> None:
         sa.Column("cover_image_url", sa.Text(), nullable=True),
         sa.Column("waveform_data_json", sa.JSON(), nullable=True),
         sa.Column("metadata_json", sa.JSON(), nullable=True),
-        sa.Column("status", track_status_enum, nullable=True),
+        sa.Column("status", track_status_enum_ref, nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
         sa.Column("play_count", sa.Integer(), nullable=True),
@@ -159,7 +164,7 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=False),
         sa.Column("track_id", sa.Integer(), sa.ForeignKey("tracks.id", ondelete="CASCADE"), nullable=True),
         sa.Column("target_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=True),
-        sa.Column("type", interaction_type_enum, nullable=False),
+        sa.Column("type", interaction_type_enum_ref, nullable=False),
         sa.Column("content", sa.Text(), nullable=True),
         sa.Column("parent_id", sa.Integer(), sa.ForeignKey("interactions.id", ondelete="CASCADE"), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=True),
