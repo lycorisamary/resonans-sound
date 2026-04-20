@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from app.celery import app
+from app.celery_app import app
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import Track, TrackStatus

@@ -133,7 +133,7 @@ services:
       disable: true
     networks:
       - audio_network
-    command: celery -A app.celery worker --loglevel=info
+    command: celery -A app.celery_app worker --loglevel=info
 
   # Frontend (React)
   frontend:

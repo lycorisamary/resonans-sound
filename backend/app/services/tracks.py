@@ -10,7 +10,7 @@ from tempfile import NamedTemporaryFile
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.celery import celery_app
+from app.celery_app import celery_app
 from app.core.config import settings
 from app.models import AdminLog, Category, Track, TrackStatus, User, UserRole
 from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate, TrackUploadResponse
