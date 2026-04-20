@@ -1,49 +1,85 @@
 # Текущее состояние проекта и план до MVP
 
-## 1. Что уже реализовано
+## 1. Где проект находится сейчас
+
+Проект уже вышел из стадии “только инженерной базы” и находится в состоянии
+раннего, но реального MVP-среза:
+
+- production поднят и считается рабочей базой
+- frontend подключён к live API и раздаётся как production static site
+- auth работает end-to-end
+- upload/media pipeline работает end-to-end
+- moderation работает end-to-end
+- public playback и owner/private playback работают
+- discovery уже не заглушка: есть поиск, категории и сортировка
+- likes уже работают как первый social loop
+
+Актуальный production baseline:
+
+- домен: `https://resonance-sound.ru`
+- host Nginx завершает SSL
+- `/` проксируется на frontend `127.0.0.1:3000`
+- `/api/` проксируется на backend `127.0.0.1:8000`
+- production source of truth для конфигурации: `/root/resonans-sound/infra/.env`
+
+## 2. Что уже реализовано
 
 ### Инфраструктура и production
 
-- host Nginx и SSL работают
-- reverse proxy уже в production
-- frontend работает как production static site
-- backend, worker, MinIO, Postgres, Redis, RabbitMQ живут в Docker Compose
-- production source of truth для env находится в `/root/resonans-sound/infra/.env`
-- метрики Prometheus доступны
+- host Nginx и Let's Encrypt работают
+- внешние лишние Docker-порты не торчат наружу
+- backend, Celery, Postgres, Redis, RabbitMQ, MinIO работают через Docker Compose
+- `/metrics` подключён и отдаётся без лишнего redirect
+- frontend остаётся production static build, не dev server
 
 ### Auth
 
-- register
-- login
-- refresh
-- logout
-- `GET /users/me`
-- refresh rotation уже работает
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/users/me`
+- refresh token rotation исправлена и подтверждена
 
 ### Tracks: metadata + media
 
-- create/update/delete metadata
-- owner list `GET /tracks/mine`
-- upload исходного файла
-- сохранение оригинала в MinIO
+- create/update/delete metadata для owner tracks
+- `GET /api/v1/tracks/mine`
+- `POST /api/v1/tracks/upload`
+- загрузка оригинала в MinIO
 - Celery processing
 - генерация `128/320 mp3`
 - генерация waveform data
-- стриминг через backend endpoint
-- HTTP Range support для audio streaming
+- owner-facing media state в `tracks` и `metadata_json`
 
-### Access rules
+### Playback и access rules
 
-- публично стримятся только `approved + is_public`
+- публично воспроизводятся только `approved + is_public`
 - owner может слушать свои private/non-approved media
-- moderator/admin может слушать треки для проверки moderation
+- moderator/admin может делать preview треков из moderation queue
+- для private browser playback добавлен безопасный `GET /api/v1/tracks/{id}/stream-url`
+- `GET /api/v1/tracks/{id}/stream` поддерживает HTTP Range
+- private preview идёт через короткоживущие signed URL, а не через прямой Bearer в `<audio>`
 
 ### Moderation
 
-- backend moderation queue
-- approve/reject actions
-- system stats для moderation
-- admin log entry при approve/reject
+- `GET /api/v1/admin/stats`
+- `GET /api/v1/admin/moderation`
+- `GET /api/v1/admin/logs`
+- `POST /api/v1/admin/moderate/{track_id}`
+- approve/reject flow
+- owner видит причину reject
+- admin log сохраняется и показывается в UI
+
+### Discovery и social
+
+- `GET /api/v1/tracks` поддерживает `search`
+- `GET /api/v1/tracks` поддерживает `sort=newest|popular|title`
+- category filter работает через текущий каталог
+- лайки:
+  - `GET /api/v1/interactions/likes/mine`
+  - `POST /api/v1/interactions/like`
+  - `DELETE /api/v1/interactions/like`
 
 ### Frontend
 
@@ -51,143 +87,166 @@
 - live catalog
 - studio metadata flow
 - upload flow
-- owner track states
-- базовый audio player
-- waveform visualization на основе `waveform_data_json`
-- moderation block для moderator/admin
+- owner track states с более понятными сообщениями
+- единый player flow для public и private preview
+- progress/status/error блок для плеера
+- waveform preview
+- moderation area с history
+- search/sort UI
+- likes UI
 
-## 2. Текущая логика статусов
+### Тесты и верификация
+
+- backend tests добавлены для streaming/access/upload критических мест
+- `pytest -q tests` проходит в backend container
+- текущий серверный прогон дал `9 passed`
+
+## 3. Текущая логика статусов
 
 ### Track.status
 
 - `pending`
-  - metadata создано, но либо upload ещё не сделан, либо media уже обработано и трек ждёт moderation
+  - либо metadata уже создано, но upload ещё не сделан
+  - либо media уже обработано, но трек ещё ждёт moderation
 - `processing`
   - worker сейчас обрабатывает upload
 - `approved`
-  - moderation пройдена, трек может попасть в публичный каталог
+  - moderation пройдена
 - `rejected`
-  - track отклонён worker или moderator
+  - трек отклонён worker или moderator
 - `deleted`
   - soft-delete
 
-### Важное различие
+### Важное различие внутри `pending`
 
-Сейчас `pending` имеет два под-состояния:
+Сейчас `pending` включает два фактических под-состояния:
 
 - metadata-only pending
 - ready-for-moderation pending
 
-Они различаются по media-полям:
+Как различать:
 
-- если `original_url` пустой, это metadata-only pending
-- если `original_url` уже есть, а `status` всё ещё `pending`, значит media готово и трек ждёт moderation
+- если `original_url` пустой, значит upload ещё не сделан
+- если `original_url` уже есть и есть производные media URL, а `status` всё ещё `pending`, значит media готово и трек ждёт moderation
 
-## 3. Что уже подтверждено на production
+## 4. Что уже подтверждено на production
 
-- deploy последних шагов
+На проде уже были подтверждены:
+
+- deploy последних коммитов
+- auth flow: register -> me -> refresh -> logout
 - upload flow end-to-end
 - MinIO storage реально используется
 - Celery processing реально запускается
-- streaming endpoint реально отдаёт audio
+- moderation approve/reject flow реально работает
+- public streaming реально работает
+- owner/private streaming реально работает через signed stream URL
 - Range requests реально работают
+- search по каталогу реально отвечает
+- likes реально пишутся и читаются через live API
 
-## 4. Что ещё осталось до полного MVP
+Последний server-side smoke после деплоя подтвердил:
 
-### Блок A. UX и продуктовые сценарии
+- поиск по каталогу
+- like публичного трека
+- создание private track
+- upload WAV
+- успешный processing до `pending` с готовым `mp3_320_url`
+- получение signed `stream-url`
+- private playback response `206 Partial Content`
+- `Content-Type: audio/mpeg`
+- `Cache-Control: private, no-store`
 
-- улучшить публичный каталог и карточки треков
-- отдельная страница/зона player experience
-- понятные owner states и moderation states в UI
-- уведомления пользователю о результате moderation
+## 5. Что протестировать руками прямо сейчас
 
-### Блок B. Moderation UX
+Краткий список того, что стоит проверить вручную после этой итерации:
 
-- отдельная moderation dashboard, а не только встроенный блок
-- moderation history
-- просмотр причин отклонения и повторная отправка на review
-- audit/logs view для admin
+- публичный playback как гость
+- поиск и сортировку в каталоге
+- owner flow: metadata -> upload -> processing -> private preview
+- moderation flow: preview -> reject -> approve
+- видимость approved public vs approved private
+- likes: поставить, обновить страницу, снять
+- logout и повторную проверку private playback
 
-### Блок C. Streaming и media
+Полный чек-лист вынесен в отдельный документ:
 
-- play count analytics при реальном прослушивании
-- скачивание original/derived при `is_downloadable`
-- better player controls
-- buffer/progress UI
-- cover art
+- [`manual-test-checklist-ru.md`](manual-test-checklist-ru.md)
 
-### Блок D. Search и discovery
+## 6. Степень готовности MVP
 
-- текстовый поиск
-- фильтры по тегам, bpm, key
-- сортировки
-- artist profile views
+### Уже можно считать реально рабочим
 
-### Блок E. Social / library
+- инфраструктуру и production-базу
+- auth
+- metadata flow
+- upload/media flow
+- moderation core
+- public player flow
+- owner/private preview flow
+- базовый discovery
+- likes как первый social loop
 
-- likes
-- comments
+### Уже близко, но ещё не доведено до комфортного MVP
+
+- moderation UX как отдельная полноценная зона
+- player UX как отдельный более polished experience
+- play counters и аналитика прослушиваний
+- download rules
+- owner notifications о moderation result
+
+### Всё ещё остаётся неполным
+
 - playlists
+- comments
 - follows
-
-### Блок F. Reliability
-
-- тесты backend
-- тесты frontend
-- rollback/cleanup strategy для failed uploads
-- backup strategy для Postgres и MinIO
-
-## 5. Поэтапный план дальше
-
-### Этап 1. Дошлифовать текущий media core
-
-- сделать player UX более удобным
-- добавить play counters
-- добавить download rules
-- показать moderation state в UI ещё яснее
-
-### Этап 2. Нормальная moderation area
-
-- выделенный moderation screen
-- queue filters
-- action history
-- review notes
-
-### Этап 3. Discovery MVP
-
-- поиск
-- расширенные фильтры
-- карточка артиста
-
-### Этап 4. Engagement MVP
-
-- likes
-- comments
-- playlists
-
-### Этап 5. Operational hardening
-
-- тесты
-- резервные копии
-- алерты
+- artist profile view
+- frontend tests
+- operational backup strategy
 - rate limiting для upload/stream
 
-## 6. Минимум, который ещё нужен до “MVP можно показывать”
+## 7. План следующих работ
 
-Если смотреть прагматично, то до минимально цельного MVP осталось:
+### Этап 1. Дошлифовать media/player core
 
-1. Сделать более понятный и приятный пользовательский player flow
-2. Стабилизировать moderation UX
-3. Добавить базовый search/discovery
-4. Добавить хотя бы likes или playlists как первый social loop
-5. Закрыть тестами критические backend flow
+- добавить play counters только при реальном прослушивании, а не при любом запросе потока
+- реализовать download rules для `is_downloadable`
+- сделать player UX ещё понятнее на мобильном и на длинных треках
+- добавить cover art как следующий media-артефакт
 
-## 7. Рекомендуемый следующий шаг
+### Этап 2. Усилить moderation UX
 
-Самый выгодный следующий шаг по соотношению эффект/риск:
+- добавить фильтры очереди moderation
+- показать owner-friendly state для “на review” и “rejected”
+- сделать повторную отправку на review более явной
+- при необходимости добавить отдельный moderation screen вместо одного блока
 
-- добить frontend experience вокруг player + moderation dashboard
-- потом перейти к search/discovery
+### Этап 3. Дожать discovery MVP
 
-Это даст уже не просто “рабочую инженерную базу”, а MVP, который можно
-показывать и тестировать на реальных пользователях.
+- фильтры по тегам, BPM и key
+- лучшие карточки треков
+- artist profile / artist view
+
+### Этап 4. Дожать первый social layer
+
+- playlists как следующий логичный шаг после likes
+- затем comments
+
+### Этап 5. Reliability и operations
+
+- расширить backend tests на auth/moderation/likes
+- добавить frontend tests для player/search/likes
+- описать backup strategy для Postgres и MinIO
+- добавить upload/stream rate limiting
+
+## 8. Самый выгодный следующий шаг
+
+Если двигаться по соотношению эффект/риск, самый выгодный следующий срез такой:
+
+- play counters + download rules
+- затем moderation filters/resubmit UX
+- затем playlists
+
+Это даст уже не просто “работающий сервис”, а более цельный MVP, который
+можно увереннее показывать и давать пользователям для настоящего раннего
+фидбэка.

@@ -1,9 +1,33 @@
 # Database Blueprint
 
-## Current Physical Model
+## 1. Current Physical Model
 
-The upload/media phase is implemented on top of the existing production schema.
-The important part is the `tracks` table:
+The current implementation still centers the MVP around a few core tables:
+
+- `users`
+- `categories`
+- `tracks`
+- `interactions`
+- `admin_logs`
+- `api_tokens`
+
+Other tables such as `playlists` already exist in the schema, but they are not
+yet part of the active product flow.
+
+## 2. The Main Source Of Truth
+
+For the current MVP, the most important business record is still `tracks`.
+
+The `tracks` row is the source of truth for:
+
+- ownership
+- metadata
+- moderation state
+- media readiness
+- public/private visibility
+- owner-facing rejection context
+
+Current important columns:
 
 ```sql
 CREATE TABLE tracks (
@@ -36,80 +60,115 @@ CREATE TABLE tracks (
 );
 ```
 
-## Why This Schema Is Enough For The First Media Pipeline
+## 3. Why This Schema Is Still Enough
 
-The current columns already cover the minimum viable upload flow:
+The current schema already covers the active MVP slice:
 
-- `status` handles lifecycle changes
-- `original_url`, `mp3_128_url`, `mp3_320_url` hold canonical media URLs
-- `metadata_json` stores internal upload/storage/processing metadata
-- `waveform_data_json` stores frontend-ready waveform payload
-- `duration_seconds` and `file_size_bytes` support catalog and studio views
-- `rejection_reason` supports owner-facing recovery after a failed process
+- metadata CRUD
+- upload/media lifecycle
+- moderation
+- public catalog
+- waveform rendering
+- public playback
+- owner/private preview playback
+- likes
 
-This lets backend, frontend, and worker share one contract without introducing a
-new migration during the first production-safe media iteration.
+That is why the project still does not need a separate normalized media-assets
+subsystem for the current stage.
 
-## Logical Model On Top Of The Existing Schema
+## 4. Embedded Media State In `metadata_json`
 
-### Track
+`metadata_json` is still the evolving internal document for:
 
-Represents the artist-owned logical track record and is the source of truth for:
-
-- ownership
-- metadata
-- visibility
-- moderation status
-- media readiness
-
-### Embedded Media State In `metadata_json`
-
-`metadata_json` is the internal document used by the upload pipeline:
-
-- upload details
-- object storage keys
+- upload metadata
+- storage object keys
 - processing timestamps
-- audio analysis fields
+- technical audio metadata
 
-This keeps the external relational model stable while the media pipeline is
-still evolving.
+This keeps the relational model stable while the media pipeline is still
+changing.
 
-## Query Rules
+## 5. Current Query Rules
 
-Public catalog:
+### Public catalog
 
-- reads only `status='approved'`
-- reads only public tracks
+Reads only tracks where:
 
-Owner studio:
+- `status='approved'`
+- `is_public=true`
 
-- reads all owner tracks except physical deletes
-- includes `pending`, `processing`, `approved`, `rejected`, `deleted`
-- surfaces private media state such as original/derived URLs and rejection
-  reasons
+### Owner studio
 
-## Data Ownership Rules
+Reads all owner tracks, including:
 
-- The application database is the canonical owner of track state.
-- MinIO stores binary objects only.
-- MinIO object keys are references, not business state.
-- Celery is transient execution infrastructure, not a system of record.
+- `pending`
+- `processing`
+- `approved`
+- `rejected`
+- `deleted`
 
-## Integrity Rules
+### Moderation area
 
-- A public track must never be considered playable until `status='approved'`.
-- A deleted track must not re-enter the public catalog.
-- Only the track owner may attach or replace the source upload.
-- Rejected uploads must preserve enough failure context for retry.
+Reads tracks that are:
 
-## Deferred Future Normalization
+- `status='pending'`
+- already have uploaded/processed media
 
-If the project later needs multiple upload revisions, moderation history, or
-multiple transcoding profiles, the next normalized extension can add:
+That effectively means “ready for moderation”.
+
+## 6. Current Social Layer In DB
+
+The first social loop is implemented through `interactions`.
+
+Right now, the live product uses this table for:
+
+- likes
+
+Important details:
+
+- the table already supports multiple interaction types
+- likes are represented through `type='like'`
+- removing a like uses soft state on the interaction row
+- `tracks.like_count` is denormalized for fast catalog rendering
+
+## 7. Current Moderation History In DB
+
+`admin_logs` is already used by the live moderation flow.
+
+It currently stores:
+
+- moderation action type
+- target type
+- target id
+- structured details such as status/rejection reason
+
+This is enough for the current moderation history block in the frontend.
+
+## 8. Data Ownership Rules
+
+- PostgreSQL owns business truth
+- MinIO stores binary files only
+- Celery is execution infrastructure, not a system of record
+- signed stream URLs are derived access artifacts, not persistent track state
+
+## 9. Integrity Rules
+
+- a public track must not be playable publicly before `approved + is_public`
+- a deleted track must not re-enter the public catalog
+- only the owner may upload or replace the source file
+- moderators/admins may preview non-public tracks for review
+- owner/private playback must not depend on exposing MinIO object keys
+
+## 10. Deferred Normalization
+
+If the project grows beyond this MVP slice, the next normalized additions will
+likely be:
 
 - `track_media_revisions`
 - `track_media_assets`
 - `track_processing_jobs`
+- `playlist_activity`
+- `track_comments`
 
-That is explicitly deferred. The current phase keeps the production model small
-and compatible with the already deployed system.
+These are intentionally deferred. For the current production baseline, the
+existing schema is still the right tradeoff between speed and stability.

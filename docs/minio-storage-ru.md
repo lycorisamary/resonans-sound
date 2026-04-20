@@ -1,20 +1,25 @@
-# MinIO Storage: как это работает в проекте
+# MinIO storage: как это работает сейчас
 
-## Что такое MinIO в этом проекте
+## 1. Роль MinIO в проекте
 
-MinIO у нас используется как S3-совместимое объектное хранилище для аудиофайлов.
-PostgreSQL хранит бизнес-данные и статусы, а MinIO хранит сами бинарные файлы:
+MinIO в `resonans-sound` — это объектное хранилище для бинарных медиафайлов.
+PostgreSQL хранит бизнес-состояние трека, а MinIO хранит сами аудио-объекты.
 
-- исходный загруженный файл
-- производные MP3-версии
-- будущие медиа-артефакты, если они появятся
+Сейчас в MinIO лежат:
 
-Важно: MinIO не является источником бизнес-истины. Источник истины по состоянию
-трека находится в таблице `tracks` и в `tracks.metadata_json`.
+- исходный upload
+- производные `128.mp3`
+- производные `320.mp3`
 
-## Что именно лежит в MinIO
+Важно:
 
-Для каждого трека сейчас используются такие ключи:
+- бизнес-истина живёт не в MinIO
+- бизнес-истина живёт в таблице `tracks`
+- `tracks.metadata_json` хранит внутренние storage/process данные
+
+## 2. Что именно хранится в MinIO
+
+Текущий layout object key:
 
 - `tracks/{user_id}/{track_id}/original/{uuid}.{ext}`
 - `tracks/{user_id}/{track_id}/derived/128.mp3`
@@ -22,42 +27,74 @@ PostgreSQL хранит бизнес-данные и статусы, а MinIO х
 
 Пример:
 
-- `tracks/6/3/original/814435e9212240808f9a6004adc2641b.wav`
-- `tracks/6/3/derived/128.mp3`
-- `tracks/6/3/derived/320.mp3`
+- `tracks/12/9/original/abc123.wav`
+- `tracks/12/9/derived/128.mp3`
+- `tracks/12/9/derived/320.mp3`
 
-## Как это связано с БД
+## 3. Как MinIO связано с БД
 
-В БД:
+В БД сейчас используются такие слои:
 
 - `tracks.original_url`, `tracks.mp3_128_url`, `tracks.mp3_320_url`
-  это канонические backend URL для стриминга
+  — канонические backend stream URL
 - `tracks.metadata_json.storage`
-  хранит реальные object keys в MinIO
+  — реальные object keys внутри MinIO
 - `tracks.status`
-  хранит бизнес-статус трека
+  — бизнес-статус трека
 
-То есть frontend и API работают через backend URL, а backend уже знает, какой
-объект брать из MinIO.
+Идея такая:
 
-## Полный путь файла
+- frontend никогда не должен работать с внутренним object key напрямую
+- frontend работает через backend endpoints
+- backend уже сам знает, какой объект брать из MinIO
+
+## 4. Как проходит полный путь файла
 
 1. Пользователь создаёт metadata через `POST /api/v1/tracks`
 2. Загружает исходник через `POST /api/v1/tracks/upload`
 3. Backend кладёт оригинал в MinIO
-4. Celery worker скачивает оригинал из MinIO
-5. Worker генерирует `128.mp3` и `320.mp3`
-6. Worker загружает производные файлы обратно в MinIO
-7. Backend стримит их через `GET /api/v1/tracks/{id}/stream`
+4. Трек переходит в `processing`
+5. Celery worker забирает оригинал из MinIO
+6. Worker генерирует `128.mp3`, `320.mp3` и waveform
+7. Worker сохраняет производные файлы обратно в MinIO
+8. Worker переводит трек обратно в `pending`, если media готово и трек ждёт moderation
+9. После approve трек может стать публично доступным
 
-## Где смотреть object keys
+## 5. Как сейчас устроен playback поверх MinIO
 
-Самый удобный способ:
+### Публичный playback
 
-- в PostgreSQL в `tracks.metadata_json`
-- в MinIO volume внутри контейнера
+Для approved public track browser может воспроизводить поток через:
 
-Пример SQL:
+- `GET /api/v1/tracks/{id}/stream?quality=128`
+- `GET /api/v1/tracks/{id}/stream?quality=320`
+- `GET /api/v1/tracks/{id}/stream?quality=original`
+
+Backend по этим URL:
+
+- проверяет доступ
+- находит object key в MinIO
+- отдаёт байты
+- поддерживает `Range`
+
+### Owner/private playback
+
+Для private или non-approved track браузер не может просто взять обычный Bearer
+из `localStorage` и автоматически подставить его в `<audio>`.
+
+Поэтому сейчас используется безопасная схема:
+
+1. frontend запрашивает `GET /api/v1/tracks/{id}/stream-url`
+2. backend проверяет права owner/moderator
+3. backend выдаёт короткоживущий signed URL с `stream_token`
+4. `<audio>` воспроизводит уже этот URL
+
+Это важно, потому что именно так сейчас работает private preview и moderation
+preview без сломанного playback.
+
+## 6. Где смотреть object keys
+
+Самый удобный способ — через PostgreSQL:
 
 ```sql
 select
@@ -69,7 +106,7 @@ order by id desc
 limit 20;
 ```
 
-Пример на сервере:
+На сервере:
 
 ```bash
 cd /root/resonans-sound/infra
@@ -78,74 +115,59 @@ docker compose exec -T postgres \
   -c "select id, status, metadata_json->'storage' as storage from tracks order by id desc limit 20;"
 ```
 
-## Как посмотреть файлы внутри MinIO
+## 7. Как посмотреть файлы внутри MinIO
 
-В текущем compose MinIO хранит данные во внутреннем volume и внутри контейнера
+В текущем compose MinIO хранит данные во внутреннем volume, а внутри контейнера
 они доступны через `/data`.
 
-Пример:
+Примеры:
 
 ```bash
 cd /root/resonans-sound/infra
-docker compose exec -T minio sh -lc 'ls -R /data | tail -80'
+docker compose exec -T minio sh -lc 'ls /data'
+docker compose exec -T minio sh -lc 'ls -R /data/audio-tracks | tail -80'
 ```
 
-## Как понять, что upload прошёл успешно
+## 8. Как понять, что upload реально прошёл
 
 Нормальная цепочка сейчас такая:
 
 - после upload трек уходит в `processing`
-- после обработки worker переводит его в `pending`
-- это значит: media готово и трек ждёт moderation
+- после обработки worker возвращает его в `pending`
+- в `tracks` появляются `original_url`, `mp3_128_url`, `mp3_320_url`
+- это значит: media готово, но трек ещё ждёт moderation
 - после moderation трек получает:
   - `approved`
   - или `rejected`
 
-## Как теперь работать с MinIO дальше
+## 9. Как с MinIO правильно работать дальше
 
-### 1. Не использовать MinIO как базу данных
+### Не использовать MinIO как базу данных
 
-Нельзя ориентироваться только на наличие файлов в bucket. Всегда смотрим:
+Нельзя ориентироваться только на “файл есть в bucket”.
+Всегда надо смотреть:
 
 - `tracks.status`
 - `tracks.metadata_json`
 - `tracks.rejection_reason`
 
-### 2. Не отдавать прямые внутренние object keys наружу
+### Не отдавать object keys наружу
 
-Снаружи пользователи должны работать через backend endpoints:
+Наружу должны уходить только backend URL:
 
 - upload через API
 - streaming через API
+- private playback через signed `stream-url`
 
-Это позволяет централизованно применять:
+### При дебаге смотреть сразу три уровня
 
-- owner/private access rules
-- moderation rules
-- future analytics
-- future signed URLs или CDN
+Если “трек не играет”, надо проверить:
 
-### 3. При дебаге проверять три уровня
+1. есть ли row в `tracks`
+2. есть ли `metadata_json.storage`
+3. есть ли сам объект в MinIO
 
-Если “файл не играет”:
-
-1. Есть ли row в `tracks`
-2. Есть ли `storage.original_object_key` и `processed_object_keys`
-3. Есть ли сам объект внутри MinIO
-
-### 4. При расширении pipeline складывать в MinIO только медиа-артефакты
-
-Хорошие кандидаты на новые объекты:
-
-- waveform preview files
-- cover art
-- stem exports
-- compressed previews
-- alternate encodes
-
-Но статус и логика их использования должны оставаться в PostgreSQL.
-
-## Полезные команды
+## 10. Полезные команды
 
 Проверка сервисов:
 
@@ -160,7 +182,8 @@ docker compose logs celery_worker --tail=100
 Проверка здоровья MinIO:
 
 ```bash
-curl -f http://127.0.0.1:9000/minio/health/live
+cd /root/resonans-sound/infra
+docker compose exec -T minio sh -lc 'curl -f http://localhost:9000/minio/health/live'
 ```
 
 Проверка bucket и файлов:
@@ -171,12 +194,12 @@ docker compose exec -T minio sh -lc 'ls /data'
 docker compose exec -T minio sh -lc 'ls -R /data/audio-tracks | tail -80'
 ```
 
-## Что дальше можно улучшить
+## 11. Что дальше можно улучшать вокруг storage
 
-Следующие естественные шаги вокруг storage:
+Естественные следующие шаги:
 
-- presigned upload URLs
-- CDN перед streaming endpoint
+- presigned direct-to-MinIO upload
 - cleanup старых revisions
-- отдельная таблица media assets
-- background integrity checks между БД и MinIO
+- integrity checks между БД и MinIO
+- cover art и дополнительные media-артефакты
+- backup strategy для MinIO

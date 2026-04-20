@@ -1,35 +1,44 @@
 # Upload Flow Blueprint
 
-## Scope
+## Status
 
-This document defines the media pipeline that starts from the already working
-track metadata flow and adds real file upload, object storage, background
-processing, and status transitions without replacing the current production
+This document is no longer just a plan. The upload/media pipeline described
+below is implemented in `main` and already used as the current production
 baseline.
 
-This phase intentionally reuses the existing `tracks` table. No new production
-schema is required for the first working upload/media pipeline.
+## Scope
+
+The pipeline extends the already working track metadata flow with:
+
+- real file upload
+- MinIO object storage
+- Celery media processing
+- waveform generation
+- moderation handoff
+- public and private playback paths
+
+The first production implementation still reuses the existing `tracks` row as
+the main source of truth. No extra normalized media tables are required yet.
 
 ## End-to-End Lifecycle
 
-1. The authenticated artist creates track metadata with `POST /api/v1/tracks`.
-2. The artist uploads the source audio file with
-   `POST /api/v1/tracks/upload` and passes `track_id + file`.
-3. Backend validates ownership, size, extension, and MIME type.
-4. Backend stores the original file in MinIO and attaches the storage pointer to
-   the existing track row.
-5. Backend switches the track to `processing` and enqueues a Celery job.
+1. An authenticated artist creates track metadata with `POST /api/v1/tracks`.
+2. The artist uploads a source file with `POST /api/v1/tracks/upload`.
+3. Backend validates ownership, extension, size, and content type.
+4. Backend stores the original file in MinIO.
+5. Backend moves the track to `processing` and enqueues a Celery job.
 6. Celery downloads the original object from MinIO, extracts audio metadata,
-   generates derived MP3 assets, builds waveform data, and writes the results
-   back to MinIO.
-7. Worker updates the `tracks` row and transitions the track to:
-   `approved` on success
-   `rejected` on failure
-8. Frontend reads the owner-facing track state from `GET /api/v1/tracks/mine`
-   and shows whether upload is still needed, processing is in flight, or media
-   assets are ready.
+   generates `128/320 mp3`, and builds waveform data.
+7. Worker writes derived files back to MinIO and updates the `tracks` row.
+8. On successful processing the track returns to `pending`, but now in
+   “ready for moderation” state.
+9. A moderator or admin explicitly approves or rejects the track.
+10. If the track is `approved + is_public`, it becomes publicly visible and
+    publicly streamable.
+11. If the track remains private or not yet approved, owner/moderator preview
+    still works through a signed stream URL.
 
-## API Contract
+## Current API Contract
 
 ### `POST /api/v1/tracks/upload`
 
@@ -41,40 +50,53 @@ Request:
 
 Rules:
 
-- The track must belong to the authenticated user.
-- Allowed source states:
+- the track must belong to the authenticated user
+- allowed source states:
   - `pending`
   - `rejected`
-- Rejected tracks may be re-uploaded and reprocessed.
-- Disallowed source states:
+- disallowed source states:
   - `processing`
-  - `approved`
   - `deleted`
 
 Response:
 
-- HTTP `202 Accepted`
-- Returns the updated owner-facing track payload with storage URLs and the new
-  `processing` status.
+- `202 Accepted`
+- returns the updated owner-facing track payload
+
+### `GET /api/v1/tracks/{id}/stream`
+
+Returns the real audio bytes and supports:
+
+- public playback
+- owner preview
+- moderator preview
+- HTTP Range
+
+### `GET /api/v1/tracks/{id}/stream-url`
+
+Returns a browser-safe playback URL for the current access context.
+
+Why it exists:
+
+- the browser `<audio>` element does not automatically inject the normal Bearer
+  token from frontend auth state
+- private/non-approved playback therefore needs a short-lived signed URL
 
 ## Status Model
 
-Status transitions for the upload pipeline:
+Current transitions:
 
-- `pending`:
-  - metadata exists
-  - upload is missing or has not entered processing yet
-- `processing`:
-  - original file is stored
-  - Celery worker is responsible for media processing
-- `approved`:
-  - derived assets are ready
-  - track may appear in the public catalog when `is_public=true`
-- `rejected`:
-  - upload or processing failed validation/business rules
-  - owner can inspect the rejection reason and re-upload
-- `deleted`:
-  - terminal soft-delete state
+- `pending`
+  - metadata-only state before upload
+  - or ready-for-moderation state after processing
+- `processing`
+  - original file is stored and worker is generating media assets
+- `approved`
+  - moderation passed
+- `rejected`
+  - worker or moderator rejected the track
+- `deleted`
+  - terminal soft-delete
 
 ## MinIO Object Layout
 
@@ -90,40 +112,28 @@ Object key layout:
 
 Notes:
 
-- Original object names are unique, so repeated uploads do not collide before
-  the new upload is accepted.
-- Derived filenames are stable per track and may be replaced by the latest
-  approved processing result.
+- original uploads are unique by object key
+- derived files are stable per track and may be replaced by a later re-upload
 
 ## Source Of Truth In `tracks`
 
-The first production upload pipeline keeps the `tracks` row as the single source
-of truth.
+The current pipeline still treats the `tracks` row as the canonical record.
 
-Field mapping:
+Important fields:
 
-- `status`:
-  current media state
-- `original_url`:
-  canonical future stream URL for the original asset
-- `mp3_128_url`:
-  canonical future stream URL for 128 kbps preview
-- `mp3_320_url`:
-  canonical future stream URL for 320 kbps asset
-- `file_size_bytes`:
-  original file size
-- `duration_seconds`:
-  audio duration after successful processing
-- `waveform_data_json`:
-  normalized waveform payload for frontend visualization
-- `metadata_json`:
-  upload, storage, and processing metadata
-- `rejection_reason`:
-  owner-facing failure reason for rejected uploads
+- `status`
+- `original_url`
+- `mp3_128_url`
+- `mp3_320_url`
+- `file_size_bytes`
+- `duration_seconds`
+- `waveform_data_json`
+- `metadata_json`
+- `rejection_reason`
 
 ## `metadata_json` Contract
 
-The worker and API share the following structure inside `tracks.metadata_json`:
+The API and worker currently share this logical document:
 
 ```json
 {
@@ -147,7 +157,7 @@ The worker and API share the following structure inside `tracks.metadata_json`:
     }
   },
   "processing": {
-    "status": "approved",
+    "status": "processed",
     "task_id": "celery-task-id",
     "queued_at": "2026-04-19T20:11:30.220000+00:00",
     "started_at": "2026-04-19T20:11:31.001000+00:00",
@@ -157,52 +167,34 @@ The worker and API share the following structure inside `tracks.metadata_json`:
 }
 ```
 
-Only a subset of these fields is required before processing completes.
-
-## Backend Responsibilities
-
-- validate upload input and ownership
-- write the original file to MinIO
-- preserve existing working metadata flow
-- queue background processing safely
-- return owner-facing upload state immediately
-- keep cleanup best-effort and non-destructive
-
-## Worker Responsibilities
-
-- download the original file from MinIO
-- decode supported audio formats
-- extract audio metadata
-- generate derived MP3 assets
-- build waveform data
-- update track state atomically enough for owner-facing consistency
-- reject the track with a stored reason if processing fails
-
-## Frontend Responsibilities
-
-- keep metadata creation as the first step
-- expose file upload only for owner tracks
-- upload against an existing `track_id`
-- surface the current track status and rejection reason
-- refresh `GET /api/v1/tracks/mine` after a successful upload request
+The exact keys may grow, but this is the current shared logical structure.
 
 ## Failure Handling
 
-- Upload validation failure:
-  backend rejects before MinIO write
-- Broker failure after original upload:
-  backend removes the new original object and restores previous track state
-- Worker processing failure:
-  track moves to `rejected`, stores `rejection_reason`, and keeps the original
-  upload pointer for retry/debugging
-- Re-upload after rejection:
-  new original object replaces the old processing context, and the track moves
-  back to `processing`
+- validation failure:
+  request is rejected before MinIO write
+- broker failure after original upload:
+  backend restores previous state and removes the new object
+- worker failure:
+  track moves to `rejected` with `rejection_reason`
+- re-upload after reject:
+  the new upload replaces previous processing context and the track returns to
+  `processing`
 
-## Non-Goals Of This Phase
+## What This Phase Already Covers
 
-- public streaming endpoint implementation
-- waveform player integration
-- moderation UI
-- presigned direct-to-MinIO browser uploads
-- normalized media asset tables
+- upload API
+- MinIO storage
+- Celery processing
+- waveform generation
+- moderation handoff
+- public stream
+- owner/private preview stream
+
+## Next Evolution Around This Blueprint
+
+- play counters on real playback
+- download rules for `is_downloadable`
+- direct-to-MinIO presigned uploads
+- upload revision history
+- normalized media asset tables if the platform grows beyond MVP
