@@ -22,10 +22,10 @@ user_status_enum = sa.Enum("active", "inactive", "banned", name="user_status")
 track_status_enum = sa.Enum("pending", "processing", "approved", "rejected", "deleted", name="track_status")
 interaction_type_enum = sa.Enum("like", "comment", "repost", "follow", name="interaction_type")
 
-user_role_enum_ref = sa.Enum("user", "moderator", "admin", name="user_role", create_type=False)
-user_status_enum_ref = sa.Enum("active", "inactive", "banned", name="user_status", create_type=False)
-track_status_enum_ref = sa.Enum("pending", "processing", "approved", "rejected", "deleted", name="track_status", create_type=False)
-interaction_type_enum_ref = sa.Enum("like", "comment", "repost", "follow", name="interaction_type", create_type=False)
+user_role_enum_ref = postgresql.ENUM("user", "moderator", "admin", name="user_role", create_type=False)
+user_status_enum_ref = postgresql.ENUM("active", "inactive", "banned", name="user_status", create_type=False)
+track_status_enum_ref = postgresql.ENUM("pending", "processing", "approved", "rejected", "deleted", name="track_status", create_type=False)
+interaction_type_enum_ref = postgresql.ENUM("like", "comment", "repost", "follow", name="interaction_type", create_type=False)
 
 
 def upgrade() -> None:
