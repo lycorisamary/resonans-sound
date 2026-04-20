@@ -21,6 +21,13 @@ This folder is the current documentation center for `resonans-sound`.
 - [`quickstart.md`](quickstart.md) — short English quick start
 - [`server-diagnostics-ru.md`](server-diagnostics-ru.md) — production diagnostics, deploy checks, and server troubleshooting
 
+## Operational Rules
+
+- Database schema changes must go through Alembic migrations only.
+- The backend must not create or patch tables on startup.
+- `infra/.env.dev` and `infra/.env.prod` are tracked templates only.
+- Real production secrets stay in the private server-side `infra/.env`.
+
 ## Entry Point
 
 The repository root [`README.md`](../README.md) is now a concise overview and

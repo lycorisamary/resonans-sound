@@ -5,6 +5,11 @@
 The upload/media pipeline described below is implemented in `main` and is part
 of the current production baseline.
 
+Database precondition for this flow:
+
+- the backend must already be running against the current Alembic head
+- startup should fail instead of attempting runtime schema fixes
+
 ## Scope
 
 The current flow covers:

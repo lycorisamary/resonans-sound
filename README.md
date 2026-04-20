@@ -20,6 +20,9 @@ Implemented in `main` right now:
 - public playback and owner preview where needed
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
+- Alembic migrations as the only schema authority
+- fail-fast runtime config validation for required secrets and production safety
+- GitHub Actions for backend tests and frontend build
 - backend tests for critical upload/stream security paths
 
 ## Production Baseline
@@ -90,8 +93,7 @@ Recommended local flow:
 
 ```bash
 cd infra
-cp .env.example .env
-docker compose up -d --build
+docker compose --env-file .env.dev up -d --build
 docker compose ps
 ```
 
@@ -101,11 +103,50 @@ Local entry points:
 - backend health: `http://127.0.0.1:8000/api/v1/health`
 - API docs: `http://127.0.0.1:8000/api/docs`
 
+Tracked environment templates:
+
+- `infra/.env.dev` — local development template
+- `infra/.env.prod` — production template without real secrets
+- `infra/.env` on the server remains the real private runtime file and must not be committed
+
+## Database Migrations
+
+Database schema changes must go through Alembic only.
+The API no longer creates or patches tables at runtime.
+
+Run migrations locally:
+
+```bash
+cd backend
+set ENV=development
+set APP_ENV_FILE=../infra/.env.dev
+alembic upgrade head
+```
+
+Run migrations in production:
+
+```bash
+cd /root/resonans-sound/backend
+ENV=production APP_ENV_FILE=../infra/.env alembic upgrade head
+```
+
+First rollout on an already existing pre-Alembic database:
+
+```bash
+cd /root/resonans-sound/backend
+ENV=production APP_ENV_FILE=../infra/.env python scripts/bootstrap_alembic.py
+ENV=production APP_ENV_FILE=../infra/.env alembic upgrade head
+```
+
+If the database schema is behind the repository Alembic head, the backend now fails fast on startup instead of trying to mutate the schema automatically.
+
 ## Production Update Flow
 
 ```bash
 cd /root/resonans-sound
 git pull --ff-only origin main
+cd backend
+ENV=production APP_ENV_FILE=../infra/.env alembic upgrade head
 cd infra
 docker compose build backend celery_worker frontend
 docker compose run --rm backend pytest -q tests

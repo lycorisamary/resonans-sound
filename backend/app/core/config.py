@@ -1,90 +1,115 @@
 import os
-from pydantic_settings import BaseSettings
-from typing import Optional
-from datetime import timedelta
+
+from pydantic import field_validator, model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _default_env_file() -> str:
+    explicit_env_file = os.getenv("APP_ENV_FILE")
+    if explicit_env_file:
+        return explicit_env_file
+
+    environment = os.getenv("ENV", "development").strip().lower()
+    if environment == "production":
+        return ".env.prod"
+    if environment == "test":
+        return ".env.test"
+    return ".env.dev"
 
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
-    
-    # Application
+
     APP_NAME: str = "Audio Platform"
     APP_VERSION: str = "1.0.0"
+    ENV: str = "development"
     DEBUG: bool = False
     API_PREFIX: str = "/api/v1"
-    
-    # Database
-    # Defaults below are intended for local development only.
-    DATABASE_URL: str = "postgresql://audioplatform:password@localhost:5432/audio_platform"
+
+    DATABASE_URL: str
     DB_POOL_SIZE: int = 10
     DB_MAX_OVERFLOW: int = 20
-    
-    # Redis
+
     REDIS_URL: str = "redis://localhost:6379/0"
-    
-    # RabbitMQ
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672//"
-    
-    # MinIO/S3 Storage
+
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "audioplatform"
-    MINIO_SECRET_KEY: str = "password"
+    MINIO_SECRET_KEY: str
     MINIO_BUCKET: str = "audio-tracks"
     MINIO_SECURE: bool = False
-    
-    # Security & Authentication
-    SECRET_KEY: str = "change_me_application_secret"
+
+    SECRET_KEY: str
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     STREAM_TOKEN_EXPIRE_MINUTES: int = 120
-    
-    # File Upload Limits
-    MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100 MB
-    ALLOWED_AUDIO_FORMATS: list = [
+
+    MAX_FILE_SIZE: int = 100 * 1024 * 1024
+    ALLOWED_AUDIO_FORMATS: list[str] = [
         "audio/mpeg",
         "audio/wav",
         "audio/x-wav",
         "audio/wave",
         "audio/vnd.wave",
     ]
-    ALLOWED_EXTENSIONS: list = [".mp3", ".wav"]
-    MAX_COVER_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5 MB
-    ALLOWED_IMAGE_FORMATS: list = [
+    ALLOWED_EXTENSIONS: list[str] = [".mp3", ".wav"]
+    MAX_COVER_IMAGE_SIZE: int = 5 * 1024 * 1024
+    ALLOWED_IMAGE_FORMATS: list[str] = [
         "image/jpeg",
         "image/png",
         "image/webp",
     ]
-    ALLOWED_IMAGE_EXTENSIONS: list = [".jpg", ".jpeg", ".png", ".webp"]
-    
-    # Audio Processing
-    AUDIO_BITRATES: list = [128, 320]  # kbps
+    ALLOWED_IMAGE_EXTENSIONS: list[str] = [".jpg", ".jpeg", ".png", ".webp"]
+
+    AUDIO_BITRATES: list[int] = [128, 320]
     WAVEFORM_SAMPLES: int = 1000
-    
-    # Rate Limiting
+
     RATE_LIMIT_PER_SECOND: int = 100
     UPLOAD_RATE_LIMIT_PER_HOUR: int = 10
-    
-    # CORS
-    CORS_ORIGINS: list = [
+
+    CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:8080",
     ]
-    
-    # Email (for future use)
-    SMTP_HOST: Optional[str] = None
-    SMTP_PORT: Optional[int] = None
-    SMTP_USER: Optional[str] = None
-    SMTP_PASSWORD: Optional[str] = None
-    EMAIL_FROM: Optional[str] = None
-    
-    # Monitoring
+
+    SMTP_HOST: str | None = None
+    SMTP_PORT: int | None = None
+    SMTP_USER: str | None = None
+    SMTP_PASSWORD: str | None = None
+    EMAIL_FROM: str | None = None
+
     PROMETHEUS_ENABLED: bool = True
-    
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
+
+    model_config = SettingsConfigDict(
+        env_file=_default_env_file(),
+        case_sensitive=True,
+        extra="ignore",
+    )
+
+    @field_validator("ENV")
+    @classmethod
+    def normalize_environment(cls, value: str) -> str:
+        normalized = value.strip().lower()
+        allowed = {"development", "production", "test"}
+        if normalized not in allowed:
+            raise ValueError(f"ENV must be one of: {', '.join(sorted(allowed))}")
+        return normalized
+
+    @field_validator("DATABASE_URL", "MINIO_SECRET_KEY", "SECRET_KEY")
+    @classmethod
+    def require_non_empty_secret_values(cls, value: str, info) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError(f"{info.field_name} must not be empty")
+        return normalized
+
+    @model_validator(mode="after")
+    def validate_environment_rules(self) -> "Settings":
+        if self.ENV == "production" and self.DEBUG:
+            raise ValueError("DEBUG must be False when ENV=production")
+        return self
 
 
 settings = Settings()

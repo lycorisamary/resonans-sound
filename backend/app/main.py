@@ -1,15 +1,15 @@
+from contextlib import asynccontextmanager
+import time
+
+import structlog
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from contextlib import asynccontextmanager
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
-import time
-import structlog
-from sqlalchemy import inspect, text
 
 from app.core.config import settings
-from app.db.session import engine, Base
-from app.models import User, Category, Track  # Import models to create tables
+from app.db.schema import validate_schema_revision
+from app.db.session import engine
 
 # Import currently active routers
 from app.api import admin, auth, categories, interactions, tracks, users
@@ -46,29 +46,13 @@ REQUEST_LATENCY = Histogram(
 )
 
 
-def ensure_runtime_schema() -> None:
-    """Apply small idempotent runtime schema fixes when migrations are absent."""
-    inspector = inspect(engine)
-    if "tracks" not in inspector.get_table_names():
-        return
-
-    track_columns = {column["name"] for column in inspector.get_columns("tracks")}
-    with engine.begin() as connection:
-        if "cover_image_url" not in track_columns:
-            connection.execute(text("ALTER TABLE tracks ADD COLUMN cover_image_url TEXT"))
-            logger.info("runtime_schema_updated", table="tracks", column="cover_image_url")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
     # Startup
     logger.info("Starting up Audio Platform API")
-    
-    # Create database tables
-    Base.metadata.create_all(bind=engine)
-    ensure_runtime_schema()
-    logger.info("Database tables created")
+    validate_schema_revision(engine)
+    logger.info("Database schema revision verified")
     
     yield
     

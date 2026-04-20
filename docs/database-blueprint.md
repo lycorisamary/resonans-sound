@@ -2,6 +2,9 @@
 
 ## 1. Current Physical Model
 
+Database schema management is now owned by Alembic migrations only.
+The application must not create or alter tables during startup.
+
 The current implementation still centers the MVP around a few core tables:
 
 - `users`

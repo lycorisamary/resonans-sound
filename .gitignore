@@ -1,21 +1,18 @@
-
-```
-# Dependencies
+# Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.so
+.Python
 .venv/
 venv/
 env/
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
 
 # Build artifacts
 build/
-develop-eggs/
 dist/
+develop-eggs/
 downloads/
 eggs/
 .eggs/
@@ -25,51 +22,40 @@ parts/
 sdist/
 var/
 wheels/
+*.egg
 *.egg-info/
 .installed.cfg
-*.egg
+backend/build/
+backend/dist/
+backend/target/
 
-# Environment variables
+# Environments and local overrides
 .env
 .env.local
 .env.*
 !infra/.env.example
+!infra/.env.dev
+!infra/.env.prod
 
-# Logs and temp files
+# Logs and temporary files
 *.log
 *.tmp
-# Testing
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Test and coverage output
 .coverage
 coverage/
 htmlcov/
 .nyc_output/
 coverage-final.json
 
-# IDE
+# Editors
 .vscode/
 .idea/
 *.swp
 *.swo
-*.tmp
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
-
-# Coverage
-coverage/
-htmlcov/
-.coverage
-
-# Build artifacts
-backend/dist/
-backend/build/
-backend/target/
-
-# Python specific
-*.pyc
-*.pyo
-*.pyd
-*.so
-*.egg-info/
-```

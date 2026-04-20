@@ -49,9 +49,9 @@ explicitly changes direction.
 
 ## Current Technical Notes
 
-- Backend startup still uses `Base.metadata.create_all(...)`
-- Small runtime schema fixes may be applied in app startup if migrations are
-  absent and the fix is safe and idempotent
+- Database schema is managed through Alembic migrations only
+- Backend startup must fail fast if the DB schema revision does not match the
+  repository Alembic head
 - Media storage currently uses the `tracks` row as the main source of truth
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
 
