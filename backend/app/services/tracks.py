@@ -9,6 +9,7 @@ from tempfile import NamedTemporaryFile
 
 from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
+import structlog
 
 from app.celery_app import celery_app
 from app.core.config import settings
@@ -23,6 +24,9 @@ from app.services.storage import (
     sanitize_filename,
     upload_file,
 )
+
+
+logger = structlog.get_logger(__name__)
 
 
 def _get_active_category(db: Session, category_id: int | None) -> Category | None:
@@ -397,6 +401,14 @@ def delete_track_metadata(db: Session, current_user: User, track_id: int) -> Non
             )
         )
     db.commit()
+    logger.info(
+        "track_deleted",
+        track_id=track.id,
+        owner_id=track.user_id,
+        deleted_by_user_id=current_user.id,
+        deleted_by_role=current_user.role.value,
+        deleted_by_staff=current_user.id != track.user_id,
+    )
 
 
 def upload_track_source(
@@ -452,6 +464,11 @@ def upload_track_source(
             db.add(track)
             db.commit()
             db.refresh(track)
+            logger.exception(
+                "track_upload_queue_unavailable",
+                track_id=track.id,
+                user_id=current_user.id,
+            )
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Upload saved but background processing queue is unavailable",
@@ -470,6 +487,14 @@ def upload_track_source(
         db.refresh(track)
 
         delete_objects([key for key in previous_storage_keys if key != new_original_key])
+        logger.info(
+            "track_upload_queued",
+            track_id=track.id,
+            user_id=current_user.id,
+            task_id=task_result.id,
+            content_type=content_type,
+            file_size_bytes=file_size_bytes,
+        )
 
         hydrated_track = _hydrate_track(db, track.id)
         return serialize_track(hydrated_track, include_private_media=True)
@@ -520,6 +545,12 @@ def upload_track_cover(
 
         if previous_cover_key and previous_cover_key != new_cover_key:
             delete_objects([previous_cover_key])
+        logger.info(
+            "track_cover_uploaded",
+            track_id=track.id,
+            user_id=current_user.id,
+            content_type=content_type,
+        )
 
         hydrated_track = _hydrate_track(db, track.id)
         return serialize_track(hydrated_track, include_private_media=True)

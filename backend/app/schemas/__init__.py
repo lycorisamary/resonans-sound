@@ -25,13 +25,6 @@ class TrackStatusEnum(str, Enum):
     deleted = "deleted"
 
 
-class InteractionTypeEnum(str, Enum):
-    like = "like"
-    comment = "comment"
-    repost = "repost"
-    follow = "follow"
-
-
 # Auth Schemas
 class UserRegister(BaseModel):
     email: EmailStr
@@ -76,17 +69,6 @@ class UserBase(BaseModel):
     avatar_url: Optional[str] = None
 
 
-class UserCreate(UserBase):
-    password: str
-
-
-class UserUpdate(BaseModel):
-    email: Optional[EmailStr] = None
-    username: Optional[str] = Field(None, min_length=3, max_length=50)
-    bio: Optional[str] = None
-    avatar_url: Optional[str] = None
-
-
 class UserResponse(UserBase):
     id: int
     role: UserRoleEnum
@@ -111,24 +93,12 @@ class UserPublic(BaseModel):
         from_attributes = True
 
 
-# Category Schemas
+# Active category schemas
 class CategoryBase(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
     slug: str = Field(..., min_length=2, max_length=100)
     description: Optional[str] = None
     sort_order: int = 0
-
-
-class CategoryCreate(CategoryBase):
-    pass
-
-
-class CategoryUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = None
-    sort_order: Optional[int] = None
-    is_active: Optional[bool] = None
-
 
 class CategoryResponse(CategoryBase):
     id: int
@@ -213,61 +183,6 @@ class StreamUrlResponse(BaseModel):
     expires_at: Optional[datetime] = None
 
 
-# Playlist Schemas
-class PlaylistBase(BaseModel):
-    name: str = Field(..., min_length=1, max_length=255)
-    description: Optional[str] = None
-    is_public: bool = True
-
-
-class PlaylistCreate(PlaylistBase):
-    pass
-
-
-class PlaylistUpdate(BaseModel):
-    name: Optional[str] = Field(None, min_length=1, max_length=255)
-    description: Optional[str] = None
-    is_public: Optional[bool] = None
-
-
-class PlaylistTrackAdd(BaseModel):
-    track_id: int
-    sort_order: Optional[int] = 0
-
-
-class PlaylistResponse(PlaylistBase):
-    id: int
-    user_id: int
-    created_at: datetime
-    updated_at: datetime
-    track_count: int
-    tracks: Optional[List[TrackResponse]] = None
-
-    class Config:
-        from_attributes = True
-
-
-# Interaction Schemas
-class InteractionCreate(BaseModel):
-    track_id: Optional[int] = None
-    type: InteractionTypeEnum
-    content: Optional[str] = None
-    parent_id: Optional[int] = None
-
-
-class InteractionResponse(BaseModel):
-    id: int
-    user_id: int
-    track_id: Optional[int] = None
-    type: InteractionTypeEnum
-    content: Optional[str] = None
-    created_at: datetime
-    user: Optional[UserPublic] = None
-
-    class Config:
-        from_attributes = True
-
-
 class LikeToggleResponse(BaseModel):
     track_id: int
     liked: bool
@@ -278,41 +193,7 @@ class TrackLikeListResponse(BaseModel):
     track_ids: List[int]
 
 
-class CommentCreate(BaseModel):
-    track_id: int
-    content: str = Field(..., min_length=1, max_length=2000)
-    parent_id: Optional[int] = None
-
-
-class CommentResponse(InteractionResponse):
-    replies: Optional[List['CommentResponse']] = None
-
-
-# Follow Schema
-class FollowCreate(BaseModel):
-    following_id: int
-
-
-class FollowResponse(BaseModel):
-    id: int
-    follower_id: int
-    following_id: int
-    created_at: datetime
-    follower: Optional[UserPublic] = None
-    following: Optional[UserPublic] = None
-
-    class Config:
-        from_attributes = True
-
-
 # Admin Schemas
-class AdminAction(BaseModel):
-    action: str
-    target_type: str
-    target_id: int
-    reason: Optional[str] = None
-
-
 class AdminLogResponse(BaseModel):
     id: int
     admin_id: int
@@ -326,40 +207,11 @@ class AdminLogResponse(BaseModel):
     class Config:
         from_attributes = True
 
-
-class UserModeration(BaseModel):
-    status: Optional[UserStatusEnum] = None
-    role: Optional[UserRoleEnum] = None
-
-
 class TrackModeration(BaseModel):
     status: Optional[TrackStatusEnum] = None
     rejection_reason: Optional[str] = None
 
 
-# Report Schemas
-class ReportCreate(BaseModel):
-    track_id: Optional[int] = None
-    user_id: Optional[int] = None
-    reason: str = Field(..., min_length=10, max_length=255)
-    description: Optional[str] = Field(None, max_length=2000)
-
-
-class ReportResponse(BaseModel):
-    id: int
-    reporter_id: int
-    track_id: Optional[int] = None
-    user_id: Optional[int] = None
-    reason: str
-    description: Optional[str] = None
-    status: str
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
-
-
-# Analytics Schemas
 class SystemStats(BaseModel):
     total_users: int
     total_tracks: int
@@ -370,26 +222,13 @@ class SystemStats(BaseModel):
     tracks_pending_moderation: int
 
 
-class AnalyticsPeriod(BaseModel):
-    start_date: datetime
-    end_date: datetime
-    plays: int
-    unique_listeners: int
-    top_tracks: Optional[List[dict]] = None
-    top_artists: Optional[List[dict]] = None
-
-
-# Pagination
-class PaginationParams(BaseModel):
-    page: int = 1
-    size: int = 20
-    sort_by: str = "created_at"
-    sort_order: str = "desc"
-
-
 class PaginatedResponse(BaseModel):
     items: List
     total: int
     page: int
     size: int
     pages: int
+
+
+# Future-only schemas for playlists/comments/follows/reports are intentionally
+# excluded from the active MVP runtime until those APIs are reintroduced.

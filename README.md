@@ -22,7 +22,7 @@ Implemented in `main` right now:
 - likes plus a dedicated liked-tracks view
 - Alembic migrations as the only schema authority
 - fail-fast runtime config validation for required secrets and production safety
-- GitHub Actions for backend tests and frontend build
+- GitHub Actions for backend tests, frontend build, Alembic migration, and startup health verification on Postgres
 - backend tests for critical upload/stream security paths
 
 ## Production Baseline
@@ -139,6 +139,10 @@ ENV=production APP_ENV_FILE=../infra/.env alembic upgrade head
 ```
 
 If the database schema is behind the repository Alembic head, the backend now fails fast on startup instead of trying to mutate the schema automatically.
+
+The active ORM runtime intentionally covers only the current MVP surface. Future
+tables from older broader schemas are not treated as part of the active runtime
+contract unless they are explicitly reintroduced in a later iteration.
 
 ## Production Update Flow
 

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 import time
+from uuid import uuid4
 
 import structlog
 from fastapi import FastAPI, Request, Response
@@ -86,18 +87,28 @@ app.add_middleware(
 @app.middleware("http")
 async def log_and_metrics(request: Request, call_next):
     start_time = time.time()
-    
-    response = await call_next(request)
+    request_id = request.headers.get("X-Request-ID") or str(uuid4())
+    request.state.request_id = request_id
+    structlog.contextvars.clear_contextvars()
+    structlog.contextvars.bind_contextvars(request_id=request_id)
+
+    try:
+        response = await call_next(request)
+    except Exception:
+        structlog.contextvars.clear_contextvars()
+        raise
     
     # Log request
     process_time = time.time() - start_time
     logger.info(
         "request_processed",
+        request_id=request_id,
         method=request.method,
         path=request.url.path,
         status_code=response.status_code,
         process_time=process_time,
     )
+    response.headers["X-Request-ID"] = request_id
     
     # Record metrics
     if request.url.path != "/metrics":
@@ -111,21 +122,24 @@ async def log_and_metrics(request: Request, call_next):
             method=request.method,
             endpoint=request.url.path
         ).observe(process_time)
-    
+
+    structlog.contextvars.clear_contextvars()
     return response
 
 
 # Exception handlers
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(
+    request_id = getattr(request.state, "request_id", None)
+    logger.exception(
         "unhandled_exception",
+        request_id=request_id,
         path=request.url.path,
-        error=str(exc),
     )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": "Internal server error", "request_id": request_id},
+        headers={"X-Request-ID": request_id} if request_id else None,
     )
 
 
@@ -152,10 +166,6 @@ app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=[
 app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
 app.include_router(interactions.router, prefix=f"{settings.API_PREFIX}/interactions", tags=["Interactions"])
-
-# Include routers planned for later phases
-# app.include_router(playlists.router, prefix=f"{settings.API_PREFIX}/playlists", tags=["Playlists"])
-
 
 # Root endpoint
 @app.get("/", tags=["Root"])

@@ -7,13 +7,26 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: audioplatform
+          POSTGRES_PASSWORD: ci-postgres-password
+          POSTGRES_DB: audio_platform
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U audioplatform -d audio_platform"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     defaults:
       run:
         working-directory: backend
     env:
       ENV: test
       APP_ENV_FILE: .env.test
-      DATABASE_URL: sqlite:///./ci.db
       MINIO_SECRET_KEY: ci-minio-secret
       SECRET_KEY: ci-secret-key
     steps:
@@ -25,8 +38,42 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - name: Install backend dependencies
         run: pip install -r requirements.txt
+      - name: Run Alembic migrations on Postgres
+        env:
+          DATABASE_URL: postgresql://audioplatform:ci-postgres-password@127.0.0.1:5432/audio_platform
+        run: alembic upgrade head
+      - name: Verify backend starts against migrated database
+        env:
+          DATABASE_URL: postgresql://audioplatform:ci-postgres-password@127.0.0.1:5432/audio_platform
+        run: |
+          python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/backend.log 2>&1 &
+          UVICORN_PID=$!
+          trap 'kill $UVICORN_PID; wait $UVICORN_PID || true' EXIT
+          python - <<'PY'
+          import json
+          import time
+          import urllib.request
+
+          url = "http://127.0.0.1:8000/api/v1/health"
+          last_error = None
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen(url, timeout=2) as response:
+                      payload = json.load(response)
+                  if payload.get("status") != "healthy":
+                      raise RuntimeError(f"Unexpected health payload: {payload}")
+                  print(payload)
+                  break
+              except Exception as exc:
+                  last_error = exc
+                  time.sleep(1)
+          else:
+              raise last_error or RuntimeError("Backend did not become healthy")
+          PY
       - name: Run backend tests
-        run: pytest -q
+        env:
+          DATABASE_URL: sqlite:///./ci.db
+        run: pytest -q tests
 
   frontend-build:
     runs-on: ubuntu-latest
