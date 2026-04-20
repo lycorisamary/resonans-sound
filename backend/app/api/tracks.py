@@ -12,12 +12,13 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas import PaginatedResponse, StreamUrlResponse, TrackResponse, TrackUploadResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
-from app.services.streaming import build_track_stream_response, build_track_stream_url_response
+from app.services.streaming import build_track_cover_response, build_track_stream_response, build_track_stream_url_response
 from app.services.tracks import (
     create_track_metadata,
     delete_track_metadata,
     list_user_tracks,
     update_track_metadata,
+    upload_track_cover,
     upload_track_source,
 )
 from app.schemas import TrackCreate, TrackUpdate
@@ -85,6 +86,22 @@ def upload_track(
     )
 
 
+@router.post("/{track_id}/cover", response_model=TrackUploadResponse, status_code=202)
+def upload_cover(
+    track_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TrackUploadResponse:
+    """Attach or replace a track cover image for the owner."""
+    return upload_track_cover(
+        db=db,
+        current_user=current_user,
+        track_id=track_id,
+        upload_file_object=file,
+    )
+
+
 @router.get("/{track_id}/stream")
 def stream_track(
     track_id: int,
@@ -119,7 +136,7 @@ def get_track_stream_url(
     quality: str = Query("320"),
     current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
-) -> StreamUrlResponse:
+    ) -> StreamUrlResponse:
     """Return a browser-safe stream URL for the current access context."""
     return build_track_stream_url_response(
         db=db,
@@ -129,9 +146,18 @@ def get_track_stream_url(
     )
 
 
+@router.get("/{track_id}/cover")
+def get_track_cover(
+    track_id: int,
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    """Return the public track cover image when it exists."""
+    return build_track_cover_response(db=db, track_id=track_id)
+
+
 @router.get("/{track_id}", response_model=TrackResponse)
 def get_track(track_id: int, db: Session = Depends(get_db)) -> TrackResponse:
-    """Return a single approved public track."""
+    """Return a single published track."""
     track = get_public_track(db, track_id)
     if track is None:
         raise HTTPException(status_code=404, detail="Track not found")
@@ -155,6 +181,6 @@ def delete_track(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
-    """Soft-delete a track for the owner."""
+    """Soft-delete a track for the owner or for moderator/admin roles."""
     delete_track_metadata(db=db, current_user=current_user, track_id=track_id)
     return {"detail": "Track deleted"}

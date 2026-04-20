@@ -70,6 +70,11 @@ def build_derived_object_key(user_id: int, track_id: int, quality: str) -> str:
     return f"{TRACKS_STORAGE_PREFIX}/{user_id}/{track_id}/derived/{quality}.mp3"
 
 
+def build_cover_object_key(user_id: int, track_id: int, filename: str | None) -> str:
+    extension = Path(filename or "cover.bin").suffix.lower() or ".bin"
+    return f"{TRACKS_STORAGE_PREFIX}/{user_id}/{track_id}/cover/{uuid4().hex}{extension}"
+
+
 def upload_file(file_path: str, object_key: str, content_type: str | None = None) -> StoredObject:
     client = ensure_bucket_exists()
     resolved_content_type = content_type or guess_content_type(file_path) or "application/octet-stream"

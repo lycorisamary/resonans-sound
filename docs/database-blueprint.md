@@ -95,7 +95,6 @@ changing.
 Reads only tracks where:
 
 - `status='approved'`
-- `is_public=true`
 
 ### Owner studio
 
@@ -109,12 +108,8 @@ Reads all owner tracks, including:
 
 ### Moderation area
 
-Reads tracks that are:
-
-- `status='pending'`
-- already have uploaded/processed media
-
-That effectively means “ready for moderation”.
+Manual moderation is not currently the mandatory publication gate.
+The active product flow now publishes tracks automatically after successful processing.
 
 ## 6. Current Social Layer In DB
 
@@ -153,10 +148,10 @@ This is enough for the current moderation history block in the frontend.
 
 ## 9. Integrity Rules
 
-- a public track must not be playable publicly before `approved + is_public`
+- a track must not be playable publicly before `approved`
 - a deleted track must not re-enter the public catalog
 - only the owner may upload or replace the source file
-- moderators/admins may preview non-public tracks for review
+- moderators/admins may still exercise extended delete rights
 - owner/private playback must not depend on exposing MinIO object keys
 
 ## 10. Deferred Normalization

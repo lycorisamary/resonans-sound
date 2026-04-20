@@ -125,7 +125,8 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
         track.mp3_320_url = stream_urls["320"]
         track.waveform_data_json = processed_assets.waveform_data_json
         track.metadata_json = metadata_json
-        track.status = TrackStatus.pending
+        track.is_public = True
+        track.status = TrackStatus.approved
         track.rejection_reason = None
         db.add(track)
         db.commit()

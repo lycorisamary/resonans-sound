@@ -51,6 +51,7 @@ export interface Track {
   like_count: number;
   comment_count: number;
   duration_seconds?: number;
+  cover_image_url?: string;
   waveform_data_json?: any;
   metadata?: TrackMetadata;
   user?: UserPublic;

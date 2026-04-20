@@ -17,26 +17,35 @@ import {
   Paper,
   Stack,
   Switch,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
+import AutoAwesomeRoundedIcon from '@mui/icons-material/AutoAwesomeRounded';
+import CloudUploadRoundedIcon from '@mui/icons-material/CloudUploadRounded';
+import DeleteOutlineRoundedIcon from '@mui/icons-material/DeleteOutlineRounded';
 import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded';
 import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded';
+import LibraryMusicRoundedIcon from '@mui/icons-material/LibraryMusicRounded';
+import PauseRoundedIcon from '@mui/icons-material/PauseRounded';
+import PhotoCameraRoundedIcon from '@mui/icons-material/PhotoCameraRounded';
+import PlayArrowRoundedIcon from '@mui/icons-material/PlayArrowRounded';
+import QueueMusicRoundedIcon from '@mui/icons-material/QueueMusicRounded';
 import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import ShieldRoundedIcon from '@mui/icons-material/ShieldRounded';
 
 import api from './services/api';
 import {
-  AdminLog,
   AuthTokens,
   Category,
   LikeToggleResponse,
   PaginatedResponse,
   StreamUrlResponse,
-  SystemStats,
   Track,
   TrackLikeListResponse,
-  TrackModerationPayload,
   User,
 } from './types';
 
@@ -47,13 +56,16 @@ type HealthResponse = {
 };
 
 type AuthMode = 'login' | 'register';
+type CatalogView = 'catalog' | 'liked';
+type StreamQuality = '128' | '320' | 'original';
+type CatalogSort = 'newest' | 'popular' | 'title';
+type OwnerTrackStateTone = 'info' | 'warning' | 'success' | 'error';
 
 type TrackFormState = {
   title: string;
   description: string;
   genre: string;
   category_id: string;
-  is_public: boolean;
   is_downloadable: boolean;
   license_type: string;
   tags: string;
@@ -66,7 +78,6 @@ const initialTrackForm: TrackFormState = {
   description: '',
   genre: '',
   category_id: '',
-  is_public: true,
   is_downloadable: false,
   license_type: 'all-rights-reserved',
   tags: '',
@@ -74,9 +85,7 @@ const initialTrackForm: TrackFormState = {
   key_signature: '',
 };
 
-type StreamQuality = '128' | '320' | 'original';
-type CatalogSort = 'newest' | 'popular' | 'title';
-type OwnerTrackStateTone = 'info' | 'warning' | 'success' | 'error';
+const artworkColors = ['#0f766e', '#f97316', '#1d4ed8', '#be123c', '#6d28d9'];
 
 
 function formatTime(seconds: number) {
@@ -111,134 +120,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 
-function getOwnerTrackState(track: Track): { tone: OwnerTrackStateTone; title: string; description: string } {
-  const hasMedia = Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
-
-  if (track.status === 'deleted') {
-    return {
-      tone: 'error',
-      title: 'Удалён из активного оборота',
-      description: 'Трек скрыт из каталога и больше не участвует в пользовательских сценариях.',
-    };
-  }
-
-  if (track.status === 'processing') {
-    return {
-      tone: 'warning',
-      title: 'Идёт media processing',
-      description: 'Исходный файл уже принят. Worker готовит производные MP3 и waveform для плеера.',
-    };
-  }
-
-  if (track.status === 'rejected') {
-    return {
-      tone: 'error',
-      title: 'Нужны правки перед повторной отправкой',
-      description: 'Исправьте metadata или замените файл, затем снова отправьте трек на review.',
-    };
-  }
-
-  if (track.status === 'approved' && track.is_public) {
-    return {
-      tone: 'success',
-      title: 'Трек опубликован',
-      description: 'Медиа прошло модерацию и уже может воспроизводиться в публичном каталоге.',
-    };
-  }
-
-  if (track.status === 'approved' && !track.is_public) {
-    return {
-      tone: 'success',
-      title: 'Трек одобрен, но остаётся приватным',
-      description: 'Поток доступен владельцу и ролям модерации, но в публичный каталог трек не попадает.',
-    };
-  }
-
-  if (track.status === 'pending' && !hasMedia) {
-    return {
-      tone: 'info',
-      title: 'Ждёт исходный файл',
-      description: 'Metadata уже сохранено. Следующий шаг: загрузить MP3 или WAV, чтобы запустить processing.',
-    };
-  }
-
-  return {
-    tone: 'warning',
-    title: 'Ждёт модерацию',
-    description: 'Файл уже обработан, но трек пока не опубликован. Его должен проверить moderator или admin.',
-  };
-}
-
-
-function formatModerationAction(log: AdminLog) {
-  if (log.action === 'track_approved') {
-    return 'Трек одобрен';
-  }
-
-  if (log.action === 'track_rejected') {
-    return 'Трек отклонён';
-  }
-
-  return log.action;
-}
-
-
-function WaveformPreview({ track, active }: { track: Track; active: boolean }) {
-  const samples = Array.isArray(track.waveform_data_json?.samples) ? track.waveform_data_json.samples : [];
-  if (samples.length === 0) {
-    return (
-      <Box
-        sx={{
-          height: 56,
-          borderRadius: 3,
-          border: '1px dashed rgba(15,118,110,0.25)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'text.secondary',
-          fontSize: 12,
-        }}
-      >
-        Waveform will appear after media processing.
-      </Box>
-    );
-  }
-
-  const step = Math.max(1, Math.floor(samples.length / 64));
-  const downsampled = samples.filter((_: number, index: number) => index % step === 0).slice(0, 64);
-
-  return (
-    <Stack
-      direction="row"
-      spacing={0.4}
-      alignItems="end"
-      sx={{
-        height: 56,
-        px: 1,
-        py: 0.75,
-        borderRadius: 3,
-        bgcolor: active ? 'rgba(15,118,110,0.12)' : 'rgba(15,118,110,0.06)',
-        border: '1px solid rgba(15,118,110,0.14)',
-      }}
-    >
-      {downsampled.map((value: number, index: number) => (
-        <Box
-          key={`${track.id}-${index}`}
-          sx={{
-            width: 4,
-            minHeight: 6,
-            height: `${Math.max(10, Math.round(Number(value || 0) * 100))}%`,
-            borderRadius: 999,
-            bgcolor: active ? '#0f766e' : 'rgba(15,118,110,0.45)',
-            flexShrink: 0,
-          }}
-        />
-      ))}
-    </Stack>
-  );
-}
-
-
 function saveTokens(tokens: AuthTokens) {
   localStorage.setItem('access_token', tokens.access_token);
   localStorage.setItem('refresh_token', tokens.refresh_token);
@@ -268,18 +149,184 @@ function getTrackStatusColor(status: Track['status']): 'default' | 'warning' | '
 }
 
 
+function getOwnerTrackState(track: Track): { tone: OwnerTrackStateTone; title: string; description: string } {
+  const hasMedia = Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
+
+  if (track.status === 'deleted') {
+    return {
+      tone: 'error',
+      title: 'Трек снят с публикации',
+      description: 'Этот трек переведён в deleted и больше не отображается в живом каталоге.',
+    };
+  }
+
+  if (track.status === 'processing') {
+    return {
+      tone: 'warning',
+      title: 'Идёт media processing',
+      description: 'Сервис принял исходник и сейчас готовит MP3-версии и waveform для плеера.',
+    };
+  }
+
+  if (track.status === 'rejected') {
+    return {
+      tone: 'error',
+      title: 'Обработка завершилась с ошибкой',
+      description: 'Исправьте файл или загрузите новый source, чтобы снова запустить processing.',
+    };
+  }
+
+  if (track.status === 'approved') {
+    return {
+      tone: 'success',
+      title: 'Трек опубликован автоматически',
+      description: 'После успешной обработки запись сразу стала доступна в каталоге и в общем плеере.',
+    };
+  }
+
+  if (track.status === 'pending' && !hasMedia) {
+    return {
+      tone: 'info',
+      title: 'Ждёт исходный файл',
+      description: 'Metadata уже сохранено. Следующий шаг: загрузить MP3 или WAV, чтобы трек дошёл до публикации.',
+    };
+  }
+
+  return {
+    tone: 'warning',
+    title: 'Переходное состояние',
+    description: 'Трек выглядит как legacy pending-запись. Загрузите новый source, чтобы привести его к актуальному flow.',
+  };
+}
+
+
+function TrackArtwork({
+  track,
+  size = 88,
+  radius = 24,
+}: {
+  track: Track;
+  size?: number;
+  radius?: number;
+}) {
+  const accent = artworkColors[track.id % artworkColors.length];
+  const fallbackLabel = (track.title || 'R').slice(0, 1).toUpperCase();
+
+  if (track.cover_image_url) {
+    return (
+      <Box
+        component="img"
+        src={track.cover_image_url}
+        alt={`Обложка ${track.title}`}
+        sx={{
+          width: size,
+          height: size,
+          objectFit: 'cover',
+          borderRadius: `${radius}px`,
+          border: '1px solid rgba(15,23,42,0.08)',
+          boxShadow: '0 16px 32px rgba(15,23,42,0.12)',
+          flexShrink: 0,
+          backgroundColor: '#f8fafc',
+        }}
+      />
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: `${radius}px`,
+        background: `linear-gradient(135deg, ${alpha(accent, 0.94)} 0%, ${alpha('#111827', 0.88)} 100%)`,
+        color: '#fff7ed',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.max(24, Math.round(size * 0.28)),
+        fontWeight: 800,
+        letterSpacing: '-0.04em',
+        boxShadow: '0 16px 32px rgba(15,23,42,0.14)',
+        flexShrink: 0,
+      }}
+    >
+      {fallbackLabel}
+    </Box>
+  );
+}
+
+
+function WaveformPreview({ track, active }: { track: Track; active: boolean }) {
+  const samples = Array.isArray(track.waveform_data_json?.samples) ? track.waveform_data_json.samples : [];
+  if (samples.length === 0) {
+    return (
+      <Box
+        sx={{
+          height: 56,
+          borderRadius: 999,
+          border: '1px dashed rgba(15,118,110,0.22)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'text.secondary',
+          fontSize: 12,
+          bgcolor: 'rgba(255,255,255,0.5)',
+        }}
+      >
+        Waveform появится после media processing.
+      </Box>
+    );
+  }
+
+  const step = Math.max(1, Math.floor(samples.length / 64));
+  const downsampled = samples.filter((_: number, index: number) => index % step === 0).slice(0, 64);
+
+  return (
+    <Stack
+      direction="row"
+      spacing={0.35}
+      alignItems="end"
+      sx={{
+        height: 56,
+        px: 1.25,
+        py: 0.75,
+        borderRadius: 999,
+        bgcolor: active ? 'rgba(15,118,110,0.12)' : 'rgba(15,23,42,0.04)',
+        border: '1px solid rgba(15,118,110,0.12)',
+      }}
+    >
+      {downsampled.map((value: number, index: number) => (
+        <Box
+          key={`${track.id}-${index}`}
+          sx={{
+            width: 4,
+            minHeight: 6,
+            height: `${Math.max(10, Math.round(Number(value || 0) * 100))}%`,
+            borderRadius: 999,
+            bgcolor: active ? '#0f766e' : 'rgba(15,118,110,0.38)',
+            flexShrink: 0,
+          }}
+        />
+      ))}
+    </Stack>
+  );
+}
+
+
 export default function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [pageError, setPageError] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<AuthMode>('login');
+  const [catalogView, setCatalogView] = useState<CatalogView>('catalog');
   const [authBusy, setAuthBusy] = useState(false);
   const [catalogBusy, setCatalogBusy] = useState(false);
   const [studioBusy, setStudioBusy] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [publicTracks, setPublicTracks] = useState<Track[]>([]);
+  const [likedTracks, setLikedTracks] = useState<Track[]>([]);
   const [myTracks, setMyTracks] = useState<Track[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [catalogSearchInput, setCatalogSearchInput] = useState('');
@@ -293,11 +340,7 @@ export default function App() {
   const [trackForm, setTrackForm] = useState<TrackFormState>(initialTrackForm);
   const [editingTrackId, setEditingTrackId] = useState<number | null>(null);
   const [uploadingTrackId, setUploadingTrackId] = useState<number | null>(null);
-  const [moderationQueue, setModerationQueue] = useState<Track[]>([]);
-  const [moderationBusy, setModerationBusy] = useState(false);
-  const [moderationStats, setModerationStats] = useState<SystemStats | null>(null);
-  const [moderationLogs, setModerationLogs] = useState<AdminLog[]>([]);
-  const [moderationReasonByTrack, setModerationReasonByTrack] = useState<Record<number, string>>({});
+  const [uploadingCoverTrackId, setUploadingCoverTrackId] = useState<number | null>(null);
   const [likedTrackIds, setLikedTrackIds] = useState<number[]>([]);
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
@@ -308,6 +351,9 @@ export default function App() {
   const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
   const [playerDuration, setPlayerDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const isStaff = user?.role === 'moderator' || user?.role === 'admin';
+  const displayedTracks = catalogView === 'liked' ? likedTracks : publicTracks;
 
   const loadPublicCatalog = async (
     overrides: {
@@ -333,42 +379,31 @@ export default function App() {
       setCategories(categoriesResponse as Category[]);
       setPublicTracks((tracksResponse as PaginatedResponse<Track>).items);
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Could not load public catalog'));
+      setPageError(getErrorMessage(err, 'Не удалось загрузить каталог'));
     } finally {
       setCatalogBusy(false);
     }
   };
 
-  const loadModeratorState = async (currentUser: User) => {
-    if (!['moderator', 'admin'].includes(currentUser.role)) {
-      setModerationQueue([]);
-      setModerationStats(null);
-      setModerationLogs([]);
-      return;
-    }
-
-    const [statsResponse, moderationResponse, logResponse] = await Promise.all([
-      api.getSystemStats(),
-      api.getModerationQueue(),
-      api.getAdminLogs({ target_type: 'track', size: 10 }),
-    ]);
-
-    setModerationStats(statsResponse as SystemStats);
-    setModerationQueue((moderationResponse as PaginatedResponse<Track>).items);
-    setModerationLogs((logResponse as PaginatedResponse<AdminLog>).items);
-  };
-
   const loadAuthenticatedState = async () => {
-    const [currentUser, myTracksResponse, likedTracksResponse] = await Promise.all([
+    const [currentUser, myTracksResponse, likedTracksResponse, likedTrackIdsResponse] = await Promise.all([
       api.getCurrentUser(),
-      api.getMyTracks(),
+      api.getMyTracks({ size: 100 }),
+      api.getMyLikedTracks({ size: 100 }),
       api.getMyLikedTrackIds(),
     ]);
 
     setUser(currentUser as User);
     setMyTracks((myTracksResponse as PaginatedResponse<Track>).items);
-    setLikedTrackIds((likedTracksResponse as TrackLikeListResponse).track_ids);
-    await loadModeratorState(currentUser as User);
+    setLikedTracks((likedTracksResponse as PaginatedResponse<Track>).items);
+    setLikedTrackIds((likedTrackIdsResponse as TrackLikeListResponse).track_ids);
+  };
+
+  const refreshWholeUi = async () => {
+    await loadPublicCatalog();
+    if (localStorage.getItem('access_token')) {
+      await loadAuthenticatedState();
+    }
   };
 
   useEffect(() => {
@@ -389,11 +424,12 @@ export default function App() {
             clearTokens();
             setUser(null);
             setMyTracks([]);
+            setLikedTracks([]);
             setLikedTrackIds([]);
           }
         }
       } catch (err) {
-        setPageError(getErrorMessage(err, 'Unknown error'));
+        setPageError(getErrorMessage(err, 'Не удалось загрузить приложение'));
       } finally {
         setInitialLoading(false);
       }
@@ -418,12 +454,12 @@ export default function App() {
     const latestTrack =
       myTracks.find((track) => track.id === activeTrackId) ??
       publicTracks.find((track) => track.id === activeTrackId) ??
-      moderationQueue.find((track) => track.id === activeTrackId);
+      likedTracks.find((track) => track.id === activeTrackId);
 
     if (latestTrack) {
       setActiveTrack(latestTrack);
     }
-  }, [activeTrackId, myTracks, publicTracks, moderationQueue]);
+  }, [activeTrackId, myTracks, publicTracks, likedTracks]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -455,7 +491,7 @@ export default function App() {
     const onError = () => {
       setIsPlaying(false);
       setPlayerLoading(false);
-      setPlayerError('Не удалось загрузить поток. Проверьте, что трек обработан и у текущей сессии есть доступ к media.');
+      setPlayerError('Не удалось загрузить поток. Проверьте, что трек уже обработан и для него есть готовый audio-asset.');
     };
 
     audio.addEventListener('loadstart', onLoadStart);
@@ -481,6 +517,24 @@ export default function App() {
     };
   }, []);
 
+  const stopAndResetAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) {
+      return;
+    }
+
+    audio.pause();
+    audio.removeAttribute('src');
+    delete audio.dataset.streamUrl;
+    delete audio.dataset.trackId;
+    delete audio.dataset.streamQuality;
+    audio.load();
+    setPlayerCurrentTime(0);
+    setPlayerDuration(0);
+    setIsPlaying(false);
+    setPlayerLoading(false);
+  };
+
   const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAuthBusy(true);
@@ -491,10 +545,11 @@ export default function App() {
       const tokens = (await api.login(loginEmail, loginPassword)) as AuthTokens;
       saveTokens(tokens);
       await loadAuthenticatedState();
-      setBanner('Вход выполнен. Теперь можно создавать metadata треков.');
+      setBanner('Сессия открыта. Теперь можно создавать треки, загружать source и работать с лайками.');
       setLoginPassword('');
+      setCatalogView('catalog');
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Login failed'));
+      setPageError(getErrorMessage(err, 'Не удалось выполнить вход'));
     } finally {
       setAuthBusy(false);
     }
@@ -510,10 +565,11 @@ export default function App() {
       const tokens = (await api.register(registerEmail, registerPassword, registerUsername)) as AuthTokens;
       saveTokens(tokens);
       await loadAuthenticatedState();
-      setBanner('Аккаунт создан и сессия уже открыта.');
+      setBanner('Аккаунт создан, сессия уже открыта.');
       setRegisterPassword('');
+      setCatalogView('catalog');
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Registration failed'));
+      setPageError(getErrorMessage(err, 'Не удалось создать аккаунт'));
     } finally {
       setAuthBusy(false);
     }
@@ -527,31 +583,19 @@ export default function App() {
     try {
       await api.logout();
     } finally {
-      const audio = audioRef.current;
-      if (audio) {
-        audio.pause();
-        audio.removeAttribute('src');
-        delete audio.dataset.streamUrl;
-        delete audio.dataset.trackId;
-        delete audio.dataset.streamQuality;
-        audio.load();
-      }
-
+      stopAndResetAudio();
       clearTokens();
       setUser(null);
       setMyTracks([]);
+      setLikedTracks([]);
       setLikedTrackIds([]);
-      setModerationQueue([]);
-      setModerationStats(null);
-      setModerationLogs([]);
       setEditingTrackId(null);
       setTrackForm(initialTrackForm);
       setActiveTrack(null);
       setActiveTrackId(null);
       setPlayerError(null);
-      setPlayerCurrentTime(0);
-      setPlayerDuration(0);
       setAuthBusy(false);
+      setCatalogView('catalog');
     }
   };
 
@@ -570,7 +614,6 @@ export default function App() {
       description: trackForm.description || null,
       genre: trackForm.genre || null,
       category_id: trackForm.category_id ? Number(trackForm.category_id) : null,
-      is_public: trackForm.is_public,
       is_downloadable: trackForm.is_downloadable,
       license_type: trackForm.license_type,
       tags: trackForm.tags
@@ -584,17 +627,17 @@ export default function App() {
     try {
       if (editingTrackId) {
         await api.updateTrack(editingTrackId, payload);
-        setBanner('Metadata updated.');
+        setBanner('Metadata обновлено.');
       } else {
         await api.createTrackMetadata(payload);
-        setBanner('Track metadata created. Upload the source file from "My tracks" to start media processing.');
+        setBanner('Metadata создано. Теперь загрузите MP3 или WAV, чтобы трек автоматически дошёл до публикации.');
       }
 
       setEditingTrackId(null);
       setTrackForm(initialTrackForm);
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
+      await refreshWholeUi();
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Could not save track metadata'));
+      setPageError(getErrorMessage(err, 'Не удалось сохранить metadata трека'));
     } finally {
       setStudioBusy(false);
     }
@@ -607,7 +650,6 @@ export default function App() {
       description: track.description ?? '',
       genre: track.genre ?? '',
       category_id: track.category_id ? String(track.category_id) : '',
-      is_public: track.is_public,
       is_downloadable: track.is_downloadable,
       license_type: track.license_type,
       tags: track.tags?.join(', ') ?? '',
@@ -616,21 +658,40 @@ export default function App() {
     });
   };
 
-  const handleDeleteTrack = async (trackId: number) => {
+  const handleDeleteTrack = async (track: Track) => {
+    const isDeletingOtherUsersTrack = Boolean(user) && user.id !== track.user_id;
+    const confirmMessage = isDeletingOtherUsersTrack
+      ? `Удалить чужой трек "${track.title}"?`
+      : `Удалить трек "${track.title}"?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
     setStudioBusy(true);
     setPageError(null);
     setBanner(null);
 
     try {
-      await api.deleteTrack(trackId);
-      if (editingTrackId === trackId) {
+      await api.deleteTrack(track.id);
+      if (editingTrackId === track.id) {
         setEditingTrackId(null);
         setTrackForm(initialTrackForm);
       }
-      setBanner('Трек переведён в status deleted и скрыт из публичного каталога.');
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
+      if (activeTrackId === track.id) {
+        stopAndResetAudio();
+        setActiveTrack(null);
+        setActiveTrackId(null);
+      }
+
+      setBanner(
+        isDeletingOtherUsersTrack
+          ? `Трек "${track.title}" удалён по staff-праву.`
+          : `Трек "${track.title}" переведён в deleted и снят с витрины.`
+      );
+      await refreshWholeUi();
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Could not delete track'));
+      setPageError(getErrorMessage(err, 'Не удалось удалить трек'));
     } finally {
       setStudioBusy(false);
     }
@@ -648,20 +709,44 @@ export default function App() {
 
     try {
       await api.uploadTrack(track.id, file);
-      setBanner(`Upload queued for "${track.title}". The track is now processing.`);
-      await loadAuthenticatedState();
+      setBanner(`Source для "${track.title}" принят. Сейчас начнётся processing, после которого трек опубликуется автоматически.`);
+      await refreshWholeUi();
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Could not upload audio file'));
+      setPageError(getErrorMessage(err, 'Не удалось загрузить аудиофайл'));
     } finally {
       setUploadingTrackId(null);
       setStudioBusy(false);
     }
   };
 
-  const canUploadTrackMedia = (track: Track) => track.status === 'pending' || track.status === 'rejected';
-  const isModerator = user?.role === 'moderator' || user?.role === 'admin';
+  const handleCoverUpload = async (track: Track, file: File | null) => {
+    if (!file) {
+      return;
+    }
+
+    setStudioBusy(true);
+    setUploadingCoverTrackId(track.id);
+    setPageError(null);
+    setBanner(null);
+
+    try {
+      await api.uploadTrackCover(track.id, file);
+      setBanner(`Обложка для "${track.title}" загружена.`);
+      await refreshWholeUi();
+    } catch (err) {
+      setPageError(getErrorMessage(err, 'Не удалось загрузить обложку'));
+    } finally {
+      setUploadingCoverTrackId(null);
+      setStudioBusy(false);
+    }
+  };
+
+  const canUploadTrackMedia = (track: Track) =>
+    track.status === 'pending' || track.status === 'rejected' || track.status === 'approved';
+
   const hasPlayableMedia = (track: Track) => Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
   const isTrackLiked = (trackId: number) => likedTrackIds.includes(trackId);
+  const canDeleteTrack = (track: Track) => Boolean(user && (user.id === track.user_id || isStaff));
 
   const resolvePlayableQuality = (track: Track, preferredQuality: StreamQuality): StreamQuality | null => {
     if (preferredQuality === 'original' && track.original_url) {
@@ -737,13 +822,13 @@ export default function App() {
       }
     } catch (err) {
       setPlayerLoading(false);
-      setPlayerError(getErrorMessage(err, 'Could not start playback'));
+      setPlayerError(getErrorMessage(err, 'Не удалось запустить воспроизведение'));
     }
   };
 
   const handleToggleLike = async (track: Track) => {
     if (!user) {
-      setPageError('Чтобы ставить likes, сначала откройте сессию.');
+      setPageError('Чтобы ставить лайки, сначала откройте сессию.');
       return;
     }
 
@@ -762,27 +847,195 @@ export default function App() {
 
       setPublicTracks((current) => applyLikeCount(current));
       setMyTracks((current) => applyLikeCount(current));
+      setLikedTracks((current) => {
+        const updatedCurrent = applyLikeCount(current);
+        if (response.liked) {
+          const updatedTrack = { ...track, like_count: response.like_count };
+          return [updatedTrack, ...updatedCurrent.filter((item) => item.id !== track.id)];
+        }
+        return updatedCurrent.filter((item) => item.id !== track.id);
+      });
       setActiveTrack((current) => (current?.id === track.id ? { ...current, like_count: response.like_count } : current));
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Не удалось обновить like'));
+      setPageError(getErrorMessage(err, 'Не удалось обновить лайк'));
     }
   };
 
-  const handleModerateTrack = async (track: Track, payload: TrackModerationPayload) => {
-    setModerationBusy(true);
-    setPageError(null);
-    setBanner(null);
+  const renderTrackCard = (track: Track, variant: 'catalog' | 'mine') => {
+    const ownerState = getOwnerTrackState(track);
+    const deleteAllowed = canDeleteTrack(track);
+    const active = activeTrackId === track.id && (isPlaying || playerLoading);
 
-    try {
-      await api.moderateTrack(track.id, payload);
-      setBanner(`Moderation updated for "${track.title}".`);
-      setModerationReasonByTrack((current) => ({ ...current, [track.id]: '' }));
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
-    } catch (err) {
-      setPageError(getErrorMessage(err, 'Could not moderate track'));
-    } finally {
-      setModerationBusy(false);
-    }
+    return (
+      <Card
+        key={`${variant}-${track.id}`}
+        variant="outlined"
+        sx={{
+          borderRadius: 6,
+          borderColor: active ? alpha('#0f766e', 0.35) : 'rgba(15,23,42,0.08)',
+          boxShadow: active ? '0 22px 44px rgba(15,118,110,0.12)' : 'none',
+          overflow: 'hidden',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)',
+        }}
+      >
+        <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
+          <Stack spacing={2}>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ xs: 'stretch', md: 'center' }}>
+              <TrackArtwork track={track} size={variant === 'mine' ? 112 : 96} radius={variant === 'mine' ? 28 : 24} />
+
+              <Stack spacing={1.25} flex={1} minWidth={0}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="h6" sx={{ lineHeight: 1.05 }}>
+                      {track.title}
+                    </Typography>
+                    <Typography color="text.secondary">
+                      {track.user?.username ?? 'Unknown artist'} • {track.category?.name ?? 'Без категории'}
+                    </Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+                    <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
+                    <Chip label={`Likes ${track.like_count}`} variant="outlined" size="small" />
+                    <Chip label={`Plays ${track.play_count}`} variant="outlined" size="small" />
+                  </Stack>
+                </Stack>
+
+                {variant === 'mine' ? (
+                  <Alert severity={ownerState.tone}>
+                    <strong>{ownerState.title}</strong> {ownerState.description}
+                  </Alert>
+                ) : null}
+
+                {track.description ? (
+                  <Typography sx={{ color: 'text.secondary' }}>{track.description}</Typography>
+                ) : (
+                  <Typography sx={{ color: 'text.secondary' }}>
+                    {track.genre ? `${track.genre}. ` : ''}Трек уже подключён к live API и доступен для воспроизведения.
+                  </Typography>
+                )}
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip label={`Duration ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
+                  <Chip label={`BPM ${track.bpm ?? '-'}`} size="small" variant="outlined" />
+                  <Chip label={`Теги ${track.tags?.join(', ') || '-'}`} size="small" variant="outlined" />
+                  <Chip
+                    label={track.cover_image_url ? 'Cover ready' : 'Cover missing'}
+                    size="small"
+                    variant="outlined"
+                    color={track.cover_image_url ? 'success' : 'default'}
+                  />
+                  {variant === 'mine' ? (
+                    <>
+                      <Chip
+                        label={track.original_url ? 'Source uploaded' : 'Source missing'}
+                        size="small"
+                        variant="outlined"
+                        color={track.original_url ? 'success' : 'default'}
+                      />
+                      <Chip
+                        label={track.mp3_320_url ? '320 ready' : '320 pending'}
+                        size="small"
+                        variant="outlined"
+                        color={track.mp3_320_url ? 'success' : 'default'}
+                      />
+                    </>
+                  ) : null}
+                </Stack>
+              </Stack>
+            </Stack>
+
+            <WaveformPreview track={track} active={active} />
+
+            {variant === 'mine' && track.rejection_reason ? <Alert severity="error">{track.rejection_reason}</Alert> : null}
+
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={activeTrackId === track.id && isPlaying ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
+                  onClick={() => void handlePlayTrack(track)}
+                  disabled={!hasPlayableMedia(track)}
+                >
+                  {activeTrackId === track.id && isPlaying ? 'Пауза' : variant === 'mine' ? 'Проверить playback' : 'Слушать'}
+                </Button>
+
+                {variant === 'catalog' ? (
+                  <Button
+                    variant={isTrackLiked(track.id) ? 'contained' : 'outlined'}
+                    color="error"
+                    size="small"
+                    startIcon={isTrackLiked(track.id) ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}
+                    onClick={() => void handleToggleLike(track)}
+                    disabled={!user}
+                  >
+                    {track.like_count}
+                  </Button>
+                ) : null}
+
+                {variant === 'mine' ? (
+                  <>
+                    <Button variant="outlined" size="small" onClick={() => startEditingTrack(track)}>
+                      Редактировать
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      component="label"
+                      startIcon={<PhotoCameraRoundedIcon />}
+                      disabled={studioBusy}
+                    >
+                      {uploadingCoverTrackId === track.id ? 'Загружаем cover...' : track.cover_image_url ? 'Заменить cover' : 'Загрузить cover'}
+                      <input
+                        hidden
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null;
+                          void handleCoverUpload(track, file);
+                          event.target.value = '';
+                        }}
+                      />
+                    </Button>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      component="label"
+                      startIcon={<CloudUploadRoundedIcon />}
+                      disabled={studioBusy || !canUploadTrackMedia(track)}
+                    >
+                      {uploadingTrackId === track.id ? 'Загружаем audio...' : track.original_url ? 'Replace audio' : 'Upload audio'}
+                      <input
+                        hidden
+                        type="file"
+                        accept=".mp3,.wav,audio/mpeg,audio/wav"
+                        onChange={(event) => {
+                          const file = event.target.files?.[0] ?? null;
+                          void handleTrackUpload(track, file);
+                          event.target.value = '';
+                        }}
+                      />
+                    </Button>
+                  </>
+                ) : null}
+              </Stack>
+
+              {deleteAllowed ? (
+                <Button
+                  variant="outlined"
+                  color="error"
+                  size="small"
+                  startIcon={<DeleteOutlineRoundedIcon />}
+                  onClick={() => void handleDeleteTrack(track)}
+                >
+                  Удалить
+                </Button>
+              ) : null}
+            </Stack>
+          </Stack>
+        </CardContent>
+      </Card>
+    );
   };
 
   return (
@@ -790,73 +1043,121 @@ export default function App() {
       sx={{
         minHeight: '100vh',
         background:
-          'radial-gradient(circle at top left, rgba(15,118,110,0.16), transparent 35%), linear-gradient(160deg, #f6f1e7 0%, #efe6d6 100%)',
-        py: { xs: 4, md: 8 },
+          'radial-gradient(circle at top left, rgba(15,118,110,0.18), transparent 28%), radial-gradient(circle at top right, rgba(249,115,22,0.14), transparent 30%), linear-gradient(180deg, #f8f2e8 0%, #f5ede0 40%, #f3f4f6 100%)',
+        py: { xs: 3, md: 6 },
       }}
     >
       <Container maxWidth="xl">
-        <Paper
-          elevation={0}
-          sx={{
-            p: { xs: 3, md: 6 },
-            borderRadius: 8,
-            border: '1px solid rgba(15,118,110,0.14)',
-            background: 'rgba(255,250,242,0.92)',
-            backdropFilter: 'blur(10px)',
-          }}
-        >
-          <Stack spacing={4}>
-            <Stack spacing={2}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
-                <Chip
-                  label="Resonance Sound"
-                  sx={{
-                    alignSelf: 'flex-start',
-                    fontWeight: 700,
-                    bgcolor: '#d7f5ef',
-                    color: '#115e59',
-                  }}
-                />
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+        <Stack spacing={3.5}>
+          <Paper
+            elevation={0}
+            sx={{
+              p: { xs: 3, md: 5 },
+              borderRadius: 8,
+              border: '1px solid rgba(15,118,110,0.12)',
+              overflow: 'hidden',
+              position: 'relative',
+              background:
+                'linear-gradient(135deg, rgba(255,249,240,0.96) 0%, rgba(255,255,255,0.92) 46%, rgba(236,253,245,0.94) 100%)',
+            }}
+          >
+            <Box
+              sx={{
+                position: 'absolute',
+                right: -80,
+                top: -80,
+                width: 260,
+                height: 260,
+                borderRadius: '50%',
+                background: 'radial-gradient(circle, rgba(15,118,110,0.18) 0%, rgba(15,118,110,0) 70%)',
+                pointerEvents: 'none',
+              }}
+            />
+
+            <Stack spacing={3.5}>
+              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
+                  <Chip label="Resonance Sound" sx={{ fontWeight: 800, bgcolor: '#d7f5ef', color: '#115e59' }} />
+                  <Chip label="Live production" variant="outlined" color="success" />
+                  <Chip label="Auto-publish enabled" variant="outlined" color="primary" />
+                  <Chip label="Cover uploads enabled" variant="outlined" color="secondary" />
+                </Stack>
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
                   <Chip label={user ? `Сессия: ${user.username}` : 'Гость'} color={user ? 'success' : 'default'} />
                   {health ? <Chip label={`API ${health.status}`} color="success" variant="outlined" /> : null}
                 </Stack>
               </Stack>
 
-              <Typography variant="h1" sx={{ fontSize: { xs: '2.6rem', md: '4.5rem' }, lineHeight: 0.95 }}>
-                Рабочая панель
-                <br />
-                раннего MVP
-              </Typography>
+              <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} justifyContent="space-between">
+                <Box sx={{ maxWidth: 860 }}>
+                  <Typography variant="h1" sx={{ fontSize: { xs: '2.7rem', md: '4.8rem' }, lineHeight: 0.92 }}>
+                    Рабочая сцена
+                    <br />
+                    аудио MVP
+                  </Typography>
+                  <Typography variant="h5" sx={{ mt: 2, maxWidth: 760, color: 'text.secondary', lineHeight: 1.45 }}>
+                    Платформа уже умеет создавать треки, загружать source, автоматически публиковать их после обработки,
+                    воспроизводить в общем плеере, хранить обложки и собирать первые сигналы через лайки.
+                  </Typography>
+                </Box>
 
-              <Typography variant="h5" sx={{ maxWidth: 820, color: 'text.secondary', lineHeight: 1.45 }}>
-                Это уже не статическая заглушка: экран работает с live API, показывает каталог, открывает сессию и проходит
-                первый пользовательский flow создания metadata треков.
-              </Typography>
-            </Stack>
-
-            {initialLoading ? (
-              <Stack direction="row" spacing={2} alignItems="center">
-                <CircularProgress size={24} />
-                <Typography>Поднимаем live-контекст приложения...</Typography>
+                <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap alignSelf="flex-start">
+                  <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 5, minWidth: 130 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      Каталог
+                    </Typography>
+                    <Typography variant="h4">{publicTracks.length}</Typography>
+                  </Paper>
+                  <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 5, minWidth: 130 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      Лайкнуто
+                    </Typography>
+                    <Typography variant="h4">{likedTrackIds.length}</Typography>
+                  </Paper>
+                  <Paper variant="outlined" sx={{ px: 2, py: 1.5, borderRadius: 5, minWidth: 130 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      Мои треки
+                    </Typography>
+                    <Typography variant="h4">{myTracks.length}</Typography>
+                  </Paper>
+                </Stack>
               </Stack>
-            ) : null}
+            </Stack>
+          </Paper>
 
-            {pageError ? <Alert severity="error">{pageError}</Alert> : null}
-            {banner ? <Alert severity="success">{banner}</Alert> : null}
+          {initialLoading ? (
+            <Stack direction="row" spacing={2} alignItems="center">
+              <CircularProgress size={22} />
+              <Typography>Поднимаем live-контекст приложения...</Typography>
+            </Stack>
+          ) : null}
 
-            <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-              <Stack spacing={2.5}>
+          {pageError ? <Alert severity="error">{pageError}</Alert> : null}
+          {banner ? <Alert severity="success">{banner}</Alert> : null}
+
+          <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1.35,
+                p: { xs: 2.5, md: 3.5 },
+                borderRadius: 7,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.9) 100%)',
+              }}
+            >
+              <Stack spacing={3}>
                 <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                   <Box>
-                    <Typography variant="h5">Player</Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      Один и тот же плеер теперь работает и для публичных треков, и для owner/private preview через безопасные stream URL.
+                    <Typography variant="h4">Единый player flow</Typography>
+                    <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 720 }}>
+                      Плеер работает поверх live API, автоматически берёт доступный stream quality и не требует отдельной
+                      ручной модерации для публикации.
                     </Typography>
                   </Box>
                   <TextField
                     select
-                    label="Качество потока"
+                    label="Качество"
                     value={playerQuality}
                     onChange={(event) => setPlayerQuality(event.target.value as StreamQuality)}
                     sx={{ minWidth: 180 }}
@@ -869,179 +1170,218 @@ export default function App() {
 
                 {playerError ? <Alert severity="error">{playerError}</Alert> : null}
 
-                <audio ref={audioRef} controls style={{ width: '100%' }} />
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
+                  <TrackArtwork track={activeTrack ?? { id: 0, title: 'R', user_id: 0, is_public: true, is_downloadable: false, license_type: 'all-rights-reserved', status: 'approved', created_at: '', updated_at: '', play_count: 0, like_count: 0, comment_count: 0 }} size={160} radius={40} />
 
-                <Card variant="outlined" sx={{ borderRadius: 5, bgcolor: 'rgba(15,118,110,0.04)' }}>
-                  <CardContent>
-                    <Stack spacing={2}>
-                      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                        <Box>
-                          <Typography variant="h6">{activeTrack?.title ?? 'Ничего не выбрано'}</Typography>
-                          <Typography color="text.secondary">
-                            {activeTrack
-                              ? `${activeTrack.user?.username ?? 'Unknown artist'} • ${activeTrack.category?.name ?? 'Без категории'}`
-                              : 'Выберите любой готовый трек ниже, чтобы начать playback.'}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip
-                            label={
-                              playerLoading
-                                ? 'Подключаем поток'
-                                : isPlaying
-                                  ? 'Сейчас играет'
-                                  : activeTrackId
-                                    ? 'Готов к продолжению'
-                                    : 'Idle'
-                            }
-                            color={playerLoading ? 'warning' : isPlaying ? 'success' : 'default'}
-                            variant={playerLoading || isPlaying ? 'filled' : 'outlined'}
-                          />
-                          <Chip label={`Качество: ${playerQuality}`} variant="outlined" />
-                        </Stack>
-                      </Stack>
-
-                      <LinearProgress
-                        variant={playerDuration > 0 ? 'determinate' : 'indeterminate'}
-                        value={playerDuration > 0 ? Math.min(100, (playerCurrentTime / playerDuration) * 100) : 0}
-                        sx={{ height: 10, borderRadius: 999, bgcolor: 'rgba(15,118,110,0.08)' }}
-                      />
-
-                      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                        <Typography variant="body2" color="text.secondary">
-                          {formatTime(playerCurrentTime)} / {formatTime(playerDuration || (activeTrack?.duration_seconds ?? 0))}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                  <Stack spacing={2} flex={1}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                      <Box>
+                        <Typography variant="h5">{activeTrack?.title ?? 'Выберите трек из каталога'}</Typography>
+                        <Typography color="text.secondary">
                           {activeTrack
-                            ? activeTrack.is_public && activeTrack.status === 'approved'
-                              ? 'Публичный playback доступен всем.'
-                              : 'Это приватный или moderation preview поток, доступный по текущей роли.'
-                            : 'Выбранный поток появится здесь вместе с прогрессом и текущим статусом.'}
+                            ? `${activeTrack.user?.username ?? 'Unknown artist'} • ${activeTrack.category?.name ?? 'Без категории'}`
+                            : 'После выбора трека здесь появятся обложка, прогресс и текущая длительность.'}
                         </Typography>
+                      </Box>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Chip
+                          label={
+                            playerLoading
+                              ? 'Подключаем поток'
+                              : isPlaying
+                                ? 'Сейчас играет'
+                                : activeTrackId
+                                  ? 'Готов к продолжению'
+                                  : 'Idle'
+                          }
+                          color={playerLoading ? 'warning' : isPlaying ? 'success' : 'default'}
+                          variant={playerLoading || isPlaying ? 'filled' : 'outlined'}
+                        />
+                        <Chip label={`Quality ${playerQuality}`} variant="outlined" />
                       </Stack>
-
-                      {activeTrack ? <WaveformPreview track={activeTrack} active={isPlaying || playerLoading} /> : null}
                     </Stack>
-                  </CardContent>
-                </Card>
+
+                    <audio ref={audioRef} controls style={{ width: '100%' }} />
+
+                    <LinearProgress
+                      variant={playerDuration > 0 ? 'determinate' : 'indeterminate'}
+                      value={playerDuration > 0 ? Math.min(100, (playerCurrentTime / playerDuration) * 100) : 0}
+                      sx={{ height: 10, borderRadius: 999, bgcolor: 'rgba(15,118,110,0.08)' }}
+                    />
+
+                    <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatTime(playerCurrentTime)} / {formatTime(playerDuration || (activeTrack?.duration_seconds ?? 0))}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {activeTrack
+                          ? activeTrack.status === 'approved'
+                            ? 'Опубликованный трек играет напрямую через API stream.'
+                            : 'Для этого трека пока доступен только owner preview.'
+                          : 'Выберите любой готовый трек ниже, чтобы проверить playback.'}
+                      </Typography>
+                    </Stack>
+
+                    {activeTrack ? <WaveformPreview track={activeTrack} active={isPlaying || playerLoading} /> : null}
+                  </Stack>
+                </Stack>
               </Stack>
             </Paper>
 
-            <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
-              <Paper variant="outlined" sx={{ flex: 1.2, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-                <Stack spacing={3}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
-                    <Typography variant="h5">Состояние и доступ</Typography>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip label="HTTPS включён" color="success" variant="outlined" />
-                      <Chip label="Auth live" color="success" variant="outlined" />
-                      <Chip label="Catalog live" color="success" variant="outlined" />
-                    </Stack>
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 0.85,
+                p: { xs: 2.5, md: 3.5 },
+                borderRadius: 7,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,247,237,0.92) 100%)',
+              }}
+            >
+              <Stack spacing={3}>
+                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                  <Box>
+                    <Typography variant="h4">Сессия и доступ</Typography>
+                    <Typography color="text.secondary">Авторизация, staff-права и быстрый входной контекст.</Typography>
+                  </Box>
+                  <Stack direction="row" spacing={1}>
+                    <Chip label="JWT auth" color="success" variant="outlined" />
+                    <Chip label={isStaff ? 'Staff delete enabled' : 'User mode'} variant="outlined" color={isStaff ? 'secondary' : 'default'} />
                   </Stack>
+                </Stack>
 
-                  {health ? (
-                    <Alert severity="success">
-                      Backend доступен: <strong>{health.status}</strong>, версия <strong>{health.version}</strong>
+                {!user ? (
+                  <Stack spacing={2.5}>
+                    <Alert severity="info">
+                      <strong>Admin:</strong> `admin@audioplatform.com` / `admin123`.
+                      <br />
+                      <strong>Moderator:</strong> создайте обычный аккаунт, затем смените ему роль в БД на `moderator`.
                     </Alert>
-                  ) : null}
 
-                  {!user ? (
-                    <Stack spacing={2}>
-                      <Stack direction="row" spacing={1}>
-                        <Button variant={authMode === 'login' ? 'contained' : 'outlined'} onClick={() => setAuthMode('login')}>
-                          Вход
-                        </Button>
-                        <Button
-                          variant={authMode === 'register' ? 'contained' : 'outlined'}
-                          onClick={() => setAuthMode('register')}
-                        >
-                          Регистрация
-                        </Button>
-                      </Stack>
+                    <Alert severity="warning">
+                      Сейчас сервис работает по упрощённому flow: после успешного processing треки публикуются автоматически,
+                      а роли `admin/moderator` нужны прежде всего для расширенных прав удаления.
+                    </Alert>
 
-                      {authMode === 'login' ? (
-                        <Box component="form" onSubmit={handleLogin}>
-                          <Stack spacing={2}>
-                            <TextField label="Email" type="email" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
-                            <TextField
-                              label="Пароль"
-                              type="password"
-                              value={loginPassword}
-                              onChange={(event) => setLoginPassword(event.target.value)}
-                              required
-                            />
-                            <Button type="submit" variant="contained" disabled={authBusy}>
-                              {authBusy ? 'Входим...' : 'Открыть сессию'}
-                            </Button>
-                          </Stack>
-                        </Box>
-                      ) : (
-                        <Box component="form" onSubmit={handleRegister}>
-                          <Stack spacing={2}>
-                            <TextField
-                              label="Username"
-                              value={registerUsername}
-                              onChange={(event) => setRegisterUsername(event.target.value)}
-                              required
-                            />
-                            <TextField
-                              label="Email"
-                              type="email"
-                              value={registerEmail}
-                              onChange={(event) => setRegisterEmail(event.target.value)}
-                              required
-                            />
-                            <TextField
-                              label="Пароль"
-                              helperText="Минимум 8 символов, одна заглавная буква и одна цифра."
-                              type="password"
-                              value={registerPassword}
-                              onChange={(event) => setRegisterPassword(event.target.value)}
-                              required
-                            />
-                            <Button type="submit" variant="contained" disabled={authBusy}>
-                              {authBusy ? 'Создаём...' : 'Создать аккаунт'}
-                            </Button>
-                          </Stack>
-                        </Box>
-                      )}
+                    <Stack direction="row" spacing={1}>
+                      <Button variant={authMode === 'login' ? 'contained' : 'outlined'} onClick={() => setAuthMode('login')}>
+                        Вход
+                      </Button>
+                      <Button variant={authMode === 'register' ? 'contained' : 'outlined'} onClick={() => setAuthMode('register')}>
+                        Регистрация
+                      </Button>
                     </Stack>
-                  ) : (
-                    <Card variant="outlined" sx={{ borderRadius: 5 }}>
-                      <CardContent>
+
+                    {authMode === 'login' ? (
+                      <Box component="form" onSubmit={handleLogin}>
                         <Stack spacing={2}>
-                          <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                            <Box>
-                              <Typography variant="h6">{user.username}</Typography>
-                              <Typography color="text.secondary">{user.email}</Typography>
-                            </Box>
-                            <Stack direction="row" spacing={1}>
-                              <Chip label={user.role} color="success" variant="outlined" />
-                              <Chip label={user.status} color="success" variant="outlined" />
-                            </Stack>
-                          </Stack>
-                          <Typography variant="body2" color="text.secondary">
-                            Аккаунт уже связан с live auth API. Можно создавать metadata треки и сразу видеть их в личной панели.
-                          </Typography>
-                          <Button variant="outlined" onClick={handleLogout} disabled={authBusy}>
-                            Выйти
+                          <TextField label="Email" type="email" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
+                          <TextField
+                            label="Пароль"
+                            type="password"
+                            value={loginPassword}
+                            onChange={(event) => setLoginPassword(event.target.value)}
+                            required
+                          />
+                          <Button type="submit" variant="contained" disabled={authBusy}>
+                            {authBusy ? 'Входим...' : 'Открыть сессию'}
                           </Button>
                         </Stack>
-                      </CardContent>
-                    </Card>
-                  )}
-                </Stack>
-              </Paper>
+                      </Box>
+                    ) : (
+                      <Box component="form" onSubmit={handleRegister}>
+                        <Stack spacing={2}>
+                          <TextField
+                            label="Username"
+                            value={registerUsername}
+                            onChange={(event) => setRegisterUsername(event.target.value)}
+                            required
+                          />
+                          <TextField
+                            label="Email"
+                            type="email"
+                            value={registerEmail}
+                            onChange={(event) => setRegisterEmail(event.target.value)}
+                            required
+                          />
+                          <TextField
+                            label="Пароль"
+                            helperText="Минимум 8 символов, одна заглавная буква и одна цифра."
+                            type="password"
+                            value={registerPassword}
+                            onChange={(event) => setRegisterPassword(event.target.value)}
+                            required
+                          />
+                          <Button type="submit" variant="contained" disabled={authBusy}>
+                            {authBusy ? 'Создаём...' : 'Создать аккаунт'}
+                          </Button>
+                        </Stack>
+                      </Box>
+                    )}
+                  </Stack>
+                ) : (
+                  <Stack spacing={2.5}>
+                    <Paper variant="outlined" sx={{ p: 2.25, borderRadius: 5 }}>
+                      <Stack spacing={2}>
+                        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                          <Box>
+                            <Typography variant="h6">{user.username}</Typography>
+                            <Typography color="text.secondary">{user.email}</Typography>
+                          </Box>
+                          <Stack direction="row" spacing={1}>
+                            <Chip label={user.role} color="success" variant="outlined" />
+                            <Chip label={user.status} color="success" variant="outlined" />
+                          </Stack>
+                        </Stack>
 
-              <Paper variant="outlined" sx={{ flex: 1, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-                <Stack spacing={3}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                    <Box>
-                      <Typography variant="h5">Публичный каталог</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Базовый discovery уже живой: категории, поиск и сортировка работают поверх production API.
-                      </Typography>
-                    </Box>
+                        <Typography variant="body2" color="text.secondary">
+                          Аккаунт уже связан с live auth API. Можно создавать треки, загружать source/cover, ставить лайки и
+                          воспроизводить опубликованные записи.
+                        </Typography>
+
+                        {isStaff ? (
+                          <Alert severity="info" icon={<ShieldRoundedIcon fontSize="inherit" />}>
+                            У этой роли есть расширенное право удалять любые треки, не только свои.
+                          </Alert>
+                        ) : null}
+
+                        <Button variant="outlined" onClick={handleLogout} disabled={authBusy}>
+                          Выйти
+                        </Button>
+                      </Stack>
+                    </Paper>
+
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip label={`Лайки ${likedTrackIds.length}`} variant="outlined" />
+                      <Chip label={`Мои треки ${myTracks.length}`} variant="outlined" />
+                      <Chip label={`Каталог ${publicTracks.length}`} variant="outlined" />
+                    </Stack>
+                  </Stack>
+                )}
+              </Stack>
+            </Paper>
+          </Stack>
+
+          <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
+            <Paper
+              variant="outlined"
+              sx={{
+                flex: 1.2,
+                p: { xs: 2.5, md: 3.5 },
+                borderRadius: 7,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(239,246,255,0.9) 100%)',
+              }}
+            >
+              <Stack spacing={3}>
+                <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={2}>
+                  <Box>
+                    <Typography variant="h4">Каталог и библиотека</Typography>
+                    <Typography color="text.secondary">
+                      Сейчас логика упрощена: после обработки треки публикуются автоматически, поэтому каталог показывает уже
+                      живую общую витрину.
+                    </Typography>
+                  </Box>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
                     <TextField
                       select
                       label="Сортировка"
@@ -1053,136 +1393,131 @@ export default function App() {
                       <MenuItem value="popular">По популярности</MenuItem>
                       <MenuItem value="title">По названию</MenuItem>
                     </TextField>
-                  </Stack>
-
-                  <Box component="form" onSubmit={handleCatalogSearch}>
-                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
-                      <TextField
-                        fullWidth
-                        label="Поиск по названию, описанию или жанру"
-                        value={catalogSearchInput}
-                        onChange={(event) => setCatalogSearchInput(event.target.value)}
-                        InputProps={{
-                          startAdornment: (
-                            <InputAdornment position="start">
-                              <SearchRoundedIcon fontSize="small" />
-                            </InputAdornment>
-                          ),
-                        }}
-                      />
-                      <Button type="submit" variant="contained">
-                        Найти
-                      </Button>
-                      <Button
-                        variant="outlined"
-                        onClick={() => {
-                          setCatalogSearchInput('');
-                          setCatalogSearch('');
-                        }}
-                      >
-                        Сбросить
-                      </Button>
-                    </Stack>
-                  </Box>
-
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip
-                      label="Все"
-                      color={selectedCategory === 'all' ? 'primary' : 'default'}
-                      onClick={() => setSelectedCategory('all')}
-                    />
-                    {categories.map((category) => (
-                      <Chip
-                        key={category.id}
-                        label={`${category.name} (${category.track_count ?? 0})`}
-                        color={selectedCategory === category.slug ? 'primary' : 'default'}
-                        onClick={() => setSelectedCategory(category.slug)}
-                      />
-                    ))}
-                  </Stack>
-
-                  {catalogSearch ? <Chip label={`Активный поиск: ${catalogSearch}`} color="secondary" variant="outlined" /> : null}
-
-                  {catalogBusy ? (
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <CircularProgress size={20} />
-                      <Typography>Обновляем каталог...</Typography>
-                    </Stack>
-                  ) : null}
-
-                  <Stack spacing={2}>
-                    {publicTracks.length === 0 ? (
-                      <Alert severity="info">
-                        {catalogSearch
-                          ? 'По текущему поисковому запросу пока ничего не найдено. Попробуйте сбросить поиск или сменить категорию.'
-                          : 'В публичном каталоге пока нет approved треков. Это нормально: созданные сейчас metadata идут в статус `pending`.'}
-                      </Alert>
-                    ) : null}
-
-                    {publicTracks.map((track) => (
-                      <Card key={track.id} variant="outlined" sx={{ borderRadius: 5 }}>
-                        <CardContent>
-                          <Stack spacing={1.5}>
-                            <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                              <Typography variant="h6">{track.title}</Typography>
-                              <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
-                            </Stack>
-                            <Typography color="text.secondary">
-                              {(track.user?.username ?? 'Unknown artist')} | {track.category?.name ?? 'Без категории'}
-                            </Typography>
-                            {track.description ? <Typography>{track.description}</Typography> : null}
-                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                              <Chip label={`Likes: ${track.like_count}`} size="small" variant="outlined" />
-                              <Chip label={`Plays: ${track.play_count}`} size="small" variant="outlined" />
-                              <Chip label={`Duration: ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
-                            </Stack>
-                            <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
-                            <Stack direction="row" spacing={1}>
-                              <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
-                                {activeTrackId === track.id && isPlaying ? 'Пауза' : 'Слушать'}
-                              </Button>
-                              <Button
-                                variant={isTrackLiked(track.id) ? 'contained' : 'outlined'}
-                                color="error"
-                                size="small"
-                                startIcon={isTrackLiked(track.id) ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}
-                                onClick={() => void handleToggleLike(track)}
-                                disabled={!user}
-                              >
-                                {track.like_count}
-                              </Button>
-                            </Stack>
-                          </Stack>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    <IconButton color="primary" onClick={() => void refreshWholeUi()}>
+                      <RefreshRoundedIcon />
+                    </IconButton>
                   </Stack>
                 </Stack>
-              </Paper>
-            </Stack>
 
-            <Divider />
+                <Box component="form" onSubmit={handleCatalogSearch}>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
+                    <TextField
+                      fullWidth
+                      label="Поиск по названию, описанию или жанру"
+                      value={catalogSearchInput}
+                      onChange={(event) => setCatalogSearchInput(event.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">
+                            <SearchRoundedIcon fontSize="small" />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                    <Button type="submit" variant="contained">
+                      Найти
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      onClick={() => {
+                        setCatalogSearchInput('');
+                        setCatalogSearch('');
+                      }}
+                    >
+                      Сбросить
+                    </Button>
+                  </Stack>
+                </Box>
 
-            <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
-              <Paper variant="outlined" sx={{ flex: 1.1, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip label="Все" color={selectedCategory === 'all' ? 'primary' : 'default'} onClick={() => setSelectedCategory('all')} />
+                  {categories.map((category) => (
+                    <Chip
+                      key={category.id}
+                      label={`${category.name} (${category.track_count ?? 0})`}
+                      color={selectedCategory === category.slug ? 'primary' : 'default'}
+                      onClick={() => setSelectedCategory(category.slug)}
+                    />
+                  ))}
+                </Stack>
+
+                <Tabs value={catalogView} onChange={(_, value) => setCatalogView(value as CatalogView)} sx={{ minHeight: 40 }}>
+                  <Tab
+                    value="catalog"
+                    label={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <QueueMusicRoundedIcon fontSize="small" />
+                        <span>Все треки</span>
+                      </Stack>
+                    }
+                  />
+                  <Tab
+                    value="liked"
+                    disabled={!user}
+                    label={
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <FavoriteRoundedIcon fontSize="small" />
+                        <span>Лайкнутые</span>
+                      </Stack>
+                    }
+                  />
+                </Tabs>
+
+                {catalogSearch ? <Chip label={`Активный поиск: ${catalogSearch}`} color="secondary" variant="outlined" /> : null}
+
+                {catalogBusy ? (
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <CircularProgress size={20} />
+                    <Typography>Обновляем список треков...</Typography>
+                  </Stack>
+                ) : null}
+
+                <Stack spacing={2}>
+                  {displayedTracks.length === 0 ? (
+                    <Alert severity="info">
+                      {catalogView === 'liked'
+                        ? user
+                          ? 'У вас пока нет лайкнутых треков. Поставьте первый лайк прямо из каталога.'
+                          : 'Лайкнутые треки доступны после входа.'
+                        : catalogSearch
+                          ? 'По текущему поисковому запросу ничего не найдено. Попробуйте сменить фильтр или сбросить поиск.'
+                          : 'Каталог пока пуст. Загрузите и обработайте первый трек.'}
+                    </Alert>
+                  ) : null}
+
+                  {displayedTracks.map((track) => renderTrackCard(track, 'catalog'))}
+                </Stack>
+              </Stack>
+            </Paper>
+
+            <Stack spacing={3} sx={{ flex: 1 }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2.5, md: 3.5 },
+                  borderRadius: 7,
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(236,253,245,0.92) 100%)',
+                }}
+              >
                 <Stack spacing={3}>
                   <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                     <Box>
-                      <Typography variant="h5">Studio: metadata flow</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Здесь уже работает первый write-срез backend: create, update и soft-delete для собственных треков.
+                      <Typography variant="h4">Studio</Typography>
+                      <Typography color="text.secondary">
+                        Здесь создаётся metadata, подключаются source и cover, а публикация происходит автоматически после
+                        успешного processing.
                       </Typography>
                     </Box>
                     {editingTrackId ? <Chip label={`Редактирование #${editingTrackId}`} color="secondary" /> : null}
                   </Stack>
 
                   {!user ? (
-                    <Alert severity="warning">Для создания или редактирования треков сначала откройте сессию через auth API.</Alert>
+                    <Alert severity="warning">Для создания и редактирования треков сначала откройте сессию.</Alert>
                   ) : (
                     <Box component="form" onSubmit={handleTrackSubmit}>
                       <Stack spacing={2}>
                         <TextField
-                          label="Название трека"
+                          label="Название"
                           value={trackForm.title}
                           onChange={(event) => setTrackForm((current) => ({ ...current, title: event.target.value }))}
                           required
@@ -1241,28 +1576,20 @@ export default function App() {
                           value={trackForm.license_type}
                           onChange={(event) => setTrackForm((current) => ({ ...current, license_type: event.target.value }))}
                         />
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={trackForm.is_public}
-                                onChange={(event) => setTrackForm((current) => ({ ...current, is_public: event.target.checked }))}
-                              />
-                            }
-                            label="Публичный после модерации"
-                          />
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={trackForm.is_downloadable}
-                                onChange={(event) =>
-                                  setTrackForm((current) => ({ ...current, is_downloadable: event.target.checked }))
-                                }
-                              />
-                            }
-                            label="Разрешить скачивание"
-                          />
-                        </Stack>
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={trackForm.is_downloadable}
+                              onChange={(event) =>
+                                setTrackForm((current) => ({ ...current, is_downloadable: event.target.checked }))
+                              }
+                            />
+                          }
+                          label="Разрешить скачивание"
+                        />
+                        <Alert severity="info" icon={<AutoAwesomeRoundedIcon fontSize="inherit" />}>
+                          Ручная moderation сейчас отключена: после успешного processing трек публикуется автоматически.
+                        </Alert>
                         <Stack direction="row" spacing={2}>
                           <Button type="submit" variant="contained" disabled={studioBusy}>
                             {studioBusy ? 'Сохраняем...' : editingTrackId ? 'Обновить metadata' : 'Создать metadata'}
@@ -1284,238 +1611,68 @@ export default function App() {
                 </Stack>
               </Paper>
 
-              <Paper variant="outlined" sx={{ flex: 1, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
+              <Paper
+                variant="outlined"
+                sx={{
+                  p: { xs: 2.5, md: 3.5 },
+                  borderRadius: 7,
+                  background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(255,247,237,0.92) 100%)',
+                }}
+              >
                 <Stack spacing={3}>
-                  <Typography variant="h5">Мои треки</Typography>
+                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="h4">Мои треки</Typography>
+                      <Typography color="text.secondary">
+                        Здесь видно весь owner flow: metadata, cover, source, processing и уже опубликованный результат.
+                      </Typography>
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Chip label={`Всего ${myTracks.length}`} variant="outlined" />
+                      <Chip label={`Лайкнуто ${likedTrackIds.length}`} variant="outlined" />
+                    </Stack>
+                  </Stack>
+
                   {!user ? (
-                    <Alert severity="info">После логина здесь появятся ваши pending и deleted tracks.</Alert>
+                    <Alert severity="info">После логина здесь появятся ваши треки и управляющие действия.</Alert>
                   ) : myTracks.length === 0 ? (
-                    <Alert severity="info">У вас пока нет metadata треков. Создайте первый в студийной форме слева.</Alert>
+                    <Alert severity="info">У вас пока нет треков. Создайте первый в форме выше.</Alert>
                   ) : (
                     <Stack spacing={2}>
-                      {myTracks.map((track) => (
-                        <Card key={track.id} variant="outlined" sx={{ borderRadius: 5 }}>
-                          <CardContent>
-                            <Stack spacing={1.5}>
-                              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                                <Typography variant="h6">{track.title}</Typography>
-                                <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
-                              </Stack>
-                              <Alert severity={getOwnerTrackState(track).tone}>
-                                <strong>{getOwnerTrackState(track).title}</strong> {getOwnerTrackState(track).description}
-                              </Alert>
-                              <Typography color="text.secondary">
-                                {track.genre ?? 'Без жанра'} | {track.category?.name ?? 'Без категории'}
-                              </Typography>
-                              {track.description ? <Typography>{track.description}</Typography> : null}
-                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <Chip label={`Public: ${track.is_public ? 'yes' : 'no'}`} variant="outlined" size="small" />
-                                <Chip label={`BPM: ${track.bpm ?? '-'}`} variant="outlined" size="small" />
-                                <Chip label={`Tags: ${track.tags?.join(', ') || '-'}`} variant="outlined" size="small" />
-                                <Chip
-                                  label={track.original_url ? 'Source uploaded' : 'Source missing'}
-                                  variant="outlined"
-                                  size="small"
-                                  color={track.original_url ? 'success' : 'default'}
-                                />
-                                <Chip
-                                  label={track.mp3_128_url ? '128 ready' : '128 pending'}
-                                  variant="outlined"
-                                  size="small"
-                                  color={track.mp3_128_url ? 'success' : 'default'}
-                                />
-                                <Chip
-                                  label={track.mp3_320_url ? '320 ready' : '320 pending'}
-                                  variant="outlined"
-                                  size="small"
-                                  color={track.mp3_320_url ? 'success' : 'default'}
-                                />
-                              </Stack>
-                              {track.metadata ? (
-                                <Typography variant="body2" color="text.secondary">
-                                  Media: {track.metadata.format ?? 'unknown'} | duration {track.metadata.duration_seconds ?? '-'}s |
-                                  size {track.metadata.file_size_bytes ?? '-'} bytes
-                                </Typography>
-                              ) : null}
-                              {track.rejection_reason ? <Alert severity="error">{track.rejection_reason}</Alert> : null}
-                              <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
-                              <Stack direction="row" spacing={1}>
-                                <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
-                                  {activeTrackId === track.id && isPlaying ? 'Пауза' : 'Проверить playback'}
-                                </Button>
-                                <Button variant="outlined" size="small" onClick={() => startEditingTrack(track)}>
-                                  Редактировать
-                                </Button>
-                                <Button
-                                  variant="contained"
-                                  size="small"
-                                  component="label"
-                                  disabled={studioBusy || !canUploadTrackMedia(track)}
-                                >
-                                  {uploadingTrackId === track.id
-                                    ? 'Uploading...'
-                                    : track.original_url
-                                      ? 'Replace audio'
-                                      : 'Upload audio'}
-                                  <input
-                                    hidden
-                                    type="file"
-                                    accept=".mp3,.wav,audio/mpeg,audio/wav"
-                                    onChange={(event) => {
-                                      const file = event.target.files?.[0] ?? null;
-                                      void handleTrackUpload(track, file);
-                                      event.target.value = '';
-                                    }}
-                                  />
-                                </Button>
-                                <Button variant="outlined" color="error" size="small" onClick={() => void handleDeleteTrack(track.id)}>
-                                  Удалить
-                                </Button>
-                              </Stack>
-                            </Stack>
-                          </CardContent>
-                        </Card>
-                      ))}
+                      {myTracks.map((track) => renderTrackCard(track, 'mine'))}
                     </Stack>
                   )}
                 </Stack>
               </Paper>
             </Stack>
-
-            {isModerator ? (
-              <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-                <Stack spacing={3}>
-                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                    <Box>
-                      <Typography variant="h5">Moderation area</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Это уже не просто технический блок. Здесь видно очередь review и недавние moderation-решения.
-                      </Typography>
-                    </Box>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                      <Chip label={`Pending review: ${moderationStats?.tracks_pending_moderation ?? 0}`} color="warning" variant="outlined" />
-                      <Chip label={`Users: ${moderationStats?.total_users ?? 0}`} variant="outlined" />
-                      <Chip label={`Tracks: ${moderationStats?.total_tracks ?? 0}`} variant="outlined" />
-                      <IconButton
-                        color="primary"
-                        onClick={() => {
-                          if (user) {
-                            void loadModeratorState(user);
-                          }
-                        }}
-                      >
-                        <RefreshRoundedIcon />
-                      </IconButton>
-                    </Stack>
-                  </Stack>
-
-                  {moderationQueue.length === 0 ? (
-                    <Alert severity="info">No tracks are waiting for moderation right now.</Alert>
-                  ) : (
-                    <Stack spacing={2}>
-                      {moderationQueue.map((track) => (
-                        <Card key={`moderation-${track.id}`} variant="outlined" sx={{ borderRadius: 5 }}>
-                          <CardContent>
-                            <Stack spacing={2}>
-                              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-                                <Box>
-                                  <Typography variant="h6">{track.title}</Typography>
-                                  <Typography color="text.secondary">
-                                    {(track.user?.username ?? 'Unknown artist')} | {track.genre ?? 'No genre'}
-                                  </Typography>
-                                </Box>
-                                <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
-                              </Stack>
-                              {track.description ? <Typography>{track.description}</Typography> : null}
-                              <Alert severity="warning">
-                                После approve трек {track.is_public ? 'попадёт в публичный каталог' : 'останется приватным, но станет валидным для owner playback'}.
-                              </Alert>
-                              <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
-                              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                                <Chip label={`Format: ${track.metadata?.format ?? '-'}`} variant="outlined" size="small" />
-                                <Chip label={`Duration: ${track.metadata?.duration_seconds ?? '-'}s`} variant="outlined" size="small" />
-                                <Chip label={`BPM: ${track.bpm ?? '-'}`} variant="outlined" size="small" />
-                              </Stack>
-                              <TextField
-                                label="Rejection reason"
-                                value={moderationReasonByTrack[track.id] ?? ''}
-                                onChange={(event) =>
-                                  setModerationReasonByTrack((current) => ({ ...current, [track.id]: event.target.value }))
-                                }
-                                multiline
-                                minRows={2}
-                              />
-                              <Stack direction="row" spacing={1}>
-                                <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
-                                  {activeTrackId === track.id && isPlaying ? 'Pause' : 'Preview'}
-                                </Button>
-                                <Button
-                                  variant="contained"
-                                  color="success"
-                                  size="small"
-                                  disabled={moderationBusy}
-                                  onClick={() => void handleModerateTrack(track, { status: 'approved' })}
-                                >
-                                  Approve
-                                </Button>
-                                <Button
-                                  variant="contained"
-                                  color="error"
-                                  size="small"
-                                  disabled={moderationBusy}
-                                  onClick={() =>
-                                    void handleModerateTrack(track, {
-                                      status: 'rejected',
-                                      rejection_reason: moderationReasonByTrack[track.id] || 'Rejected during moderation',
-                                    })
-                                  }
-                                >
-                                  Reject
-                                </Button>
-                              </Stack>
-                            </Stack>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </Stack>
-                  )}
-
-                  <Divider />
-
-                  <Stack spacing={2}>
-                    <Typography variant="h6">Последние moderation-действия</Typography>
-                    {moderationLogs.length === 0 ? (
-                      <Alert severity="info">История модерации пока пуста.</Alert>
-                    ) : (
-                      <Stack spacing={1.5}>
-                        {moderationLogs.map((log) => (
-                          <Card key={`log-${log.id}`} variant="outlined" sx={{ borderRadius: 4 }}>
-                            <CardContent>
-                              <Stack spacing={1}>
-                                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                                  <Typography variant="subtitle1">{formatModerationAction(log)}</Typography>
-                                  <Typography variant="body2" color="text.secondary">
-                                    {new Date(log.timestamp).toLocaleString('ru-RU')}
-                                  </Typography>
-                                </Stack>
-                                <Typography variant="body2" color="text.secondary">
-                                  Track #{log.target_id ?? '-'} • admin #{log.admin_id}
-                                </Typography>
-                                {typeof log.details?.rejection_reason === 'string' && log.details.rejection_reason ? (
-                                  <Alert severity="error">{String(log.details.rejection_reason)}</Alert>
-                                ) : null}
-                              </Stack>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </Stack>
-                    )}
-                  </Stack>
-                </Stack>
-              </Paper>
-            ) : null}
           </Stack>
-        </Paper>
+
+          <Divider />
+
+          <Paper
+            variant="outlined"
+            sx={{
+              p: { xs: 2.5, md: 3 },
+              borderRadius: 7,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.94) 100%)',
+            }}
+          >
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ xs: 'flex-start', md: 'center' }}>
+              <Box>
+                <Typography variant="h5">Что важно сейчас</Typography>
+                <Typography color="text.secondary">
+                  Все пользователи видят опубликованные треки, owner удаляет свои, staff может удалять любые, а вкладка
+                  лайков уже даёт первый персональный loop поверх общего каталога.
+                </Typography>
+              </Box>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip icon={<LibraryMusicRoundedIcon />} label="Плеер живой" color="success" variant="outlined" />
+                <Chip icon={<FavoriteRoundedIcon />} label="Лайки отдельной вкладкой" color="secondary" variant="outlined" />
+                <Chip icon={<PhotoCameraRoundedIcon />} label="Cover uploads" color="primary" variant="outlined" />
+              </Stack>
+            </Stack>
+          </Paper>
+        </Stack>
       </Container>
     </Box>
   );

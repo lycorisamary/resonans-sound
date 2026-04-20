@@ -6,6 +6,7 @@ This folder is the current documentation center for `resonans-sound`.
 
 - [`project-status-ru.md`](project-status-ru.md) — current project state, MVP readiness, manual testing focus, next plan
 - [`manual-test-checklist-ru.md`](manual-test-checklist-ru.md) — hands-on QA checklist for the current iteration
+- [`staff-access-ru.md`](staff-access-ru.md) — how to log in as admin and how to grant moderator access
 
 ## Architecture
 

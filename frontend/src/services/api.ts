@@ -148,6 +148,16 @@ class ApiClient {
     return response.data;
   }
 
+  async uploadTrackCover(trackId: number, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post(`/tracks/${trackId}/cover`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
   async updateTrack(id: number, data: any) {
     const response = await this.client.put(`/tracks/${id}`, data);
     return response.data;
@@ -217,6 +227,11 @@ class ApiClient {
 
   async getMyLikedTrackIds() {
     const response = await this.client.get('/interactions/likes/mine');
+    return response.data;
+  }
+
+  async getMyLikedTracks(params?: any) {
+    const response = await this.client.get('/interactions/likes/mine/tracks', { params });
     return response.data;
   }
 

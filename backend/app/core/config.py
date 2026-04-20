@@ -49,6 +49,13 @@ class Settings(BaseSettings):
         "audio/vnd.wave",
     ]
     ALLOWED_EXTENSIONS: list = [".mp3", ".wav"]
+    MAX_COVER_IMAGE_SIZE: int = 5 * 1024 * 1024  # 5 MB
+    ALLOWED_IMAGE_FORMATS: list = [
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+    ]
+    ALLOWED_IMAGE_EXTENSIONS: list = [".jpg", ".jpeg", ".png", ".webp"]
     
     # Audio Processing
     AUDIO_BITRATES: list = [128, 320]  # kbps

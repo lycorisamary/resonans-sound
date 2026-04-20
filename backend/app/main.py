@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 import time
 import structlog
+from sqlalchemy import inspect, text
 
 from app.core.config import settings
 from app.db.session import engine, Base
@@ -45,6 +46,19 @@ REQUEST_LATENCY = Histogram(
 )
 
 
+def ensure_runtime_schema() -> None:
+    """Apply small idempotent runtime schema fixes when migrations are absent."""
+    inspector = inspect(engine)
+    if "tracks" not in inspector.get_table_names():
+        return
+
+    track_columns = {column["name"] for column in inspector.get_columns("tracks")}
+    with engine.begin() as connection:
+        if "cover_image_url" not in track_columns:
+            connection.execute(text("ALTER TABLE tracks ADD COLUMN cover_image_url TEXT"))
+            logger.info("runtime_schema_updated", table="tracks", column="cover_image_url")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
@@ -53,6 +67,7 @@ async def lifespan(app: FastAPI):
     
     # Create database tables
     Base.metadata.create_all(bind=engine)
+    ensure_runtime_schema()
     logger.info("Database tables created")
     
     yield

@@ -90,7 +90,7 @@ def test_private_streams_are_owner_or_moderator_only():
 
 
 def test_build_track_stream_url_response_returns_direct_public_url(monkeypatch):
-    track = make_track(track_id=21, status=TrackStatus.approved, is_public=True)
+    track = make_track(track_id=21, status=TrackStatus.approved, is_public=False)
 
     monkeypatch.setattr(streaming, "_get_streamable_track", lambda db, track_id: track)
     monkeypatch.setattr(streaming, "_resolve_object_key", lambda track, quality: ("tracks/21/320.mp3", "audio/mpeg"))
@@ -105,6 +105,12 @@ def test_build_track_stream_url_response_returns_direct_public_url(monkeypatch):
     assert response.url == "/api/v1/tracks/21/stream?quality=320"
     assert response.quality == "320"
     assert response.expires_at is None
+
+
+def test_approved_tracks_are_publicly_streamable_even_if_is_public_flag_is_false():
+    approved_track = make_track(status=TrackStatus.approved, is_public=False, user_id=42)
+
+    assert streaming._can_stream_track(approved_track, current_user=None)
 
 
 def test_build_track_stream_url_response_issues_signed_private_url(monkeypatch):

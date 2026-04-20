@@ -190,6 +190,7 @@ class TrackResponse(TrackBase):
     like_count: int
     comment_count: int
     duration_seconds: Optional[int] = None
+    cover_image_url: Optional[str] = None
     waveform_data_json: Optional[dict] = None
     metadata: Optional[TrackMetadata] = None
     user: Optional[UserPublic] = None

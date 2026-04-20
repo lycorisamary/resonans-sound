@@ -126,7 +126,7 @@ def _iter_stream(object_key: str, byte_range: ByteRange | None) -> Iterator[byte
 
 
 def _can_stream_track(track: Track, current_user: User | None) -> bool:
-    is_public_approved = track.status == TrackStatus.approved and track.is_public
+    is_public_approved = track.status == TrackStatus.approved
     if is_public_approved:
         return True
 
@@ -143,7 +143,35 @@ def _can_stream_track(track: Track, current_user: User | None) -> bool:
 
 
 def _is_public_stream(track: Track) -> bool:
-    return track.status == TrackStatus.approved and track.is_public
+    return track.status == TrackStatus.approved
+
+
+def build_track_cover_response(db: Session, track_id: int) -> StreamingResponse:
+    track = _get_streamable_track(db, track_id)
+    if track.status == TrackStatus.deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+
+    metadata_json = track.metadata_json if isinstance(track.metadata_json, dict) else {}
+    cover = metadata_json.get("cover")
+    if not isinstance(cover, dict):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+
+    object_key = cover.get("object_key")
+    if not isinstance(object_key, str) or not object_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+
+    object_info = stat_object(object_key)
+    content_type = object_info.content_type or cover.get("content_type") or "image/jpeg"
+    headers = {
+        "Content-Length": str(object_info.size_bytes),
+        "Cache-Control": "public, max-age=3600",
+    }
+
+    return StreamingResponse(
+        _iter_stream(object_key, None),
+        media_type=content_type,
+        headers=headers,
+    )
 
 
 def build_track_stream_url_response(

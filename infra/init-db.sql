@@ -53,6 +53,7 @@ CREATE TABLE tracks (
     original_url TEXT,
     mp3_128_url TEXT,
     mp3_320_url TEXT,
+    cover_image_url TEXT,
     waveform_data_json JSONB,
     metadata_json JSONB,
     status track_status DEFAULT 'pending',

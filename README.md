@@ -2,7 +2,7 @@
 
 `resonans-sound` is an early MVP audio platform with a live production baseline.
 The project already runs with a real backend, object storage, media processing,
-moderation flow, and a connected frontend on `https://resonance-sound.ru`.
+automatic track publication, cover uploads, and a connected frontend on `https://resonance-sound.ru`.
 
 ## Current State
 
@@ -12,14 +12,14 @@ Implemented in `main` right now:
 - public catalog with categories
 - track metadata CRUD for owners
 - source upload to MinIO
+- track cover upload
 - Celery media processing
 - derived `128/320 mp3` generation
 - waveform generation
-- moderation queue with approve/reject and audit log entries
-- public playback and owner/private playback
-- secure browser-safe signed stream URLs for private preview
+- automatic publication after successful processing
+- public playback and owner preview where needed
 - basic discovery: text search, category filter, sort
-- likes as the first social loop
+- likes plus a dedicated liked-tracks view
 - backend tests for critical upload/stream security paths
 
 ## Production Baseline
@@ -51,12 +51,15 @@ Currently active routes in `main`:
 - `GET /api/v1/tracks/mine`
 - `POST /api/v1/tracks`
 - `POST /api/v1/tracks/upload`
+- `POST /api/v1/tracks/{id}/cover`
 - `GET /api/v1/tracks/{id}`
+- `GET /api/v1/tracks/{id}/cover`
 - `GET /api/v1/tracks/{id}/stream`
 - `GET /api/v1/tracks/{id}/stream-url`
 - `PUT /api/v1/tracks/{id}`
 - `DELETE /api/v1/tracks/{id}`
 - `GET /api/v1/interactions/likes/mine`
+- `GET /api/v1/interactions/likes/mine/tracks`
 - `POST /api/v1/interactions/like`
 - `DELETE /api/v1/interactions/like`
 - `GET /api/v1/admin/stats`
@@ -72,6 +75,7 @@ Key documents:
 
 - [`docs/project-status-ru.md`](docs/project-status-ru.md) — current project state, MVP readiness, manual checks, next plan
 - [`docs/manual-test-checklist-ru.md`](docs/manual-test-checklist-ru.md) — exact manual QA checklist for the current iteration
+- [`docs/staff-access-ru.md`](docs/staff-access-ru.md) — admin login and moderator access instructions
 - [`docs/minio-storage-ru.md`](docs/minio-storage-ru.md) — how MinIO works in this project
 - [`docs/upload-flow-blueprint.md`](docs/upload-flow-blueprint.md) — source of truth for the current upload/media lifecycle
 - [`docs/database-blueprint.md`](docs/database-blueprint.md) — current data model and logical rules
@@ -114,7 +118,7 @@ curl https://resonance-sound.ru/api/v1/health
 
 - play counters on real listen thresholds
 - download rules for original/derived assets
-- richer moderation filters and resubmission flow
+- richer library/discovery views
 - playlists and comments
 - frontend tests
 - operational backup/rate-limit hardening

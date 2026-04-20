@@ -114,6 +114,7 @@ class Track(Base):
     original_url = Column(Text)
     mp3_128_url = Column(Text)
     mp3_320_url = Column(Text)
+    cover_image_url = Column(Text)
     waveform_data_json = Column(JSON)
     metadata_json = Column(JSON)
     status = Column(Enum(TrackStatus), default=TrackStatus.pending, index=True)

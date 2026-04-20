@@ -12,10 +12,11 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.celery import celery_app
 from app.core.config import settings
-from app.models import Category, Track, TrackStatus, User
+from app.models import AdminLog, Category, Track, TrackStatus, User, UserRole
 from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate, TrackUploadResponse
 from app.services.catalog import serialize_track
 from app.services.storage import (
+    build_cover_object_key,
     build_original_object_key,
     delete_objects,
     guess_content_type,
@@ -57,6 +58,7 @@ def _snapshot_track_state(track: Track) -> dict[str, object]:
         "original_url": track.original_url,
         "mp3_128_url": track.mp3_128_url,
         "mp3_320_url": track.mp3_320_url,
+        "cover_image_url": track.cover_image_url,
         "waveform_data_json": _clone_json_document(track.waveform_data_json),
         "metadata_json": _clone_json_document(track.metadata_json),
         "rejection_reason": track.rejection_reason,
@@ -99,6 +101,29 @@ def _extract_storage_keys(metadata_json: dict | None) -> list[str]:
     return keys
 
 
+def _extract_cover_storage_key(metadata_json: dict | None) -> str | None:
+    if not isinstance(metadata_json, dict):
+        return None
+
+    cover = metadata_json.get("cover")
+    if not isinstance(cover, dict):
+        return None
+
+    object_key = cover.get("object_key")
+    if isinstance(object_key, str) and object_key:
+        return object_key
+
+    return None
+
+
+def _is_staff(user: User) -> bool:
+    return user.role in {UserRole.admin, UserRole.moderator}
+
+
+def _can_delete_track(track: Track, current_user: User) -> bool:
+    return current_user.id == track.user_id or _is_staff(current_user)
+
+
 def _detect_upload_content_type(upload_file_object: UploadFile, extension: str) -> str:
     provided_content_type = upload_file_object.content_type
     guessed_content_type = guess_content_type(upload_file_object.filename)
@@ -136,8 +161,33 @@ def _validate_upload(upload_file_object: UploadFile) -> tuple[str, str]:
     return safe_filename, content_type
 
 
-def _write_upload_to_temp_file(upload_file_object: UploadFile, suffix: str) -> tuple[str, int]:
-    max_file_size = int(settings.MAX_FILE_SIZE)
+def _validate_cover_upload(upload_file_object: UploadFile) -> tuple[str, str]:
+    safe_filename = sanitize_filename(upload_file_object.filename)
+    extension = Path(safe_filename).suffix.lower()
+
+    if extension not in set(settings.ALLOWED_IMAGE_EXTENSIONS):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Unsupported cover image extension",
+        )
+
+    provided_content_type = upload_file_object.content_type
+    guessed_content_type = guess_content_type(upload_file_object.filename)
+    allowed_content_types = set(settings.ALLOWED_IMAGE_FORMATS)
+
+    if provided_content_type in allowed_content_types:
+        return safe_filename, provided_content_type
+
+    if guessed_content_type in allowed_content_types:
+        return safe_filename, guessed_content_type
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail="Unsupported cover image content type",
+    )
+
+
+def _write_upload_to_temp_file(upload_file_object: UploadFile, suffix: str, max_file_size: int) -> tuple[str, int]:
     total_size = 0
     temp_file_path = ""
 
@@ -214,6 +264,14 @@ def _assert_uploadable_track(track: Track) -> None:
         )
 
 
+def _assert_cover_uploadable_track(track: Track) -> None:
+    if track.status == TrackStatus.deleted:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Deleted tracks cannot accept cover uploads",
+        )
+
+
 def _hydrate_track(db: Session, track_id: int) -> Track | None:
     return (
         db.query(Track)
@@ -232,7 +290,7 @@ def create_track_metadata(db: Session, current_user: User, payload: TrackCreate)
         description=payload.description,
         genre=payload.genre,
         category_id=payload.category_id,
-        is_public=payload.is_public,
+        is_public=True,
         is_downloadable=payload.is_downloadable,
         license_type=payload.license_type,
         tags=payload.tags,
@@ -299,6 +357,7 @@ def update_track_metadata(
     for field, value in updates.items():
         setattr(track, field, value)
 
+    track.is_public = True
     if track.status == TrackStatus.rejected:
         track.status = TrackStatus.pending
         track.rejection_reason = None
@@ -310,10 +369,33 @@ def update_track_metadata(
 
 
 def delete_track_metadata(db: Session, current_user: User, track_id: int) -> None:
-    track = _get_owned_track(db, current_user, track_id)
+    track = (
+        db.query(Track)
+        .options(joinedload(Track.user), joinedload(Track.category))
+        .filter(Track.id == track_id)
+        .first()
+    )
+    if track is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+    if not _can_delete_track(track, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can delete only your own tracks")
+
     track.status = TrackStatus.deleted
     track.is_public = False
     db.add(track)
+    if _is_staff(current_user) and current_user.id != track.user_id:
+        db.add(
+            AdminLog(
+                admin_id=current_user.id,
+                action="track_deleted",
+                target_type="track",
+                target_id=track.id,
+                details={
+                    "deleted_by_role": current_user.role.value,
+                    "owner_id": track.user_id,
+                },
+            )
+        )
     db.commit()
 
 
@@ -337,6 +419,7 @@ def upload_track_source(
         temp_file_path, file_size_bytes = _write_upload_to_temp_file(
             upload_file_object,
             suffix=Path(safe_filename).suffix.lower(),
+            max_file_size=int(settings.MAX_FILE_SIZE),
         )
         new_original_key = build_original_object_key(current_user.id, track.id, safe_filename)
         upload_file(temp_file_path, new_original_key, content_type=content_type)
@@ -387,6 +470,56 @@ def upload_track_source(
         db.refresh(track)
 
         delete_objects([key for key in previous_storage_keys if key != new_original_key])
+
+        hydrated_track = _hydrate_track(db, track.id)
+        return serialize_track(hydrated_track, include_private_media=True)
+    finally:
+        try:
+            upload_file_object.file.close()
+        except Exception:
+            pass
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+
+def upload_track_cover(
+    db: Session,
+    current_user: User,
+    track_id: int,
+    upload_file_object: UploadFile,
+) -> TrackUploadResponse:
+    track = _get_owned_track(db, current_user, track_id)
+    _assert_cover_uploadable_track(track)
+
+    safe_filename, content_type = _validate_cover_upload(upload_file_object)
+    previous_cover_key = _extract_cover_storage_key(track.metadata_json if isinstance(track.metadata_json, dict) else None)
+    temp_file_path = ""
+    new_cover_key = ""
+
+    try:
+        temp_file_path, _ = _write_upload_to_temp_file(
+            upload_file_object,
+            suffix=Path(safe_filename).suffix.lower(),
+            max_file_size=int(settings.MAX_COVER_IMAGE_SIZE),
+        )
+        new_cover_key = build_cover_object_key(current_user.id, track.id, safe_filename)
+        upload_file(temp_file_path, new_cover_key, content_type=content_type)
+
+        metadata_json = copy.deepcopy(track.metadata_json) if isinstance(track.metadata_json, dict) else {}
+        metadata_json["cover"] = {
+            "object_key": new_cover_key,
+            "content_type": content_type,
+            "original_filename": safe_filename,
+            "uploaded_at": _utcnow_iso(),
+        }
+        track.metadata_json = metadata_json
+        track.cover_image_url = f"{settings.API_PREFIX}/tracks/{track.id}/cover"
+        db.add(track)
+        db.commit()
+        db.refresh(track)
+
+        if previous_cover_key and previous_cover_key != new_cover_key:
+            delete_objects([previous_cover_key])
 
         hydrated_track = _hydrate_track(db, track.id)
         return serialize_track(hydrated_track, include_private_media=True)

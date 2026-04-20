@@ -67,6 +67,7 @@ def serialize_track(track: Any, include_private_media: bool = False) -> TrackRes
         "like_count": track.like_count,
         "comment_count": track.comment_count,
         "duration_seconds": track.duration_seconds,
+        "cover_image_url": track.cover_image_url,
         "is_public": track.is_public,
         "is_downloadable": track.is_downloadable,
         "license_type": track.license_type,
@@ -98,9 +99,7 @@ def list_public_categories(db: Session) -> list[CategoryResponse]:
         db.query(Category, func.count(Track.id).label("track_count"))
         .outerjoin(
             Track,
-            (Track.category_id == Category.id)
-            & Track.is_public.is_(True)
-            & (Track.status == TrackStatus.approved),
+            (Track.category_id == Category.id) & (Track.status == TrackStatus.approved),
         )
         .filter(Category.is_active.is_(True))
         .group_by(Category.id)
@@ -116,9 +115,7 @@ def get_public_category(db: Session, slug: str) -> CategoryResponse | None:
         db.query(Category, func.count(Track.id).label("track_count"))
         .outerjoin(
             Track,
-            (Track.category_id == Category.id)
-            & Track.is_public.is_(True)
-            & (Track.status == TrackStatus.approved),
+            (Track.category_id == Category.id) & (Track.status == TrackStatus.approved),
         )
         .filter(Category.slug == slug, Category.is_active.is_(True))
         .group_by(Category.id)
@@ -146,7 +143,6 @@ def build_public_tracks_page(
         .outerjoin(Category, Track.category_id == Category.id)
         .options(joinedload(Track.user), joinedload(Track.category))
         .filter(
-            Track.is_public.is_(True),
             Track.status == TrackStatus.approved,
             or_(Track.category_id.is_(None), Category.is_active.is_(True)),
         )
@@ -200,7 +196,6 @@ def get_public_track(db: Session, track_id: int) -> TrackResponse | None:
         .options(joinedload(Track.user), joinedload(Track.category))
         .filter(
             Track.id == track_id,
-            Track.is_public.is_(True),
             Track.status == TrackStatus.approved,
             or_(Track.category_id.is_(None), Category.is_active.is_(True)),
         )
