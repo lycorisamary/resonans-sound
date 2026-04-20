@@ -1,10 +1,17 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.core.config import settings
 
@@ -13,9 +20,8 @@ REQUIRED_LEGACY_TABLES = {"users", "categories", "tracks", "interactions"}
 
 
 def build_alembic_config() -> Config:
-    backend_root = Path(__file__).resolve().parents[1]
-    config = Config(str(backend_root / "alembic.ini"))
-    config.set_main_option("script_location", str(backend_root / "alembic"))
+    config = Config(str(BACKEND_ROOT / "alembic.ini"))
+    config.set_main_option("script_location", str(BACKEND_ROOT / "alembic"))
     config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
     return config
 
