@@ -659,7 +659,7 @@ export default function App() {
   };
 
   const handleDeleteTrack = async (track: Track) => {
-    const isDeletingOtherUsersTrack = Boolean(user) && user.id !== track.user_id;
+    const isDeletingOtherUsersTrack = user ? user.id !== track.user_id : false;
     const confirmMessage = isDeletingOtherUsersTrack
       ? `Удалить чужой трек "${track.title}"?`
       : `Удалить трек "${track.title}"?`;
