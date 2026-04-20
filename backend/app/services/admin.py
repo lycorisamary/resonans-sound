@@ -8,7 +8,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import AdminLog, Track, TrackStatus, User
-from app.schemas import PaginatedResponse, SystemStats, TrackModeration
+from app.schemas import AdminLogResponse, PaginatedResponse, SystemStats, TrackModeration
 from app.services.catalog import serialize_track
 
 
@@ -105,6 +105,33 @@ def get_moderation_queue(db: Session, page: int, size: int) -> PaginatedResponse
 
     return PaginatedResponse(
         items=[serialize_track(track, include_private_media=True).model_dump() for track in items],
+        total=total,
+        page=page,
+        size=size,
+        pages=ceil(total / size) if total else 0,
+    )
+
+
+def list_admin_logs(
+    db: Session,
+    page: int,
+    size: int,
+    target_type: str | None = None,
+) -> PaginatedResponse:
+    query = db.query(AdminLog)
+    if target_type:
+        query = query.filter(AdminLog.target_type == target_type)
+
+    total = query.order_by(None).count()
+    items = (
+        query.order_by(AdminLog.timestamp.desc(), AdminLog.id.desc())
+        .offset((page - 1) * size)
+        .limit(size)
+        .all()
+    )
+
+    return PaginatedResponse(
+        items=[AdminLogResponse.model_validate(item).model_dump() for item in items],
         total=total,
         page=page,
         size=size,

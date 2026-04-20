@@ -75,6 +75,12 @@ export interface TrackModerationPayload {
   rejection_reason?: string | null;
 }
 
+export interface StreamUrlResponse {
+  url: string;
+  quality: string;
+  expires_at?: string | null;
+}
+
 export interface Playlist {
   id: number;
   user_id: number;
@@ -95,6 +101,16 @@ export interface Interaction {
   content?: string;
   created_at: string;
   user?: UserPublic;
+}
+
+export interface LikeToggleResponse {
+  track_id: number;
+  liked: boolean;
+  like_count: number;
+}
+
+export interface TrackLikeListResponse {
+  track_ids: number[];
 }
 
 export interface Comment extends Interaction {
@@ -167,4 +183,15 @@ export interface Notification {
   related_interaction_id?: number;
   is_read: boolean;
   created_at: string;
+}
+
+export interface AdminLog {
+  id: number;
+  admin_id: number;
+  action: string;
+  target_type: string;
+  target_id?: number;
+  timestamp: string;
+  ip_address?: string;
+  details?: Record<string, unknown>;
 }

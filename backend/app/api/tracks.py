@@ -2,12 +2,17 @@ from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user, get_optional_current_user
+from app.core.security import (
+    get_current_user,
+    get_optional_current_user,
+    get_user_from_stream_token,
+    resolve_optional_current_user,
+)
 from app.db.session import get_db
 from app.models import User
-from app.schemas import PaginatedResponse, TrackResponse, TrackUploadResponse
+from app.schemas import PaginatedResponse, StreamUrlResponse, TrackResponse, TrackUploadResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
-from app.services.streaming import build_track_stream_response
+from app.services.streaming import build_track_stream_response, build_track_stream_url_response
 from app.services.tracks import (
     create_track_metadata,
     delete_track_metadata,
@@ -39,6 +44,7 @@ def get_tracks(
     category: str | None = Query(None, min_length=2, max_length=100),
     genre: str | None = Query(None, min_length=1, max_length=100),
     search: str | None = Query(None, min_length=1, max_length=255),
+    sort: str = Query("newest", min_length=3, max_length=32),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
     """Return approved public tracks with lightweight catalog filters."""
@@ -49,6 +55,7 @@ def get_tracks(
         category_slug=category,
         genre=genre,
         search=search,
+        sort=sort,
     )
 
 
@@ -82,17 +89,43 @@ def upload_track(
 def stream_track(
     track_id: int,
     quality: str = Query("320"),
+    stream_token: str | None = Query(default=None),
     range_header: str | None = Header(default=None, alias="Range"),
-    current_user: User | None = Depends(get_optional_current_user),
+    authorization: str | None = Header(default=None, alias="Authorization"),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     """Stream an approved public track with optional HTTP Range support."""
+    current_user = resolve_optional_current_user(authorization=authorization, db=db)
+    if current_user is None:
+        current_user = get_user_from_stream_token(
+            token=stream_token,
+            track_id=track_id,
+            quality=quality,
+            db=db,
+        )
+
     return build_track_stream_response(
         db=db,
         track_id=track_id,
         quality=quality,
         current_user=current_user,
         range_header=range_header,
+    )
+
+
+@router.get("/{track_id}/stream-url", response_model=StreamUrlResponse)
+def get_track_stream_url(
+    track_id: int,
+    quality: str = Query("320"),
+    current_user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> StreamUrlResponse:
+    """Return a browser-safe stream URL for the current access context."""
+    return build_track_stream_url_response(
+        db=db,
+        track_id=track_id,
+        quality=quality,
+        current_user=current_user,
     )
 
 

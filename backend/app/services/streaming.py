@@ -7,7 +7,10 @@ from fastapi import HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.security import create_stream_token
 from app.models import Track, TrackStatus, User, UserRole
+from app.schemas import StreamUrlResponse
 from app.services.storage import get_object_stream, stat_object
 
 
@@ -139,6 +142,40 @@ def _can_stream_track(track: Track, current_user: User | None) -> bool:
     return False
 
 
+def _is_public_stream(track: Track) -> bool:
+    return track.status == TrackStatus.approved and track.is_public
+
+
+def build_track_stream_url_response(
+    db: Session,
+    track_id: int,
+    quality: str,
+    current_user: User | None = None,
+) -> StreamUrlResponse:
+    track = _get_streamable_track(db, track_id)
+    if not _can_stream_track(track, current_user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Track is not available for streaming")
+
+    _resolve_object_key(track, quality)
+
+    if current_user is None and _is_public_stream(track):
+        return StreamUrlResponse(
+            url=f"{settings.API_PREFIX}/tracks/{track_id}/stream?quality={quality}",
+            quality=quality,
+            expires_at=None,
+        )
+
+    if current_user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required for this stream")
+
+    stream_token, expires_at = create_stream_token(current_user, track_id=track_id, quality=quality)
+    return StreamUrlResponse(
+        url=f"{settings.API_PREFIX}/tracks/{track_id}/stream?quality={quality}&stream_token={stream_token}",
+        quality=quality,
+        expires_at=expires_at,
+    )
+
+
 def build_track_stream_response(
     db: Session,
     track_id: int,
@@ -157,7 +194,7 @@ def build_track_stream_response(
     content_type = object_info.content_type or original_content_type or DEFAULT_CONTENT_TYPES[quality]
     headers = {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "public, max-age=3600",
+        "Cache-Control": "public, max-age=3600" if _is_public_stream(track) and current_user is None else "private, no-store",
     }
     status_code = status.HTTP_200_OK
 

@@ -157,9 +157,11 @@ class ApiClient {
     await this.client.delete(`/tracks/${id}`);
   }
 
-  async streamTrack(id: number, quality: number | string = 320) {
-    // Return the stream URL - actual streaming is handled by browser
-    return `${API_BASE_URL}/tracks/${id}/stream?quality=${quality}`;
+  async getTrackStreamUrl(id: number, quality: number | string = 320) {
+    const response = await this.client.get(`/tracks/${id}/stream-url`, {
+      params: { quality },
+    });
+    return response.data;
   }
 
   // Category endpoints
@@ -209,7 +211,13 @@ class ApiClient {
   }
 
   async unlikeTrack(trackId: number) {
-    await this.client.delete(`/interactions/like?track_id=${trackId}`);
+    const response = await this.client.delete(`/interactions/like?track_id=${trackId}`);
+    return response.data;
+  }
+
+  async getMyLikedTrackIds() {
+    const response = await this.client.get('/interactions/likes/mine');
+    return response.data;
   }
 
   async addComment(trackId: number, content: string, parentId?: number) {
@@ -240,8 +248,8 @@ class ApiClient {
 
   // Search
   async search(query: string, filters?: any) {
-    const response = await this.client.get('/tracks/search', {
-      params: { q: query, ...filters },
+    const response = await this.client.get('/tracks', {
+      params: { search: query, ...filters },
     });
     return response.data;
   }
@@ -264,6 +272,11 @@ class ApiClient {
 
   async getModerationQueue(params?: any) {
     const response = await this.client.get('/admin/moderation', { params });
+    return response.data;
+  }
+
+  async getAdminLogs(params?: any) {
+    const response = await this.client.get('/admin/logs', { params });
     return response.data;
   }
 

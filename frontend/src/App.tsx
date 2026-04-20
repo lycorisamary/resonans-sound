@@ -10,6 +10,9 @@ import {
   Container,
   Divider,
   FormControlLabel,
+  IconButton,
+  InputAdornment,
+  LinearProgress,
   MenuItem,
   Paper,
   Stack,
@@ -17,9 +20,25 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import FavoriteBorderRoundedIcon from '@mui/icons-material/FavoriteBorderRounded';
+import FavoriteRoundedIcon from '@mui/icons-material/FavoriteRounded';
+import RefreshRoundedIcon from '@mui/icons-material/RefreshRounded';
+import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
 
 import api from './services/api';
-import { AuthTokens, Category, PaginatedResponse, SystemStats, Track, TrackModerationPayload, User } from './types';
+import {
+  AdminLog,
+  AuthTokens,
+  Category,
+  LikeToggleResponse,
+  PaginatedResponse,
+  StreamUrlResponse,
+  SystemStats,
+  Track,
+  TrackLikeListResponse,
+  TrackModerationPayload,
+  User,
+} from './types';
 
 
 type HealthResponse = {
@@ -56,6 +75,112 @@ const initialTrackForm: TrackFormState = {
 };
 
 type StreamQuality = '128' | '320' | 'original';
+type CatalogSort = 'newest' | 'popular' | 'title';
+type OwnerTrackStateTone = 'info' | 'warning' | 'success' | 'error';
+
+
+function formatTime(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) {
+    return '0:00';
+  }
+
+  const totalSeconds = Math.floor(seconds);
+  const minutes = Math.floor(totalSeconds / 60);
+  const remainingSeconds = totalSeconds % 60;
+  return `${minutes}:${String(remainingSeconds).padStart(2, '0')}`;
+}
+
+
+function getErrorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error !== null) {
+    const maybeError = error as {
+      response?: { data?: { detail?: unknown } };
+      message?: unknown;
+    };
+
+    if (typeof maybeError.response?.data?.detail === 'string') {
+      return maybeError.response.data.detail;
+    }
+
+    if (typeof maybeError.message === 'string' && maybeError.message.trim()) {
+      return maybeError.message;
+    }
+  }
+
+  return fallback;
+}
+
+
+function getOwnerTrackState(track: Track): { tone: OwnerTrackStateTone; title: string; description: string } {
+  const hasMedia = Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
+
+  if (track.status === 'deleted') {
+    return {
+      tone: 'error',
+      title: 'Удалён из активного оборота',
+      description: 'Трек скрыт из каталога и больше не участвует в пользовательских сценариях.',
+    };
+  }
+
+  if (track.status === 'processing') {
+    return {
+      tone: 'warning',
+      title: 'Идёт media processing',
+      description: 'Исходный файл уже принят. Worker готовит производные MP3 и waveform для плеера.',
+    };
+  }
+
+  if (track.status === 'rejected') {
+    return {
+      tone: 'error',
+      title: 'Нужны правки перед повторной отправкой',
+      description: 'Исправьте metadata или замените файл, затем снова отправьте трек на review.',
+    };
+  }
+
+  if (track.status === 'approved' && track.is_public) {
+    return {
+      tone: 'success',
+      title: 'Трек опубликован',
+      description: 'Медиа прошло модерацию и уже может воспроизводиться в публичном каталоге.',
+    };
+  }
+
+  if (track.status === 'approved' && !track.is_public) {
+    return {
+      tone: 'success',
+      title: 'Трек одобрен, но остаётся приватным',
+      description: 'Поток доступен владельцу и ролям модерации, но в публичный каталог трек не попадает.',
+    };
+  }
+
+  if (track.status === 'pending' && !hasMedia) {
+    return {
+      tone: 'info',
+      title: 'Ждёт исходный файл',
+      description: 'Metadata уже сохранено. Следующий шаг: загрузить MP3 или WAV, чтобы запустить processing.',
+    };
+  }
+
+  return {
+    tone: 'warning',
+    title: 'Ждёт модерацию',
+    description: 'Файл уже обработан, но трек пока не опубликован. Его должен проверить moderator или admin.',
+  };
+}
+
+
+function formatModerationAction(log: AdminLog) {
+  if (log.action === 'track_approved') {
+    return 'Трек одобрен';
+  }
+
+  if (log.action === 'track_rejected') {
+    return 'Трек отклонён';
+  }
+
+  return log.action;
+}
 
 
 function WaveformPreview({ track, active }: { track: Track; active: boolean }) {
@@ -157,6 +282,9 @@ export default function App() {
   const [publicTracks, setPublicTracks] = useState<Track[]>([]);
   const [myTracks, setMyTracks] = useState<Track[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [catalogSearchInput, setCatalogSearchInput] = useState('');
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [catalogSort, setCatalogSort] = useState<CatalogSort>('newest');
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [registerEmail, setRegisterEmail] = useState('');
@@ -168,24 +296,44 @@ export default function App() {
   const [moderationQueue, setModerationQueue] = useState<Track[]>([]);
   const [moderationBusy, setModerationBusy] = useState(false);
   const [moderationStats, setModerationStats] = useState<SystemStats | null>(null);
+  const [moderationLogs, setModerationLogs] = useState<AdminLog[]>([]);
   const [moderationReasonByTrack, setModerationReasonByTrack] = useState<Record<number, string>>({});
+  const [likedTrackIds, setLikedTrackIds] = useState<number[]>([]);
+  const [activeTrack, setActiveTrack] = useState<Track | null>(null);
   const [activeTrackId, setActiveTrackId] = useState<number | null>(null);
   const [playerQuality, setPlayerQuality] = useState<StreamQuality>('320');
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playerLoading, setPlayerLoading] = useState(false);
+  const [playerError, setPlayerError] = useState<string | null>(null);
+  const [playerCurrentTime, setPlayerCurrentTime] = useState(0);
+  const [playerDuration, setPlayerDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const loadPublicCatalog = async (category: string) => {
+  const loadPublicCatalog = async (
+    overrides: {
+      category?: string;
+      search?: string;
+      sort?: CatalogSort;
+    } = {}
+  ) => {
     setCatalogBusy(true);
     try {
+      const category = overrides.category ?? selectedCategory;
+      const search = overrides.search ?? catalogSearch;
+      const sort = overrides.sort ?? catalogSort;
       const [categoriesResponse, tracksResponse] = await Promise.all([
         api.getCategories(),
-        api.getTracks(category === 'all' ? undefined : { category }),
+        api.getTracks({
+          ...(category === 'all' ? {} : { category }),
+          ...(search ? { search } : {}),
+          sort,
+        }),
       ]);
 
       setCategories(categoriesResponse as Category[]);
       setPublicTracks((tracksResponse as PaginatedResponse<Track>).items);
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not load public catalog');
+      setPageError(getErrorMessage(err, 'Could not load public catalog'));
     } finally {
       setCatalogBusy(false);
     }
@@ -195,25 +343,32 @@ export default function App() {
     if (!['moderator', 'admin'].includes(currentUser.role)) {
       setModerationQueue([]);
       setModerationStats(null);
+      setModerationLogs([]);
       return;
     }
 
-    const [statsResponse, moderationResponse] = await Promise.all([
+    const [statsResponse, moderationResponse, logResponse] = await Promise.all([
       api.getSystemStats(),
       api.getModerationQueue(),
+      api.getAdminLogs({ target_type: 'track', size: 10 }),
     ]);
 
     setModerationStats(statsResponse as SystemStats);
     setModerationQueue((moderationResponse as PaginatedResponse<Track>).items);
+    setModerationLogs((logResponse as PaginatedResponse<AdminLog>).items);
   };
 
   const loadAuthenticatedState = async () => {
-    const currentUser = (await api.getCurrentUser()) as User;
-    const myTracksResponse = (await api.getMyTracks()) as PaginatedResponse<Track>;
+    const [currentUser, myTracksResponse, likedTracksResponse] = await Promise.all([
+      api.getCurrentUser(),
+      api.getMyTracks(),
+      api.getMyLikedTrackIds(),
+    ]);
 
-    setUser(currentUser);
-    setMyTracks(myTracksResponse.items);
-    await loadModeratorState(currentUser);
+    setUser(currentUser as User);
+    setMyTracks((myTracksResponse as PaginatedResponse<Track>).items);
+    setLikedTrackIds((likedTracksResponse as TrackLikeListResponse).track_ids);
+    await loadModeratorState(currentUser as User);
   };
 
   useEffect(() => {
@@ -225,7 +380,7 @@ export default function App() {
         }
 
         setHealth((await healthResponse.json()) as HealthResponse);
-        await loadPublicCatalog('all');
+        await loadPublicCatalog({ category: 'all' });
 
         if (localStorage.getItem('access_token')) {
           try {
@@ -234,10 +389,11 @@ export default function App() {
             clearTokens();
             setUser(null);
             setMyTracks([]);
+            setLikedTrackIds([]);
           }
         }
       } catch (err) {
-        setPageError(err instanceof Error ? err.message : 'Unknown error');
+        setPageError(getErrorMessage(err, 'Unknown error'));
       } finally {
         setInitialLoading(false);
       }
@@ -251,8 +407,23 @@ export default function App() {
       return;
     }
 
-    void loadPublicCatalog(selectedCategory);
-  }, [selectedCategory, initialLoading]);
+    void loadPublicCatalog();
+  }, [selectedCategory, catalogSearch, catalogSort, initialLoading]);
+
+  useEffect(() => {
+    if (!activeTrackId) {
+      return;
+    }
+
+    const latestTrack =
+      myTracks.find((track) => track.id === activeTrackId) ??
+      publicTracks.find((track) => track.id === activeTrackId) ??
+      moderationQueue.find((track) => track.id === activeTrackId);
+
+    if (latestTrack) {
+      setActiveTrack(latestTrack);
+    }
+  }, [activeTrackId, myTracks, publicTracks, moderationQueue]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -260,18 +431,53 @@ export default function App() {
       return;
     }
 
-    const onPlay = () => setIsPlaying(true);
+    const onLoadStart = () => {
+      setPlayerLoading(true);
+      setPlayerError(null);
+    };
+    const onLoadedMetadata = () => {
+      setPlayerDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
+      setPlayerLoading(false);
+    };
+    const onTimeUpdate = () => setPlayerCurrentTime(audio.currentTime || 0);
+    const onPlay = () => {
+      setIsPlaying(true);
+      setPlayerLoading(false);
+      setPlayerError(null);
+    };
     const onPause = () => setIsPlaying(false);
-    const onEnded = () => setIsPlaying(false);
+    const onEnded = () => {
+      setIsPlaying(false);
+      setPlayerCurrentTime(0);
+    };
+    const onWaiting = () => setPlayerLoading(true);
+    const onCanPlay = () => setPlayerLoading(false);
+    const onError = () => {
+      setIsPlaying(false);
+      setPlayerLoading(false);
+      setPlayerError('Не удалось загрузить поток. Проверьте, что трек обработан и у текущей сессии есть доступ к media.');
+    };
 
+    audio.addEventListener('loadstart', onLoadStart);
+    audio.addEventListener('loadedmetadata', onLoadedMetadata);
+    audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
+    audio.addEventListener('waiting', onWaiting);
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('error', onError);
 
     return () => {
+      audio.removeEventListener('loadstart', onLoadStart);
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata);
+      audio.removeEventListener('timeupdate', onTimeUpdate);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
+      audio.removeEventListener('waiting', onWaiting);
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('error', onError);
     };
   }, []);
 
@@ -288,7 +494,7 @@ export default function App() {
       setBanner('Вход выполнен. Теперь можно создавать metadata треков.');
       setLoginPassword('');
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Login failed');
+      setPageError(getErrorMessage(err, 'Login failed'));
     } finally {
       setAuthBusy(false);
     }
@@ -307,7 +513,7 @@ export default function App() {
       setBanner('Аккаунт создан и сессия уже открыта.');
       setRegisterPassword('');
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Registration failed');
+      setPageError(getErrorMessage(err, 'Registration failed'));
     } finally {
       setAuthBusy(false);
     }
@@ -321,11 +527,30 @@ export default function App() {
     try {
       await api.logout();
     } finally {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        delete audio.dataset.streamUrl;
+        delete audio.dataset.trackId;
+        delete audio.dataset.streamQuality;
+        audio.load();
+      }
+
       clearTokens();
       setUser(null);
       setMyTracks([]);
+      setLikedTrackIds([]);
+      setModerationQueue([]);
+      setModerationStats(null);
+      setModerationLogs([]);
       setEditingTrackId(null);
       setTrackForm(initialTrackForm);
+      setActiveTrack(null);
+      setActiveTrackId(null);
+      setPlayerError(null);
+      setPlayerCurrentTime(0);
+      setPlayerDuration(0);
       setAuthBusy(false);
     }
   };
@@ -367,9 +592,9 @@ export default function App() {
 
       setEditingTrackId(null);
       setTrackForm(initialTrackForm);
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog(selectedCategory)]);
+      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not save track metadata');
+      setPageError(getErrorMessage(err, 'Could not save track metadata'));
     } finally {
       setStudioBusy(false);
     }
@@ -403,9 +628,9 @@ export default function App() {
         setTrackForm(initialTrackForm);
       }
       setBanner('Трек переведён в status deleted и скрыт из публичного каталога.');
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog(selectedCategory)]);
+      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not delete track');
+      setPageError(getErrorMessage(err, 'Could not delete track'));
     } finally {
       setStudioBusy(false);
     }
@@ -426,7 +651,7 @@ export default function App() {
       setBanner(`Upload queued for "${track.title}". The track is now processing.`);
       await loadAuthenticatedState();
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not upload audio file');
+      setPageError(getErrorMessage(err, 'Could not upload audio file'));
     } finally {
       setUploadingTrackId(null);
       setStudioBusy(false);
@@ -436,6 +661,7 @@ export default function App() {
   const canUploadTrackMedia = (track: Track) => track.status === 'pending' || track.status === 'rejected';
   const isModerator = user?.role === 'moderator' || user?.role === 'admin';
   const hasPlayableMedia = (track: Track) => Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
+  const isTrackLiked = (trackId: number) => likedTrackIds.includes(trackId);
 
   const resolvePlayableQuality = (track: Track, preferredQuality: StreamQuality): StreamQuality | null => {
     if (preferredQuality === 'original' && track.original_url) {
@@ -459,45 +685,48 @@ export default function App() {
     return null;
   };
 
+  const handleCatalogSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setCatalogSearch(catalogSearchInput.trim());
+  };
+
   const handlePlayTrack = async (track: Track) => {
     const audio = audioRef.current;
     if (!audio) {
       return;
     }
 
-    if (activeTrackId === track.id && isPlaying) {
-      audio.pause();
-      return;
-    }
-
-    if (activeTrackId === track.id && !isPlaying) {
-      try {
-        await audio.play();
-      } catch (err) {
-        if (!(err instanceof DOMException && err.name === 'AbortError')) {
-          setPageError(err instanceof Error ? err.message : 'Could not resume playback');
-        }
-      }
-      return;
-    }
-
-    setPageError(null);
     try {
+      setPlayerError(null);
       const quality = resolvePlayableQuality(track, playerQuality);
       if (!quality) {
-        throw new Error('No streamable media asset is ready for this track');
+        throw new Error('Для этого трека пока нет готового аудио-ассета для воспроизведения.');
       }
 
-      const streamUrl = await api.streamTrack(track.id, quality);
-      const currentLoadedUrl = audio.dataset.streamUrl ?? '';
-      setActiveTrackId(track.id);
+      const loadedTrackId = Number(audio.dataset.trackId ?? '0');
+      const loadedQuality = audio.dataset.streamQuality as StreamQuality | undefined;
+      const shouldReuseCurrentSource = loadedTrackId === track.id && loadedQuality === quality && Boolean(audio.src);
 
-      if (currentLoadedUrl !== streamUrl) {
+      if (activeTrackId === track.id && isPlaying && shouldReuseCurrentSource) {
         audio.pause();
-        audio.src = streamUrl;
-        audio.dataset.streamUrl = streamUrl;
-        audio.load();
+        return;
       }
+
+      if (!shouldReuseCurrentSource) {
+        setPlayerLoading(true);
+        const streamResponse = (await api.getTrackStreamUrl(track.id, quality)) as StreamUrlResponse;
+        audio.pause();
+        audio.src = streamResponse.url;
+        audio.dataset.streamUrl = streamResponse.url;
+        audio.dataset.trackId = String(track.id);
+        audio.dataset.streamQuality = quality;
+        audio.load();
+        setPlayerCurrentTime(0);
+        setPlayerDuration(track.duration_seconds ?? 0);
+      }
+
+      setActiveTrackId(track.id);
+      setActiveTrack(track);
 
       try {
         await audio.play();
@@ -507,7 +736,35 @@ export default function App() {
         }
       }
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not start playback');
+      setPlayerLoading(false);
+      setPlayerError(getErrorMessage(err, 'Could not start playback'));
+    }
+  };
+
+  const handleToggleLike = async (track: Track) => {
+    if (!user) {
+      setPageError('Чтобы ставить likes, сначала откройте сессию.');
+      return;
+    }
+
+    try {
+      const liked = isTrackLiked(track.id);
+      const response = liked
+        ? ((await api.unlikeTrack(track.id)) as LikeToggleResponse)
+        : ((await api.likeTrack(track.id)) as LikeToggleResponse);
+
+      setLikedTrackIds((current) =>
+        response.liked ? Array.from(new Set([...current, track.id])) : current.filter((value) => value !== track.id)
+      );
+
+      const applyLikeCount = (items: Track[]) =>
+        items.map((item) => (item.id === track.id ? { ...item, like_count: response.like_count } : item));
+
+      setPublicTracks((current) => applyLikeCount(current));
+      setMyTracks((current) => applyLikeCount(current));
+      setActiveTrack((current) => (current?.id === track.id ? { ...current, like_count: response.like_count } : current));
+    } catch (err) {
+      setPageError(getErrorMessage(err, 'Не удалось обновить like'));
     }
   };
 
@@ -519,9 +776,10 @@ export default function App() {
     try {
       await api.moderateTrack(track.id, payload);
       setBanner(`Moderation updated for "${track.title}".`);
-      await Promise.all([loadAuthenticatedState(), loadPublicCatalog(selectedCategory)]);
+      setModerationReasonByTrack((current) => ({ ...current, [track.id]: '' }));
+      await Promise.all([loadAuthenticatedState(), loadPublicCatalog()]);
     } catch (err) {
-      setPageError(err instanceof Error ? err.message : 'Could not moderate track');
+      setPageError(getErrorMessage(err, 'Could not moderate track'));
     } finally {
       setModerationBusy(false);
     }
@@ -588,17 +846,17 @@ export default function App() {
             {banner ? <Alert severity="success">{banner}</Alert> : null}
 
             <Paper variant="outlined" sx={{ p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
-              <Stack spacing={2}>
+              <Stack spacing={2.5}>
                 <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                   <Box>
                     <Typography variant="h5">Player</Typography>
                     <Typography variant="body2" color="text.secondary">
-                      Public tracks stream for everyone. Private or non-public media streams are available only to the owner and moderator roles.
+                      Один и тот же плеер теперь работает и для публичных треков, и для owner/private preview через безопасные stream URL.
                     </Typography>
                   </Box>
                   <TextField
                     select
-                    label="Stream quality"
+                    label="Качество потока"
                     value={playerQuality}
                     onChange={(event) => setPlayerQuality(event.target.value as StreamQuality)}
                     sx={{ minWidth: 180 }}
@@ -608,10 +866,64 @@ export default function App() {
                     <MenuItem value="original">Original</MenuItem>
                   </TextField>
                 </Stack>
+
+                {playerError ? <Alert severity="error">{playerError}</Alert> : null}
+
                 <audio ref={audioRef} controls style={{ width: '100%' }} />
-                <Typography variant="body2" color="text.secondary">
-                  {activeTrackId ? `Current loaded track: #${activeTrackId}${isPlaying ? ' (playing)' : ' (paused)'}` : 'Choose any playable track below.'}
-                </Typography>
+
+                <Card variant="outlined" sx={{ borderRadius: 5, bgcolor: 'rgba(15,118,110,0.04)' }}>
+                  <CardContent>
+                    <Stack spacing={2}>
+                      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                        <Box>
+                          <Typography variant="h6">{activeTrack?.title ?? 'Ничего не выбрано'}</Typography>
+                          <Typography color="text.secondary">
+                            {activeTrack
+                              ? `${activeTrack.user?.username ?? 'Unknown artist'} • ${activeTrack.category?.name ?? 'Без категории'}`
+                              : 'Выберите любой готовый трек ниже, чтобы начать playback.'}
+                          </Typography>
+                        </Box>
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                          <Chip
+                            label={
+                              playerLoading
+                                ? 'Подключаем поток'
+                                : isPlaying
+                                  ? 'Сейчас играет'
+                                  : activeTrackId
+                                    ? 'Готов к продолжению'
+                                    : 'Idle'
+                            }
+                            color={playerLoading ? 'warning' : isPlaying ? 'success' : 'default'}
+                            variant={playerLoading || isPlaying ? 'filled' : 'outlined'}
+                          />
+                          <Chip label={`Качество: ${playerQuality}`} variant="outlined" />
+                        </Stack>
+                      </Stack>
+
+                      <LinearProgress
+                        variant={playerDuration > 0 ? 'determinate' : 'indeterminate'}
+                        value={playerDuration > 0 ? Math.min(100, (playerCurrentTime / playerDuration) * 100) : 0}
+                        sx={{ height: 10, borderRadius: 999, bgcolor: 'rgba(15,118,110,0.08)' }}
+                      />
+
+                      <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                        <Typography variant="body2" color="text.secondary">
+                          {formatTime(playerCurrentTime)} / {formatTime(playerDuration || activeTrack?.duration_seconds ?? 0)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {activeTrack
+                            ? activeTrack.is_public && activeTrack.status === 'approved'
+                              ? 'Публичный playback доступен всем.'
+                              : 'Это приватный или moderation preview поток, доступный по текущей роли.'
+                            : 'Выбранный поток появится здесь вместе с прогрессом и текущим статусом.'}
+                        </Typography>
+                      </Stack>
+
+                      {activeTrack ? <WaveformPreview track={activeTrack} active={isPlaying || playerLoading} /> : null}
+                    </Stack>
+                  </CardContent>
+                </Card>
               </Stack>
             </Paper>
 
@@ -723,7 +1035,56 @@ export default function App() {
 
               <Paper variant="outlined" sx={{ flex: 1, p: 3, borderRadius: 6, backgroundColor: '#fff' }}>
                 <Stack spacing={3}>
-                  <Typography variant="h5">Публичный каталог</Typography>
+                  <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
+                    <Box>
+                      <Typography variant="h5">Публичный каталог</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        Базовый discovery уже живой: категории, поиск и сортировка работают поверх production API.
+                      </Typography>
+                    </Box>
+                    <TextField
+                      select
+                      label="Сортировка"
+                      value={catalogSort}
+                      onChange={(event) => setCatalogSort(event.target.value as CatalogSort)}
+                      sx={{ minWidth: 180 }}
+                    >
+                      <MenuItem value="newest">Сначала новые</MenuItem>
+                      <MenuItem value="popular">По популярности</MenuItem>
+                      <MenuItem value="title">По названию</MenuItem>
+                    </TextField>
+                  </Stack>
+
+                  <Box component="form" onSubmit={handleCatalogSearch}>
+                    <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5}>
+                      <TextField
+                        fullWidth
+                        label="Поиск по названию, описанию или жанру"
+                        value={catalogSearchInput}
+                        onChange={(event) => setCatalogSearchInput(event.target.value)}
+                        InputProps={{
+                          startAdornment: (
+                            <InputAdornment position="start">
+                              <SearchRoundedIcon fontSize="small" />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                      <Button type="submit" variant="contained">
+                        Найти
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        onClick={() => {
+                          setCatalogSearchInput('');
+                          setCatalogSearch('');
+                        }}
+                      >
+                        Сбросить
+                      </Button>
+                    </Stack>
+                  </Box>
+
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip
                       label="Все"
@@ -740,6 +1101,8 @@ export default function App() {
                     ))}
                   </Stack>
 
+                  {catalogSearch ? <Chip label={`Активный поиск: ${catalogSearch}`} color="secondary" variant="outlined" /> : null}
+
                   {catalogBusy ? (
                     <Stack direction="row" spacing={2} alignItems="center">
                       <CircularProgress size={20} />
@@ -750,7 +1113,9 @@ export default function App() {
                   <Stack spacing={2}>
                     {publicTracks.length === 0 ? (
                       <Alert severity="info">
-                        В публичном каталоге пока нет approved треков. Это нормально: созданные сейчас metadata идут в статус `pending`.
+                        {catalogSearch
+                          ? 'По текущему поисковому запросу пока ничего не найдено. Попробуйте сбросить поиск или сменить категорию.'
+                          : 'В публичном каталоге пока нет approved треков. Это нормально: созданные сейчас metadata идут в статус `pending`.'}
                       </Alert>
                     ) : null}
 
@@ -766,10 +1131,25 @@ export default function App() {
                               {(track.user?.username ?? 'Unknown artist')} | {track.category?.name ?? 'Без категории'}
                             </Typography>
                             {track.description ? <Typography>{track.description}</Typography> : null}
+                            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                              <Chip label={`Likes: ${track.like_count}`} size="small" variant="outlined" />
+                              <Chip label={`Plays: ${track.play_count}`} size="small" variant="outlined" />
+                              <Chip label={`Duration: ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
+                            </Stack>
                             <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
                             <Stack direction="row" spacing={1}>
                               <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
-                                {activeTrackId === track.id && isPlaying ? 'Pause' : 'Play'}
+                                {activeTrackId === track.id && isPlaying ? 'Пауза' : 'Слушать'}
+                              </Button>
+                              <Button
+                                variant={isTrackLiked(track.id) ? 'contained' : 'outlined'}
+                                color="error"
+                                size="small"
+                                startIcon={isTrackLiked(track.id) ? <FavoriteRoundedIcon /> : <FavoriteBorderRoundedIcon />}
+                                onClick={() => void handleToggleLike(track)}
+                                disabled={!user}
+                              >
+                                {track.like_count}
                               </Button>
                             </Stack>
                           </Stack>
@@ -921,6 +1301,9 @@ export default function App() {
                                 <Typography variant="h6">{track.title}</Typography>
                                 <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
                               </Stack>
+                              <Alert severity={getOwnerTrackState(track).tone}>
+                                <strong>{getOwnerTrackState(track).title}</strong> {getOwnerTrackState(track).description}
+                              </Alert>
                               <Typography color="text.secondary">
                                 {track.genre ?? 'Без жанра'} | {track.category?.name ?? 'Без категории'}
                               </Typography>
@@ -958,7 +1341,7 @@ export default function App() {
                               <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
                               <Stack direction="row" spacing={1}>
                                 <Button variant="contained" size="small" onClick={() => void handlePlayTrack(track)} disabled={!hasPlayableMedia(track)}>
-                                  {activeTrackId === track.id && isPlaying ? 'Pause' : 'Play'}
+                                  {activeTrackId === track.id && isPlaying ? 'Пауза' : 'Проверить playback'}
                                 </Button>
                                 <Button variant="outlined" size="small" onClick={() => startEditingTrack(track)}>
                                   Редактировать
@@ -1004,15 +1387,25 @@ export default function App() {
                 <Stack spacing={3}>
                   <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                     <Box>
-                      <Typography variant="h5">Moderation queue</Typography>
+                      <Typography variant="h5">Moderation area</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Tracks land here after media processing and wait for explicit approve/reject review.
+                        Это уже не просто технический блок. Здесь видно очередь review и недавние moderation-решения.
                       </Typography>
                     </Box>
-                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
                       <Chip label={`Pending review: ${moderationStats?.tracks_pending_moderation ?? 0}`} color="warning" variant="outlined" />
                       <Chip label={`Users: ${moderationStats?.total_users ?? 0}`} variant="outlined" />
                       <Chip label={`Tracks: ${moderationStats?.total_tracks ?? 0}`} variant="outlined" />
+                      <IconButton
+                        color="primary"
+                        onClick={() => {
+                          if (user) {
+                            void loadModeratorState(user);
+                          }
+                        }}
+                      >
+                        <RefreshRoundedIcon />
+                      </IconButton>
                     </Stack>
                   </Stack>
 
@@ -1034,6 +1427,9 @@ export default function App() {
                                 <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
                               </Stack>
                               {track.description ? <Typography>{track.description}</Typography> : null}
+                              <Alert severity="warning">
+                                После approve трек {track.is_public ? 'попадёт в публичный каталог' : 'останется приватным, но станет валидным для owner playback'}.
+                              </Alert>
                               <WaveformPreview track={track} active={activeTrackId === track.id && isPlaying} />
                               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                                 <Chip label={`Format: ${track.metadata?.format ?? '-'}`} variant="outlined" size="small" />
@@ -1083,6 +1479,38 @@ export default function App() {
                       ))}
                     </Stack>
                   )}
+
+                  <Divider />
+
+                  <Stack spacing={2}>
+                    <Typography variant="h6">Последние moderation-действия</Typography>
+                    {moderationLogs.length === 0 ? (
+                      <Alert severity="info">История модерации пока пуста.</Alert>
+                    ) : (
+                      <Stack spacing={1.5}>
+                        {moderationLogs.map((log) => (
+                          <Card key={`log-${log.id}`} variant="outlined" sx={{ borderRadius: 4 }}>
+                            <CardContent>
+                              <Stack spacing={1}>
+                                <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+                                  <Typography variant="subtitle1">{formatModerationAction(log)}</Typography>
+                                  <Typography variant="body2" color="text.secondary">
+                                    {new Date(log.timestamp).toLocaleString('ru-RU')}
+                                  </Typography>
+                                </Stack>
+                                <Typography variant="body2" color="text.secondary">
+                                  Track #{log.target_id ?? '-'} • admin #{log.admin_id}
+                                </Typography>
+                                {typeof log.details?.rejection_reason === 'string' && log.details.rejection_reason ? (
+                                  <Alert severity="error">{String(log.details.rejection_reason)}</Alert>
+                                ) : null}
+                              </Stack>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </Stack>
+                    )}
+                  </Stack>
                 </Stack>
               </Paper>
             ) : null}

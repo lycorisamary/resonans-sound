@@ -206,6 +206,12 @@ class TrackUploadResponse(TrackResponse):
     rejection_reason: Optional[str] = None
 
 
+class StreamUrlResponse(BaseModel):
+    url: str
+    quality: str
+    expires_at: Optional[datetime] = None
+
+
 # Playlist Schemas
 class PlaylistBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -261,6 +267,16 @@ class InteractionResponse(BaseModel):
         from_attributes = True
 
 
+class LikeToggleResponse(BaseModel):
+    track_id: int
+    liked: bool
+    like_count: int
+
+
+class TrackLikeListResponse(BaseModel):
+    track_ids: List[int]
+
+
 class CommentCreate(BaseModel):
     track_id: int
     content: str = Field(..., min_length=1, max_length=2000)
@@ -304,6 +320,7 @@ class AdminLogResponse(BaseModel):
     target_id: Optional[int] = None
     timestamp: datetime
     ip_address: Optional[str] = None
+    details: Optional[dict] = None
 
     class Config:
         from_attributes = True

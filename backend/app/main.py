@@ -11,7 +11,7 @@ from app.db.session import engine, Base
 from app.models import User, Category, Track  # Import models to create tables
 
 # Import currently active routers
-from app.api import admin, auth, categories, tracks, users
+from app.api import admin, auth, categories, interactions, tracks, users
 
 
 # Configure structured logging
@@ -152,10 +152,10 @@ app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories"
 app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
 app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
+app.include_router(interactions.router, prefix=f"{settings.API_PREFIX}/interactions", tags=["Interactions"])
 
 # Include routers planned for later phases
 # app.include_router(playlists.router, prefix=f"{settings.API_PREFIX}/playlists", tags=["Playlists"])
-# app.include_router(interactions.router, prefix=f"{settings.API_PREFIX}/interactions", tags=["Interactions"])
 
 
 # Root endpoint

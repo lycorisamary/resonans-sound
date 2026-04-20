@@ -5,7 +5,7 @@ from app.core.security import get_moderator_user
 from app.db.session import get_db
 from app.models import User
 from app.schemas import PaginatedResponse, SystemStats, TrackModeration, TrackUploadResponse
-from app.services.admin import get_moderation_queue, get_system_stats, moderate_track
+from app.services.admin import get_moderation_queue, get_system_stats, list_admin_logs, moderate_track
 
 
 router = APIRouter()
@@ -29,6 +29,18 @@ def moderation_queue(
 ) -> PaginatedResponse:
     """Return tracks waiting for approval after media processing."""
     return get_moderation_queue(db, page=page, size=size)
+
+
+@router.get("/logs", response_model=PaginatedResponse)
+def admin_logs(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    target_type: str | None = Query(None, min_length=1, max_length=50),
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse:
+    """Return recent moderation/admin actions for audit visibility."""
+    return list_admin_logs(db=db, page=page, size=size, target_type=target_type)
 
 
 @router.post("/moderate/{track_id}", response_model=TrackUploadResponse)

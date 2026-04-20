@@ -139,6 +139,7 @@ def build_public_tracks_page(
     category_slug: str | None = None,
     genre: str | None = None,
     search: str | None = None,
+    sort: str = "newest",
 ) -> PaginatedResponse:
     query = (
         db.query(Track)
@@ -167,9 +168,17 @@ def build_public_tracks_page(
             )
         )
 
+    sort_key = sort.strip().lower() if sort else "newest"
+    if sort_key == "popular":
+        order_by = [Track.play_count.desc(), Track.like_count.desc(), Track.created_at.desc(), Track.id.desc()]
+    elif sort_key == "title":
+        order_by = [func.lower(Track.title).asc(), Track.id.desc()]
+    else:
+        order_by = [Track.created_at.desc(), Track.id.desc()]
+
     total = query.order_by(None).count()
     items = (
-        query.order_by(Track.created_at.desc(), Track.id.desc())
+        query.order_by(*order_by)
         .offset((page - 1) * size)
         .limit(size)
         .all()
