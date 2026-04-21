@@ -66,6 +66,16 @@ explicitly changes direction.
   `backend/app/policies/`
 - New domain errors should use the stable `code` / `message` / `request_id`
   response contract
+- Critical auth, upload, stream-url, and stream routes are protected by
+  configurable fixed-window rate limits backed by Redis in production
+- API responses include `X-Request-ID`; source upload passes that request id
+  into Celery processing metadata/logs as a correlation id
+- Prometheus metrics cover HTTP traffic, auth failures, rate limit hits, upload
+  outcomes, processing outcomes/latency, and stream errors
+- Grafana is intended to stay bound to server localhost and be viewed through an
+  SSH tunnel, not exposed directly to the public internet
+- Backend and frontend responses should keep the current security headers and
+  production CORS must not include wildcard or localhost origins
 - Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
 - Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
   and `/tracks/:id`
@@ -96,6 +106,7 @@ explicitly changes direction.
 - [`docs/upload-flow-blueprint.md`](docs/upload-flow-blueprint.md)
 - [`docs/database-blueprint.md`](docs/database-blueprint.md)
 - [`docs/minio-storage-ru.md`](docs/minio-storage-ru.md)
+- [`docs/operations-hardening-runbook.md`](docs/operations-hardening-runbook.md)
 
 ## Deployment Reminder
 

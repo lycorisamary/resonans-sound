@@ -1,5 +1,6 @@
 from app.exceptions.auth import RefreshTokenInvalidError
 from app.exceptions.base import DomainError
+from app.exceptions.rate_limit import RateLimitExceededError
 from app.exceptions.storage import StorageUnavailableError
 from app.exceptions.track import (
     InvalidUploadError,
@@ -14,6 +15,7 @@ from app.exceptions.track import (
 __all__ = [
     "DomainError",
     "InvalidUploadError",
+    "RateLimitExceededError",
     "RefreshTokenInvalidError",
     "StorageUnavailableError",
     "TrackAccessDeniedError",

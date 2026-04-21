@@ -115,13 +115,22 @@ git pull --ff-only origin main
 cd infra
 docker compose build backend celery_worker frontend
 docker compose run --rm backend pytest -q tests
-docker compose up -d backend celery_worker frontend
+docker compose up -d backend celery_worker frontend prometheus grafana
 docker compose ps
 curl https://resonance-sound.ru/api/v1/health
 ```
 
 Если изменился только один сервис, можно собирать точечно, но после этого всё
 равно стоит проверить `health`, frontend и нужный продуктовый flow.
+
+Grafana не публикуется наружу: она привязана к `127.0.0.1:3001` на сервере.
+Смотреть dashboard безопаснее через SSH tunnel:
+
+```bash
+ssh -L 3001:127.0.0.1:3001 root@91.230.94.22
+```
+
+После этого открыть `http://127.0.0.1:3001`.
 
 ## 9. Что важно не сломать
 

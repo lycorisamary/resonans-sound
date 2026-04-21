@@ -27,8 +27,13 @@ Implemented in `main` right now:
 - Alembic migrations as the only schema authority
 - active ORM models split by domain context under `backend/app/models/`
 - policy-layer track access, streaming, deletion, and upload rules
+- Redis-backed rate limiting for auth, upload, stream URL, and stream routes
 - server-side upload signature sniffing for audio and cover files
 - stable backend error payloads with `code`, `message`, and `request_id`
+- request id propagation from API upload requests into Celery processing tasks
+- Prometheus metrics for auth failures, rate limit hits, upload events, processing outcomes/latency, and stream errors
+- provisioned Grafana overview dashboard available through a localhost SSH tunnel
+- backend/frontend security headers and production CORS guardrails
 - fail-fast runtime config validation for required secrets and production safety
 - GitHub Actions for backend tests, frontend build, Alembic migration, and startup health verification on Postgres
 - backend tests for critical upload/stream security paths
@@ -95,6 +100,7 @@ Key documents:
 - [`docs/quick-start-ru.md`](docs/quick-start-ru.md) — short Russian quick start
 - [`docs/quickstart.md`](docs/quickstart.md) — short English quick start
 - [`docs/server-diagnostics-ru.md`](docs/server-diagnostics-ru.md) — production diagnostics and deploy checks
+- [`docs/operations-hardening-runbook.md`](docs/operations-hardening-runbook.md) - rate limits, metrics, Grafana access, deploy checklist, and rollback plan
 
 ## Local Run
 
@@ -188,4 +194,4 @@ curl https://resonance-sound.ru/api/v1/health
 - richer library/discovery views
 - playlists and comments
 - broader frontend test coverage beyond the initial auth/card/player smoke tests
-- operational backup/rate-limit hardening
+- automated backup/restore drills and load baseline

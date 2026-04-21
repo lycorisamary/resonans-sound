@@ -5,6 +5,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.metrics import AUTH_FAILURES
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -50,9 +51,11 @@ def _build_token_response(db: Session, user: User) -> Token:
 
 def register_user(db: Session, payload: UserRegister) -> Token:
     if _find_user_by_email(db, payload.email):
+        AUTH_FAILURES.labels(reason="register_email_exists").inc()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email is already registered")
 
     if _find_user_by_username(db, payload.username):
+        AUTH_FAILURES.labels(reason="register_username_exists").inc()
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username is already taken")
 
     user = User(
@@ -73,9 +76,11 @@ def register_user(db: Session, payload: UserRegister) -> Token:
 def login_user(db: Session, payload: UserLogin) -> Token:
     user = _find_user_by_email(db, payload.email)
     if user is None or not verify_password(payload.password, user.password_hash):
+        AUTH_FAILURES.labels(reason="invalid_credentials").inc()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
 
     if user.status != UserStatus.active:
+        AUTH_FAILURES.labels(reason="inactive_user").inc()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
 
     user.last_login = datetime.now(timezone.utc)
@@ -87,7 +92,11 @@ def login_user(db: Session, payload: UserLogin) -> Token:
 
 
 def refresh_user_tokens(db: Session, refresh_token: str) -> Token:
-    token_data = decode_token(refresh_token, expected_type="refresh")
+    try:
+        token_data = decode_token(refresh_token, expected_type="refresh")
+    except HTTPException:
+        AUTH_FAILURES.labels(reason="invalid_refresh_token").inc()
+        raise
     token_hash = hash_token(refresh_token)
 
     stored_token = (
@@ -102,19 +111,23 @@ def refresh_user_tokens(db: Session, refresh_token: str) -> Token:
     )
 
     if stored_token is None:
+        AUTH_FAILURES.labels(reason="invalid_refresh_token").inc()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     if stored_token.expires_at and stored_token.expires_at < datetime.now(timezone.utc):
         stored_token.is_revoked = True
         db.add(stored_token)
         db.commit()
+        AUTH_FAILURES.labels(reason="expired_refresh_token").inc()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired")
 
     user = db.query(User).filter(User.id == token_data.user_id).first()
     if user is None:
+        AUTH_FAILURES.labels(reason="refresh_user_missing").inc()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     if user.status != UserStatus.active:
+        AUTH_FAILURES.labels(reason="inactive_user").inc()
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User is not active")
 
     stored_token.is_revoked = True

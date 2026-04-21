@@ -32,6 +32,7 @@ class Settings(BaseSettings):
 
     REDIS_URL: str = "redis://localhost:6379/0"
     RABBITMQ_URL: str = "amqp://guest:guest@localhost:5672//"
+    CELERY_METRICS_PORT: int = 9102
 
     MINIO_ENDPOINT: str = "localhost:9000"
     MINIO_ACCESS_KEY: str = "audioplatform"
@@ -65,8 +66,16 @@ class Settings(BaseSettings):
     AUDIO_BITRATES: list[int] = [128, 320]
     WAVEFORM_SAMPLES: int = 1000
 
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_REDIS_URL: str | None = None
     RATE_LIMIT_PER_SECOND: int = 100
-    UPLOAD_RATE_LIMIT_PER_HOUR: int = 10
+    AUTH_LOGIN_RATE_LIMIT_PER_MINUTE: int = 10
+    AUTH_REGISTER_RATE_LIMIT_PER_HOUR: int = 5
+    AUTH_REFRESH_RATE_LIMIT_PER_MINUTE: int = 30
+    UPLOAD_RATE_LIMIT_PER_HOUR: int = 20
+    COVER_UPLOAD_RATE_LIMIT_PER_HOUR: int = 30
+    STREAM_URL_RATE_LIMIT_PER_MINUTE: int = 60
+    STREAM_RATE_LIMIT_PER_MINUTE: int = 300
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",
@@ -109,6 +118,16 @@ class Settings(BaseSettings):
     def validate_environment_rules(self) -> "Settings":
         if self.ENV == "production" and self.DEBUG:
             raise ValueError("DEBUG must be False when ENV=production")
+        if self.ENV == "production":
+            forbidden_origins = {
+                "*",
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "http://localhost:8080",
+            }
+            configured_origins = {origin.strip() for origin in self.CORS_ORIGINS}
+            if configured_origins.intersection(forbidden_origins):
+                raise ValueError("Production CORS_ORIGINS must not include wildcard or localhost origins")
         return self
 
 

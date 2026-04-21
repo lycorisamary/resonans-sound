@@ -29,12 +29,14 @@ The current flow covers:
 3. The user uploads the source audio with `POST /api/v1/tracks/upload`.
 4. Backend validates ownership, status, size, extension, and server-side file
    signatures before trusting the upload.
-5. Backend stores the original file in MinIO and moves the track to `processing`.
-6. Celery downloads the original object from MinIO.
-7. Worker generates `128/320 mp3` and waveform data.
-8. Worker writes derived files back to MinIO.
-9. On success the track becomes `approved` automatically.
-10. The published track appears in the shared catalog and is playable through the public player flow.
+5. Backend applies user-scoped upload rate limits before accepting the upload.
+6. Backend stores the original file in MinIO and moves the track to `processing`.
+7. Backend passes the request id into the Celery task headers and processing metadata.
+8. Celery downloads the original object from MinIO.
+9. Worker generates `128/320 mp3` and waveform data.
+10. Worker writes derived files back to MinIO.
+11. On success the track becomes `approved` automatically.
+12. The published track appears in the shared catalog and is playable through the public player flow.
 
 ## Current API Contract
 
@@ -46,6 +48,8 @@ The current flow covers:
   - `file`
 - current default max audio upload size:
   - `512 MB`
+- current default rate limit:
+  - `20/hour` per user
 - allowed source states:
   - `pending`
   - `rejected`
@@ -72,12 +76,22 @@ The current flow covers:
   - PNG
   - WebP
 - cover uploads are rejected for deleted tracks
+- current default rate limit:
+  - `30/hour` per user
 
 ### `GET /api/v1/tracks/{id}/stream`
 
 - returns audio bytes
 - supports HTTP Range
 - published tracks are publicly playable
+- current default rate limit:
+  - `300/minute` per user or client IP
+
+### `GET /api/v1/tracks/{id}/stream-url`
+
+- returns a browser-safe stream URL for the current access context
+- current default rate limit:
+  - `60/minute` per user or client IP
 
 ### `GET /api/v1/tracks/{id}/cover`
 
@@ -126,6 +140,7 @@ The current logical document may include:
 - `upload`
 - `storage`
 - `processing`
+  - may contain `request_id`, `task_id`, status timestamps, and worker error details
 - `cover`
 - audio technical metadata such as `duration_seconds`, `bitrate`, `sample_rate`
 

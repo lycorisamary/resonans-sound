@@ -4,13 +4,20 @@ import copy
 from datetime import datetime, timezone
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import time
 
+import structlog
+
+from app.core.metrics import TRACK_PROCESSING_EVENTS, TRACK_PROCESSING_LATENCY
 from app.celery_app import app
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models import Track, TrackStatus
 from app.services.media import process_audio_file
 from app.services.storage import build_derived_object_key, delete_objects, download_file, upload_file
+
+
+logger = structlog.get_logger(__name__)
 
 
 def _utcnow_iso() -> str:
@@ -30,6 +37,19 @@ def _load_metadata(track: Track) -> dict:
     return copy.deepcopy(track.metadata_json) if isinstance(track.metadata_json, dict) else {}
 
 
+def _get_task_request_id(task) -> str | None:
+    headers = getattr(task.request, "headers", None) or {}
+    request_id = headers.get("request_id")
+    if isinstance(request_id, str) and request_id:
+        return request_id
+
+    correlation_id = getattr(task.request, "correlation_id", None)
+    if isinstance(correlation_id, str) and correlation_id:
+        return correlation_id
+
+    return None
+
+
 @app.task(name="app.tasks.smoke_check")
 def smoke_check() -> dict[str, str]:
     """Minimal task so the worker can be started and verified safely."""
@@ -43,13 +63,22 @@ def smoke_check() -> dict[str, str]:
 @app.task(name="app.tasks.process_track_upload", bind=True)
 def process_track_upload(self, track_id: int) -> dict[str, object]:
     """Process an uploaded track and attach derived media assets."""
+    started_at = time.monotonic()
+    request_id = _get_task_request_id(self)
+    structlog.contextvars.clear_contextvars()
+    if request_id:
+        structlog.contextvars.bind_contextvars(request_id=request_id)
+
     db = SessionLocal()
     generated_keys: list[str] = []
     track: Track | None = None
 
     try:
+        logger.info("track_processing_started", track_id=track_id, task_id=self.request.id)
         track = db.query(Track).filter(Track.id == track_id).first()
         if track is None:
+            TRACK_PROCESSING_EVENTS.labels(outcome="missing").inc()
+            TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
             return {"status": "missing", "track_id": track_id}
 
         metadata_json = _load_metadata(track)
@@ -68,12 +97,16 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
             track.metadata_json = metadata_json
             db.add(track)
             db.commit()
+            TRACK_PROCESSING_EVENTS.labels(outcome="rejected").inc()
+            TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
             return {"status": "rejected", "track_id": track_id}
 
         metadata_json.setdefault("processing", {})
         metadata_json["processing"]["status"] = "processing"
         metadata_json["processing"]["task_id"] = self.request.id
         metadata_json["processing"]["started_at"] = _utcnow_iso()
+        if request_id:
+            metadata_json["processing"]["request_id"] = request_id
         track.status = TrackStatus.processing
         track.rejection_reason = None
         track.metadata_json = metadata_json
@@ -130,13 +163,20 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
         track.rejection_reason = None
         db.add(track)
         db.commit()
+        TRACK_PROCESSING_EVENTS.labels(outcome="processed").inc()
+        TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
+        logger.info("track_processing_completed", track_id=track_id, task_id=self.request.id)
 
         return {
             "status": "processed",
             "track_id": track_id,
             "task_id": self.request.id,
+            "request_id": request_id,
         }
     except Exception as exc:
+        TRACK_PROCESSING_EVENTS.labels(outcome="failed").inc()
+        TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
+        logger.exception("track_processing_failed", track_id=track_id, task_id=self.request.id)
         delete_objects(generated_keys)
         if track is not None:
             metadata_json = _load_metadata(track)
@@ -157,4 +197,5 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
             db.commit()
         raise
     finally:
+        structlog.contextvars.clear_contextvars()
         db.close()

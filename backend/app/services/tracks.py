@@ -244,6 +244,7 @@ def _build_track_upload_metadata(
     file_size_bytes: int,
     original_filename: str,
     content_type: str,
+    request_id: str | None = None,
 ) -> dict:
     metadata_json = copy.deepcopy(current_metadata) if isinstance(current_metadata, dict) else {}
     metadata_json["file_size_bytes"] = file_size_bytes
@@ -262,6 +263,8 @@ def _build_track_upload_metadata(
         "queued_at": _utcnow_iso(),
         "pipeline_version": 1,
     }
+    if request_id:
+        metadata_json["processing"]["request_id"] = request_id
     return metadata_json
 
 
@@ -430,6 +433,7 @@ def upload_track_source(
     current_user: User,
     track_id: int,
     upload_file_object: UploadFile,
+    request_id: str | None = None,
 ) -> TrackUploadResponse:
     track = _get_owned_track(db, current_user, track_id)
     _assert_uploadable_track(track, current_user)
@@ -465,13 +469,18 @@ def upload_track_source(
             file_size_bytes=file_size_bytes,
             original_filename=safe_filename,
             content_type=content_type,
+            request_id=request_id,
         )
         db.add(track)
         db.commit()
         db.refresh(track)
 
         try:
-            task_result = celery_app.send_task("app.tasks.process_track_upload", args=[track.id])
+            task_result = celery_app.send_task(
+                "app.tasks.process_track_upload",
+                args=[track.id],
+                headers={"request_id": request_id} if request_id else {},
+            )
         except Exception as exc:
             delete_objects([new_original_key])
             _restore_track_state(track, previous_state)
@@ -506,6 +515,7 @@ def upload_track_source(
             track_id=track.id,
             user_id=current_user.id,
             task_id=task_result.id,
+            request_id=request_id,
             content_type=content_type,
             file_size_bytes=file_size_bytes,
         )

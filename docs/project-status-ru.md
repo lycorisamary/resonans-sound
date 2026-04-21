@@ -167,5 +167,6 @@
 
 - расширить backend tests
 - расширить frontend tests
-- описать backup strategy
-- добавить rate limiting
+- rate limiting, request id/correlation id, базовые metrics, Grafana provisioning
+  и security headers начаты в итерации 4
+- automated backup/restore и load baseline остаются следующими reliability-блоками

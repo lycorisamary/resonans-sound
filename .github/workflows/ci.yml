@@ -87,5 +87,16 @@ jobs:
           node-version: "20"
       - name: Install frontend dependencies
         run: npm install
+      - name: Run frontend tests
+        run: npm test
       - name: Build frontend
         run: npm run build
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t resonans-backend-ci ./backend
+      - name: Build frontend image
+        run: docker build --build-arg VITE_API_URL=/api/v1 -t resonans-frontend-ci ./frontend

@@ -8,46 +8,29 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
+from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
 from app.core.config import settings
+from app.core.logging import configure_structured_logging
+from app.core.metrics import REQUEST_COUNT, REQUEST_LATENCY
 from app.db.schema import validate_schema_revision
 from app.db.session import engine
-from app.exceptions import DomainError
+from app.exceptions import DomainError, RateLimitExceededError
 
 # Import currently active routers
 from app.api import admin, auth, categories, interactions, tracks, users
 
 
-# Configure structured logging
-structlog.configure(
-    processors=[
-        structlog.contextvars.merge_contextvars,
-        structlog.processors.add_log_level,
-        structlog.processors.StackInfoRenderer(),
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.JSONRenderer()
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(20),  # INFO level = 20
-    context_class=dict, 
-    logger_factory=structlog.PrintLoggerFactory(),
-    cache_logger_on_first_use=True,
-)
+configure_structured_logging()
 
 logger = structlog.get_logger()
 
-# Prometheus metrics
-REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP requests',
-    ['method', 'endpoint', 'status']
-)
-
-REQUEST_LATENCY = Histogram(
-    'http_request_duration_seconds',
-    'HTTP request latency in seconds',
-    ['method', 'endpoint']
-)
+SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
+}
 
 
 @asynccontextmanager
@@ -112,6 +95,8 @@ async def log_and_metrics(request: Request, call_next):
         process_time=process_time,
     )
     response.headers["X-Request-ID"] = request_id
+    for header_name, header_value in SECURITY_HEADERS.items():
+        response.headers.setdefault(header_name, header_value)
     
     # Record metrics
     if request.url.path != "/metrics":
@@ -148,6 +133,15 @@ def _build_error_payload(
     return payload
 
 
+def _error_headers(request_id: str | None, extra_headers: dict[str, str] | None = None) -> dict[str, str] | None:
+    headers = dict(extra_headers or {})
+    if request_id:
+        headers["X-Request-ID"] = request_id
+    for header_name, header_value in SECURITY_HEADERS.items():
+        headers.setdefault(header_name, header_value)
+    return headers or None
+
+
 @app.exception_handler(DomainError)
 async def domain_exception_handler(request: Request, exc: DomainError):
     request_id = getattr(request.state, "request_id", None)
@@ -165,10 +159,14 @@ async def domain_exception_handler(request: Request, exc: DomainError):
         code=exc.code,
         status_code=exc.status_code,
     )
+    extra_headers = None
+    if isinstance(exc, RateLimitExceededError):
+        extra_headers = {"Retry-After": str(exc.retry_after_seconds)}
+
     return JSONResponse(
         status_code=exc.status_code,
         content=content,
-        headers={"X-Request-ID": request_id} if request_id else None,
+        headers=_error_headers(request_id, extra_headers),
     )
 
 
@@ -177,8 +175,6 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     request_id = getattr(request.state, "request_id", None)
     message = exc.detail if isinstance(exc.detail, str) else "HTTP error"
     headers = dict(exc.headers or {})
-    if request_id:
-        headers["X-Request-ID"] = request_id
 
     return JSONResponse(
         status_code=exc.status_code,
@@ -188,7 +184,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
             request_id=request_id,
             details=None if isinstance(exc.detail, str) else exc.detail,
         ),
-        headers=headers or None,
+        headers=_error_headers(request_id, headers),
     )
 
 
@@ -203,7 +199,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             request_id=request_id,
             details=exc.errors(),
         ),
-        headers={"X-Request-ID": request_id} if request_id else None,
+        headers=_error_headers(request_id),
     )
 
 
@@ -222,7 +218,7 @@ async def global_exception_handler(request: Request, exc: Exception):
             message="Internal server error",
             request_id=request_id,
         ),
-        headers={"X-Request-ID": request_id} if request_id else None,
+        headers=_error_headers(request_id),
     )
 
 

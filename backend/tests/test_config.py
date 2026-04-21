@@ -25,3 +25,16 @@ def test_required_runtime_secrets_must_be_non_empty():
             MINIO_SECRET_KEY="test-minio-secret",
             SECRET_KEY="   ",
         )
+
+
+def test_production_cors_rejects_localhost_origins():
+    with pytest.raises(ValueError, match="Production CORS_ORIGINS"):
+        Settings(
+            _env_file=None,
+            ENV="production",
+            DEBUG=False,
+            DATABASE_URL="sqlite:///./test.db",
+            MINIO_SECRET_KEY="test-minio-secret",
+            SECRET_KEY="test-secret-key",
+            CORS_ORIGINS=["https://resonance-sound.ru", "http://localhost:5173"],
+        )

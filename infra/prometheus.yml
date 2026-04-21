@@ -12,6 +12,10 @@ scrape_configs:
       - targets: ['backend:8000']
     metrics_path: '/metrics'
 
+  - job_name: 'celery-worker'
+    static_configs:
+      - targets: ['celery_worker:9102']
+
   - job_name: 'nginx'
     static_configs:
       - targets: ['nginx:80']

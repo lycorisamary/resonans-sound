@@ -64,3 +64,15 @@
 - discovery работает
 - likes работают
 - role-based delete работает
+
+## 7. Operations hardening smoke
+
+- Проверить, что `curl -i https://resonance-sound.ru/api/v1/health` возвращает
+  `X-Request-ID`, `X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy` и `Permissions-Policy`.
+- Несколько раз подряд вызвать login с неверным паролем и убедиться, что после
+  лимита приходит `429` с `code=rate_limit_exceeded` и header `Retry-After`.
+- Проверить, что `/root/resonans-sound/infra/.env` не содержит wildcard или
+  localhost origins в `CORS_ORIGINS` при `ENV=production`.
+- Через SSH tunnel открыть Grafana по инструкции из
+  [`operations-hardening-runbook.md`](operations-hardening-runbook.md).

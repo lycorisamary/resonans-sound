@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.metrics import TRACK_STREAM_ERRORS, TRACK_UPLOAD_EVENTS
 from app.core.security import (
     get_current_user,
     get_optional_current_user,
@@ -10,6 +12,7 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.models import User
+from app.services.rate_limit import RateLimit, enforce_rate_limit, user_or_ip_subject, user_subject
 from app.schemas import PaginatedResponse, StreamUrlResponse, TrackResponse, TrackUploadResponse
 from app.services.catalog import build_public_tracks_page, get_public_track
 from app.services.streaming import build_track_cover_response, build_track_stream_response, build_track_stream_url_response
@@ -25,6 +28,32 @@ from app.schemas import TrackCreate, TrackUpdate
 
 
 router = APIRouter()
+
+
+def _rate_limited_source_upload_user(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> User:
+    enforce_rate_limit(
+        request=request,
+        scope="tracks_upload_source",
+        subject=user_subject(current_user.id),
+        limit=RateLimit(settings.UPLOAD_RATE_LIMIT_PER_HOUR, 60 * 60),
+    )
+    return current_user
+
+
+def _rate_limited_cover_upload_user(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+) -> User:
+    enforce_rate_limit(
+        request=request,
+        scope="tracks_upload_cover",
+        subject=user_subject(current_user.id),
+        limit=RateLimit(settings.COVER_UPLOAD_RATE_LIMIT_PER_HOUR, 60 * 60),
+    )
+    return current_user
 
 
 @router.get("/mine", response_model=PaginatedResponse)
@@ -72,38 +101,54 @@ def create_track(
 
 @router.post("/upload", response_model=TrackUploadResponse, status_code=202)
 def upload_track(
+    request: Request,
     track_id: int = Form(..., gt=0),
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_rate_limited_source_upload_user),
     db: Session = Depends(get_db),
 ) -> TrackUploadResponse:
     """Attach an audio upload to an existing owned track and queue processing."""
-    return upload_track_source(
-        db=db,
-        current_user=current_user,
-        track_id=track_id,
-        upload_file_object=file,
-    )
+    try:
+        response = upload_track_source(
+            db=db,
+            current_user=current_user,
+            track_id=track_id,
+            upload_file_object=file,
+            request_id=getattr(request.state, "request_id", None),
+        )
+    except Exception:
+        TRACK_UPLOAD_EVENTS.labels(kind="source", outcome="failure").inc()
+        raise
+    TRACK_UPLOAD_EVENTS.labels(kind="source", outcome="success").inc()
+    return response
 
 
 @router.post("/{track_id}/cover", response_model=TrackUploadResponse, status_code=202)
 def upload_cover(
+    request: Request,
     track_id: int,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(_rate_limited_cover_upload_user),
     db: Session = Depends(get_db),
 ) -> TrackUploadResponse:
     """Attach or replace a track cover image for the owner."""
-    return upload_track_cover(
-        db=db,
-        current_user=current_user,
-        track_id=track_id,
-        upload_file_object=file,
-    )
+    try:
+        response = upload_track_cover(
+            db=db,
+            current_user=current_user,
+            track_id=track_id,
+            upload_file_object=file,
+        )
+    except Exception:
+        TRACK_UPLOAD_EVENTS.labels(kind="cover", outcome="failure").inc()
+        raise
+    TRACK_UPLOAD_EVENTS.labels(kind="cover", outcome="success").inc()
+    return response
 
 
 @router.get("/{track_id}/stream")
 def stream_track(
+    request: Request,
     track_id: int,
     quality: str = Query("320"),
     stream_token: str | None = Query(default=None),
@@ -121,29 +166,50 @@ def stream_track(
             db=db,
         )
 
-    return build_track_stream_response(
-        db=db,
-        track_id=track_id,
-        quality=quality,
-        current_user=current_user,
-        range_header=range_header,
+    enforce_rate_limit(
+        request=request,
+        scope="tracks_stream",
+        subject=user_or_ip_subject(request, current_user.id if current_user else None),
+        limit=RateLimit(settings.STREAM_RATE_LIMIT_PER_MINUTE, 60),
     )
+    try:
+        return build_track_stream_response(
+            db=db,
+            track_id=track_id,
+            quality=quality,
+            current_user=current_user,
+            range_header=range_header,
+        )
+    except Exception as exc:
+        TRACK_STREAM_ERRORS.labels(route="stream", reason=type(exc).__name__).inc()
+        raise
 
 
 @router.get("/{track_id}/stream-url", response_model=StreamUrlResponse)
 def get_track_stream_url(
+    request: Request,
     track_id: int,
     quality: str = Query("320"),
     current_user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
-    ) -> StreamUrlResponse:
+) -> StreamUrlResponse:
     """Return a browser-safe stream URL for the current access context."""
-    return build_track_stream_url_response(
-        db=db,
-        track_id=track_id,
-        quality=quality,
-        current_user=current_user,
+    enforce_rate_limit(
+        request=request,
+        scope="tracks_stream_url",
+        subject=user_or_ip_subject(request, current_user.id if current_user else None),
+        limit=RateLimit(settings.STREAM_URL_RATE_LIMIT_PER_MINUTE, 60),
     )
+    try:
+        return build_track_stream_url_response(
+            db=db,
+            track_id=track_id,
+            quality=quality,
+            current_user=current_user,
+        )
+    except Exception as exc:
+        TRACK_STREAM_ERRORS.labels(route="stream_url", reason=type(exc).__name__).inc()
+        raise
 
 
 @router.get("/{track_id}/cover")

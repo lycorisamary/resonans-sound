@@ -21,6 +21,7 @@ This folder is the current documentation center for `resonans-sound`.
 - [`quick-start-ru.md`](quick-start-ru.md) — short Russian quick start
 - [`quickstart.md`](quickstart.md) — short English quick start
 - [`server-diagnostics-ru.md`](server-diagnostics-ru.md) — production diagnostics, deploy checks, and server troubleshooting
+- [`operations-hardening-runbook.md`](operations-hardening-runbook.md) - rate limits, metrics, Grafana access, deploy checklist, and rollback plan
 
 ## Operational Rules
 
