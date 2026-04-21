@@ -54,6 +54,12 @@ explicitly changes direction.
   repository Alembic head
 - Media storage currently uses the `tracks` row as the main source of truth
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
+- Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
+- Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
+  and `/tracks/:id`
+- Frontend shared state uses Zustand; Redux is not part of the active runtime
+- Frontend API client lives in `shared/api/` and is typed against the active
+  backend API
 
 ## Working Rules For Agents
 

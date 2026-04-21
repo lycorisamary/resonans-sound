@@ -1,0 +1,30 @@
+import { describe, expect, it } from 'vitest';
+
+import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
+import { renderWithTheme } from '@/test/render';
+import { PlayerPanel } from './PlayerPanel';
+
+const player: UseAudioPlayerResult = {
+  activeTrack: null,
+  activeTrackId: null,
+  audioRef: { current: null },
+  isPlaying: false,
+  playTrack: async () => undefined,
+  playerCurrentTime: 0,
+  playerDuration: 0,
+  playerError: null,
+  playerLoading: false,
+  playerQuality: '320',
+  setPlayerQuality: () => undefined,
+  stopAndResetAudio: () => undefined,
+};
+
+describe('PlayerPanel', () => {
+  it('renders idle player state', () => {
+    const markup = renderWithTheme(<PlayerPanel player={player} />);
+
+    expect(markup).toContain('Единый player flow');
+    expect(markup).toContain('Выберите трек из каталога');
+    expect(markup).toContain('Quality 320');
+  });
+});

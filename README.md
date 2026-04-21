@@ -20,6 +20,10 @@ Implemented in `main` right now:
 - public playback and owner preview where needed
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
+- frontend split into feature/entity/shared layers with React Router routes
+- Zustand-backed auth/catalog/player state
+- typed frontend API client in `shared/api/`
+- minimal frontend tests for auth, track cards, and player rendering
 - Alembic migrations as the only schema authority
 - fail-fast runtime config validation for required secrets and production safety
 - GitHub Actions for backend tests, frontend build, Alembic migration, and startup health verification on Postgres
@@ -165,5 +169,5 @@ curl https://resonance-sound.ru/api/v1/health
 - download rules for original/derived assets
 - richer library/discovery views
 - playlists and comments
-- frontend tests
+- broader frontend test coverage beyond the initial auth/card/player smoke tests
 - operational backup/rate-limit hardening

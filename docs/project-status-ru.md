@@ -78,12 +78,16 @@
 
 ### Frontend
 
-- новый более цельный главный экран
-- единый player flow
-- отдельная вкладка лайкнутых треков
-- studio form для metadata
-- загрузка audio и cover из `Мои треки`
-- staff delete action из общего каталога
+- `App.tsx` больше не монолит: он отвечает за layout и маршрутизацию
+- структура разнесена на `features/`, `entities/`, `shared/` и `hooks/`
+- React Router маршруты: `/`, `/login`, `/studio`, `/me`, `/tracks/:id`
+- Zustand хранит auth/catalog/player/studio state
+- typed API client находится в `shared/api/`
+- единый player flow вынесен в `PlayerPanel` и `useAudioPlayer`
+- catalog/library вынесены в `CatalogPanel`, `TrackCard`, `TrackArtwork`, `WaveformPreview`
+- studio metadata/upload flow вынесен в `StudioForm` и `useTrackActions`
+- auth UI и логика вынесены в `AuthPanel` и `useAuth`
+- добавлены минимальные frontend-тесты для auth, track card и player
 
 ## 3. Текущая логика статусов
 
@@ -136,7 +140,7 @@
 - playlists
 - comments
 - artist profile / artist view
-- frontend tests
+- расширить frontend tests за пределы первичных smoke-тестов
 - backup strategy для Postgres и MinIO
 - rate limiting для upload/stream
 
@@ -162,6 +166,6 @@
 ### Этап 4. Reliability
 
 - расширить backend tests
-- добавить frontend tests
+- расширить frontend tests
 - описать backup strategy
 - добавить rate limiting

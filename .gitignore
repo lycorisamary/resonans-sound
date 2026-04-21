@@ -10,6 +10,7 @@ venv/
 env/
 
 # Build artifacts
+node_modules/
 build/
 dist/
 develop-eggs/
