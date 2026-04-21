@@ -57,7 +57,10 @@ function AppRoutes() {
               element={
                 <Stack spacing={3}>
                   <PlayerPanel player={player} />
-                  <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
+                  <Stack direction={{ xs: 'column', xl: 'row' }} spacing={3} alignItems="stretch">
+                    <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
+                    <StudioForm auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
+                  </Stack>
                 </Stack>
               }
             />

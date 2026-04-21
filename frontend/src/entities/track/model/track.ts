@@ -75,7 +75,7 @@ export function canUploadTrackMedia(track: Track): boolean {
 }
 
 export function hasPlayableMedia(track: Track): boolean {
-  return Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
+  return track.status === 'approved' || Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
 }
 
 export function resolvePlayableQuality(track: Track, preferredQuality: StreamQuality): StreamQuality | null {
@@ -96,6 +96,9 @@ export function resolvePlayableQuality(track: Track, preferredQuality: StreamQua
   }
   if (track.original_url) {
     return 'original';
+  }
+  if (track.status === 'approved') {
+    return preferredQuality;
   }
   return null;
 }

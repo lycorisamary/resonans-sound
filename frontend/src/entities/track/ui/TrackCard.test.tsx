@@ -24,6 +24,15 @@ const track: Track = {
   mp3_320_url: '/api/v1/tracks/7/stream',
 };
 
+const publicCatalogTrack: Track = {
+  ...track,
+  id: 8,
+  title: 'Public Catalog Track',
+  original_url: null,
+  mp3_128_url: null,
+  mp3_320_url: null,
+};
+
 describe('TrackCard', () => {
   it('renders track metadata and catalog actions', () => {
     const markup = renderWithTheme(
@@ -51,5 +60,32 @@ describe('TrackCard', () => {
     expect(markup).toContain('Morning Resonance');
     expect(markup).toContain('Duration 2:05');
     expect(markup).toContain('Слушать');
+  });
+
+  it('enables playback for approved public tracks without private media urls', () => {
+    const markup = renderWithTheme(
+      <TrackCard
+        track={publicCatalogTrack}
+        variant="catalog"
+        active={false}
+        isPlaying={false}
+        playerLoading={false}
+        liked={false}
+        likeDisabled={false}
+        deleteAllowed={false}
+        studioBusy={false}
+        uploadingTrackId={null}
+        uploadingCoverTrackId={null}
+        onPlayTrack={() => undefined}
+        onToggleLike={() => undefined}
+        onEditTrack={() => undefined}
+        onDeleteTrack={() => undefined}
+        onUploadTrack={() => undefined}
+        onUploadCover={() => undefined}
+      />
+    );
+
+    expect(markup).toContain('Public Catalog Track');
+    expect(markup).not.toContain('disabled=""');
   });
 });
