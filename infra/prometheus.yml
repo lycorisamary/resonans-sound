@@ -16,17 +16,13 @@ scrape_configs:
     static_configs:
       - targets: ['celery_worker:9102']
 
-  - job_name: 'nginx'
-    static_configs:
-      - targets: ['nginx:80']
-
   - job_name: 'postgres'
     static_configs:
-      - targets: ['postgres-exporter:9187']
+      - targets: ['postgres_exporter:9187']
 
   - job_name: 'redis'
     static_configs:
-      - targets: ['redis-exporter:9121']
+      - targets: ['redis_exporter:9121']
 
 alerting:
   alertmanagers:

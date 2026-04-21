@@ -44,6 +44,8 @@ Prometheus scrapes:
 
 - backend: `backend:8000/metrics`
 - Celery worker: `celery_worker:9102/metrics`
+- Postgres exporter: `postgres_exporter:9187/metrics`
+- Redis exporter: `redis_exporter:9121/metrics`
 
 Key metric families:
 
