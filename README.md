@@ -25,6 +25,10 @@ Implemented in `main` right now:
 - typed frontend API client in `shared/api/`
 - minimal frontend tests for auth, track cards, and player rendering
 - Alembic migrations as the only schema authority
+- active ORM models split by domain context under `backend/app/models/`
+- policy-layer track access, streaming, deletion, and upload rules
+- server-side upload signature sniffing for audio and cover files
+- stable backend error payloads with `code`, `message`, and `request_id`
 - fail-fast runtime config validation for required secrets and production safety
 - GitHub Actions for backend tests, frontend build, Alembic migration, and startup health verification on Postgres
 - backend tests for critical upload/stream security paths
@@ -148,6 +152,19 @@ If the database schema is behind the repository Alembic head, the backend now fa
 The active ORM runtime intentionally covers only the current MVP surface. Future
 tables from older broader schemas are not treated as part of the active runtime
 contract unless they are explicitly reintroduced in a later iteration.
+
+Current active model files:
+
+- `backend/app/models/user.py`
+- `backend/app/models/category.py`
+- `backend/app/models/track.py`
+- `backend/app/models/interaction.py`
+- `backend/app/models/admin.py`
+- `backend/app/models/token.py`
+
+Track access rules live in `backend/app/policies/`, so routers and services can
+delegate "can this user see/stream/delete/upload this track?" decisions to one
+place.
 
 ## Production Update Flow
 

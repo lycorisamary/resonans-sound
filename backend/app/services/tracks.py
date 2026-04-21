@@ -13,14 +13,16 @@ import structlog
 
 from app.celery_app import celery_app
 from app.core.config import settings
-from app.models import AdminLog, Category, Track, TrackStatus, User, UserRole
+from app.exceptions import InvalidUploadError, TrackAccessDeniedError, TrackConflictError, TrackNotFoundError
+from app.models import AdminLog, Category, Track, TrackStatus, User
+from app.policies import TrackDeletionPolicy, TrackUploadPolicy
+from app.policies._roles import is_staff
 from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate, TrackUploadResponse
 from app.services.catalog import serialize_track
 from app.services.storage import (
     build_cover_object_key,
     build_original_object_key,
     delete_objects,
-    guess_content_type,
     sanitize_filename,
     upload_file,
 )
@@ -120,35 +122,50 @@ def _extract_cover_storage_key(metadata_json: dict | None) -> str | None:
     return None
 
 
-def _is_staff(user: User) -> bool:
-    return user.role in {UserRole.admin, UserRole.moderator}
+def _read_upload_sample(upload_file_object: UploadFile, sample_size: int = 512) -> bytes:
+    file_object = getattr(upload_file_object, "file", None)
+    if file_object is None:
+        return b""
+
+    position = file_object.tell()
+    sample = file_object.read(sample_size)
+    file_object.seek(position)
+    return sample
 
 
-def _can_delete_track(track: Track, current_user: User) -> bool:
-    return current_user.id == track.user_id or _is_staff(current_user)
+def _sniff_audio_content_type(sample: bytes) -> str | None:
+    if sample.startswith(b"ID3"):
+        return "audio/mpeg"
+    if len(sample) >= 2 and sample[0] == 0xFF and (sample[1] & 0xE0) == 0xE0:
+        return "audio/mpeg"
+    if len(sample) >= 12 and sample[:4] == b"RIFF" and sample[8:12] == b"WAVE":
+        return "audio/wav"
+    return None
+
+
+def _sniff_image_content_type(sample: bytes) -> str | None:
+    if sample.startswith(b"\xff\xd8\xff"):
+        return "image/jpeg"
+    if sample.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "image/png"
+    if len(sample) >= 12 and sample[:4] == b"RIFF" and sample[8:12] == b"WEBP":
+        return "image/webp"
+    return None
 
 
 def _detect_upload_content_type(upload_file_object: UploadFile, extension: str) -> str:
-    provided_content_type = upload_file_object.content_type
-    guessed_content_type = guess_content_type(upload_file_object.filename)
-    allowed_content_types = set(settings.ALLOWED_AUDIO_FORMATS)
+    sample = _read_upload_sample(upload_file_object)
+    sniffed_content_type = _sniff_audio_content_type(sample)
+    if sniffed_content_type is None:
+        raise InvalidUploadError("Unsupported audio file content")
 
-    if provided_content_type in allowed_content_types:
-        return provided_content_type
+    if extension == ".mp3" and sniffed_content_type == "audio/mpeg":
+        return sniffed_content_type
 
-    if guessed_content_type in allowed_content_types:
-        return guessed_content_type
-
-    if extension == ".mp3":
-        return "audio/mpeg"
-
-    if extension == ".wav":
+    if extension == ".wav" and sniffed_content_type in set(settings.ALLOWED_AUDIO_FORMATS):
         return "audio/wav"
 
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported audio content type",
-    )
+    raise InvalidUploadError("Audio file content does not match extension")
 
 
 def _validate_upload(upload_file_object: UploadFile) -> tuple[str, str]:
@@ -156,10 +173,7 @@ def _validate_upload(upload_file_object: UploadFile) -> tuple[str, str]:
     extension = Path(safe_filename).suffix.lower()
 
     if extension not in set(settings.ALLOWED_EXTENSIONS):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported audio file extension",
-        )
+        raise InvalidUploadError("Unsupported audio file extension")
 
     content_type = _detect_upload_content_type(upload_file_object, extension)
     return safe_filename, content_type
@@ -170,25 +184,22 @@ def _validate_cover_upload(upload_file_object: UploadFile) -> tuple[str, str]:
     extension = Path(safe_filename).suffix.lower()
 
     if extension not in set(settings.ALLOWED_IMAGE_EXTENSIONS):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Unsupported cover image extension",
-        )
+        raise InvalidUploadError("Unsupported cover image extension")
 
-    provided_content_type = upload_file_object.content_type
-    guessed_content_type = guess_content_type(upload_file_object.filename)
-    allowed_content_types = set(settings.ALLOWED_IMAGE_FORMATS)
+    sniffed_content_type = _sniff_image_content_type(_read_upload_sample(upload_file_object))
+    if sniffed_content_type is None:
+        raise InvalidUploadError("Unsupported cover image content")
 
-    if provided_content_type in allowed_content_types:
-        return safe_filename, provided_content_type
+    if extension in {".jpg", ".jpeg"} and sniffed_content_type == "image/jpeg":
+        return safe_filename, sniffed_content_type
 
-    if guessed_content_type in allowed_content_types:
-        return safe_filename, guessed_content_type
+    if extension == ".png" and sniffed_content_type == "image/png":
+        return safe_filename, sniffed_content_type
 
-    raise HTTPException(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        detail="Unsupported cover image content type",
-    )
+    if extension == ".webp" and sniffed_content_type == "image/webp":
+        return safe_filename, sniffed_content_type
+
+    raise InvalidUploadError("Cover image content does not match extension")
 
 
 def _write_upload_to_temp_file(upload_file_object: UploadFile, suffix: str, max_file_size: int) -> tuple[str, int]:
@@ -254,26 +265,27 @@ def _build_track_upload_metadata(
     return metadata_json
 
 
-def _assert_uploadable_track(track: Track) -> None:
+def _assert_uploadable_track(track: Track, current_user: User) -> None:
+    if TrackUploadPolicy.can_upload_source(track, current_user):
+        return
+
     if track.status == TrackStatus.processing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Track is already being processed",
-        )
+        raise TrackConflictError("Track is already being processed")
 
     if track.status == TrackStatus.deleted:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Deleted tracks cannot accept uploads",
-        )
+        raise TrackConflictError("Deleted tracks cannot accept uploads")
+
+    raise TrackAccessDeniedError("You can upload only your own tracks")
 
 
-def _assert_cover_uploadable_track(track: Track) -> None:
+def _assert_cover_uploadable_track(track: Track, current_user: User) -> None:
+    if TrackUploadPolicy.can_upload_cover(track, current_user):
+        return
+
     if track.status == TrackStatus.deleted:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Deleted tracks cannot accept cover uploads",
-        )
+        raise TrackConflictError("Deleted tracks cannot accept cover uploads")
+
+    raise TrackAccessDeniedError("You can upload covers only for your own tracks")
 
 
 def _hydrate_track(db: Session, track_id: int) -> Track | None:
@@ -341,7 +353,7 @@ def _get_owned_track(db: Session, current_user: User, track_id: int) -> Track:
         .first()
     )
     if track is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+        raise TrackNotFoundError()
 
     return track
 
@@ -380,14 +392,16 @@ def delete_track_metadata(db: Session, current_user: User, track_id: int) -> Non
         .first()
     )
     if track is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
-    if not _can_delete_track(track, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can delete only your own tracks")
+        raise TrackNotFoundError()
+    if track.status == TrackStatus.deleted:
+        raise TrackConflictError("Deleted tracks cannot be deleted again")
+    if not TrackDeletionPolicy.can_delete(track, current_user):
+        raise TrackAccessDeniedError("You can delete only your own tracks")
 
     track.status = TrackStatus.deleted
     track.is_public = False
     db.add(track)
-    if _is_staff(current_user) and current_user.id != track.user_id:
+    if is_staff(current_user) and current_user.id != track.user_id:
         db.add(
             AdminLog(
                 admin_id=current_user.id,
@@ -418,7 +432,7 @@ def upload_track_source(
     upload_file_object: UploadFile,
 ) -> TrackUploadResponse:
     track = _get_owned_track(db, current_user, track_id)
-    _assert_uploadable_track(track)
+    _assert_uploadable_track(track, current_user)
 
     safe_filename, content_type = _validate_upload(upload_file_object)
     previous_state = _snapshot_track_state(track)
@@ -514,7 +528,7 @@ def upload_track_cover(
     upload_file_object: UploadFile,
 ) -> TrackUploadResponse:
     track = _get_owned_track(db, current_user, track_id)
-    _assert_cover_uploadable_track(track)
+    _assert_cover_uploadable_track(track, current_user)
 
     safe_filename, content_type = _validate_cover_upload(upload_file_object)
     previous_cover_key = _extract_cover_storage_key(track.metadata_json if isinstance(track.metadata_json, dict) else None)

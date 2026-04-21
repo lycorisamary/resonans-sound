@@ -17,6 +17,18 @@ The current implementation still centers the MVP around a few core tables:
 Other tables such as `playlists` already exist in the schema, but they are not
 yet part of the active product flow.
 
+The active ORM runtime is split by context:
+
+- `app.models.user`
+- `app.models.category`
+- `app.models.track`
+- `app.models.interaction`
+- `app.models.admin`
+- `app.models.token`
+
+`app.models.future` intentionally remains a marker for planned tables that may
+exist physically but are not active runtime entities.
+
 ## 2. The Main Source Of Truth
 
 For the current MVP, the most important business record is still `tracks`.
@@ -128,6 +140,8 @@ Important details:
 - likes are represented through `type='like'`
 - removing a like uses soft state on the interaction row
 - `tracks.like_count` is denormalized for fast catalog rendering
+- active likes are protected by a partial unique index on
+  `(user_id, track_id)` where `type='like'` and `is_deleted=false`
 
 ## 7. Current Moderation History In DB
 
@@ -156,6 +170,19 @@ This is enough for the current moderation history block in the frontend.
 - only the owner may upload or replace the source file
 - moderators/admins may still exercise extended delete rights
 - owner/private playback must not depend on exposing MinIO object keys
+- duplicate follows are prevented at the database index level for the physical
+  `follows` table, even though follow APIs are still outside the active runtime
+- common catalog, owner library, interaction, and token lookup paths have
+  compound indexes matching the active query shape
+
+Current compound indexes added after the baseline:
+
+- `ix_tracks_status_created_at`
+- `ix_tracks_category_status`
+- `ix_tracks_user_created_at`
+- `ix_interactions_track_type`
+- `ix_interactions_user_type`
+- `ix_api_tokens_user_type_revoked`
 
 ## 10. Deferred Normalization
 

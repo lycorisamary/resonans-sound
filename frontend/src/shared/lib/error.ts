@@ -1,7 +1,7 @@
 export function getErrorMessage(error: unknown, fallback: string): string {
   if (typeof error === 'object' && error !== null) {
     const maybeError = error as {
-      response?: { status?: number; data?: { detail?: unknown } };
+      response?: { status?: number; data?: { detail?: unknown; message?: unknown } };
       message?: unknown;
     };
 
@@ -11,6 +11,10 @@ export function getErrorMessage(error: unknown, fallback: string): string {
 
     if (typeof maybeError.response?.data?.detail === 'string') {
       return maybeError.response.data.detail;
+    }
+
+    if (typeof maybeError.response?.data?.message === 'string') {
+      return maybeError.response.data.message;
     }
 
     if (typeof maybeError.message === 'string' && maybeError.message.trim()) {

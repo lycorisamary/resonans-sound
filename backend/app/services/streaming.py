@@ -9,7 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.security import create_stream_token
-from app.models import Track, TrackStatus, User, UserRole
+from app.exceptions import TrackAccessDeniedError, TrackMediaNotFoundError, TrackMediaNotReadyError, TrackNotFoundError
+from app.models import Track, TrackStatus, User
+from app.policies import TrackStreamingPolicy
 from app.schemas import StreamUrlResponse
 from app.services.storage import get_object_stream, stat_object
 
@@ -41,7 +43,7 @@ class ByteRange:
 def _get_streamable_track(db: Session, track_id: int) -> Track:
     track = db.query(Track).filter(Track.id == track_id).first()
     if track is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track not found")
+        raise TrackNotFoundError()
     return track
 
 
@@ -49,7 +51,7 @@ def _get_storage_metadata(track: Track) -> tuple[dict, dict]:
     metadata_json = track.metadata_json if isinstance(track.metadata_json, dict) else {}
     storage = metadata_json.get("storage")
     if not isinstance(storage, dict):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track media not found")
+        raise TrackMediaNotFoundError()
     return metadata_json, storage
 
 
@@ -66,7 +68,7 @@ def _resolve_object_key(track: Track, quality: str) -> tuple[str, str | None]:
         object_key = processed.get(quality) if isinstance(processed, dict) else None
 
     if not isinstance(object_key, str) or not object_key:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Requested media asset is not ready")
+        raise TrackMediaNotReadyError()
 
     upload = metadata_json.get("upload")
     content_type = upload.get("content_type") if isinstance(upload, dict) else None
@@ -126,39 +128,26 @@ def _iter_stream(object_key: str, byte_range: ByteRange | None) -> Iterator[byte
 
 
 def _can_stream_track(track: Track, current_user: User | None) -> bool:
-    is_public_approved = track.status == TrackStatus.approved
-    if is_public_approved:
-        return True
-
-    if current_user is None:
-        return False
-
-    if current_user.role in {UserRole.moderator, UserRole.admin}:
-        return track.status != TrackStatus.deleted
-
-    if current_user.id == track.user_id:
-        return track.status in {TrackStatus.pending, TrackStatus.processing, TrackStatus.approved, TrackStatus.rejected}
-
-    return False
+    return TrackStreamingPolicy.can_stream(track, current_user)
 
 
 def _is_public_stream(track: Track) -> bool:
-    return track.status == TrackStatus.approved
+    return TrackStreamingPolicy.is_public_stream(track)
 
 
 def build_track_cover_response(db: Session, track_id: int) -> StreamingResponse:
     track = _get_streamable_track(db, track_id)
     if track.status == TrackStatus.deleted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+        raise TrackMediaNotFoundError("Track cover not found")
 
     metadata_json = track.metadata_json if isinstance(track.metadata_json, dict) else {}
     cover = metadata_json.get("cover")
     if not isinstance(cover, dict):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+        raise TrackMediaNotFoundError("Track cover not found")
 
     object_key = cover.get("object_key")
     if not isinstance(object_key, str) or not object_key:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Track cover not found")
+        raise TrackMediaNotFoundError("Track cover not found")
 
     object_info = stat_object(object_key)
     content_type = object_info.content_type or cover.get("content_type") or "image/jpeg"
@@ -182,7 +171,7 @@ def build_track_stream_url_response(
 ) -> StreamUrlResponse:
     track = _get_streamable_track(db, track_id)
     if not _can_stream_track(track, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Track is not available for streaming")
+        raise TrackAccessDeniedError("Track is not available for streaming")
 
     _resolve_object_key(track, quality)
 
@@ -194,7 +183,7 @@ def build_track_stream_url_response(
         )
 
     if current_user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication is required for this stream")
+        raise TrackAccessDeniedError("Authentication is required for this stream")
 
     stream_token, expires_at = create_stream_token(current_user, track_id=track_id, quality=quality)
     return StreamUrlResponse(
@@ -213,7 +202,7 @@ def build_track_stream_response(
 ) -> StreamingResponse:
     track = _get_streamable_track(db, track_id)
     if not _can_stream_track(track, current_user):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Track is not available for streaming")
+        raise TrackAccessDeniedError("Track is not available for streaming")
 
     object_key, original_content_type = _resolve_object_key(track, quality)
     object_info = stat_object(object_key)

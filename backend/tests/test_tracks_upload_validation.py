@@ -1,12 +1,17 @@
+from io import BytesIO
 from types import SimpleNamespace
 
 import pytest
 
-from app.services.tracks import _build_track_upload_metadata, _validate_upload
+from app.services.tracks import _build_track_upload_metadata, _validate_upload, _write_upload_to_temp_file
+
+
+def make_upload(filename: str, content_type: str, content: bytes):
+    return SimpleNamespace(filename=filename, content_type=content_type, file=BytesIO(content))
 
 
 def test_validate_upload_accepts_supported_audio():
-    upload = SimpleNamespace(filename="demo-track.mp3", content_type="audio/mpeg")
+    upload = make_upload("demo-track.mp3", "audio/mpeg", b"ID3\x04\x00\x00audio")
 
     safe_filename, content_type = _validate_upload(upload)
 
@@ -15,12 +20,48 @@ def test_validate_upload_accepts_supported_audio():
 
 
 def test_validate_upload_rejects_unsupported_extension():
-    upload = SimpleNamespace(filename="not-a-track.txt", content_type="text/plain")
+    upload = make_upload("not-a-track.txt", "text/plain", b"ID3\x04\x00\x00audio")
 
     with pytest.raises(Exception) as exc_info:
         _validate_upload(upload)
 
     assert "Unsupported audio file extension" in str(exc_info.value)
+
+
+def test_validate_upload_rejects_unrecognized_audio_content():
+    upload = make_upload("demo-track.mp3", "audio/mpeg", b"not an audio file")
+
+    with pytest.raises(Exception) as exc_info:
+        _validate_upload(upload)
+
+    assert "Unsupported audio file content" in str(exc_info.value)
+
+
+def test_validate_upload_rejects_content_extension_mismatch():
+    upload = make_upload("demo-track.mp3", "audio/mpeg", b"RIFF\x24\x00\x00\x00WAVEfmt ")
+
+    with pytest.raises(Exception) as exc_info:
+        _validate_upload(upload)
+
+    assert "Audio file content does not match extension" in str(exc_info.value)
+
+
+def test_write_upload_to_temp_file_rejects_empty_file():
+    upload = make_upload("demo-track.mp3", "audio/mpeg", b"")
+
+    with pytest.raises(Exception) as exc_info:
+        _write_upload_to_temp_file(upload, suffix=".mp3", max_file_size=128)
+
+    assert "Empty files cannot be uploaded" in str(exc_info.value)
+
+
+def test_write_upload_to_temp_file_rejects_oversize_file():
+    upload = make_upload("demo-track.mp3", "audio/mpeg", b"x" * 5)
+
+    with pytest.raises(Exception) as exc_info:
+        _write_upload_to_temp_file(upload, suffix=".mp3", max_file_size=4)
+
+    assert "File exceeds max size" in str(exc_info.value)
 
 
 def test_build_track_upload_metadata_contains_storage_and_processing_state():

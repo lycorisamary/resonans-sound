@@ -50,6 +50,8 @@ explicitly changes direction.
 - Owners can delete their own tracks
 - `admin` and `moderator` roles can delete any track
 - Track covers are uploaded separately and stored in MinIO
+- Upload validation checks extension, server-side file signatures, size, and
+  track state before writing to MinIO
 - Users have a separate liked-tracks view
 
 ## Current Technical Notes
@@ -59,6 +61,11 @@ explicitly changes direction.
   repository Alembic head
 - Media storage currently uses the `tracks` row as the main source of truth
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
+- Active ORM models are split by context under `backend/app/models/`
+- Track access, streaming, deletion, and upload rules live in
+  `backend/app/policies/`
+- New domain errors should use the stable `code` / `message` / `request_id`
+  response contract
 - Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
 - Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
   and `/tracks/:id`

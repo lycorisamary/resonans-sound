@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
@@ -31,7 +31,8 @@ class UserRegister(BaseModel):
     password: str = Field(..., min_length=8, max_length=100)
     username: str = Field(..., min_length=3, max_length=50)
 
-    @validator('password')
+    @field_validator("password")
+    @classmethod
     def password_strength(cls, v):
         if not any(c.isupper() for c in v):
             raise ValueError('Password must contain at least one uppercase letter')
@@ -70,17 +71,18 @@ class UserBase(BaseModel):
 
 
 class UserResponse(UserBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     role: UserRoleEnum
     status: UserStatusEnum
     created_at: datetime
     email_verified: bool
 
-    class Config:
-        from_attributes = True
-
 
 class UserPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     username: str
     avatar_url: Optional[str] = None
@@ -88,9 +90,6 @@ class UserPublic(BaseModel):
     track_count: Optional[int] = 0
     follower_count: Optional[int] = 0
     following_count: Optional[int] = 0
-
-    class Config:
-        from_attributes = True
 
 
 # Active category schemas
@@ -101,13 +100,12 @@ class CategoryBase(BaseModel):
     sort_order: int = 0
 
 class CategoryResponse(CategoryBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     is_active: bool
     created_at: datetime
     track_count: Optional[int] = 0
-
-    class Config:
-        from_attributes = True
 
 
 # Track Schemas
@@ -151,6 +149,8 @@ class TrackMetadata(BaseModel):
 
 
 class TrackResponse(TrackBase):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     user_id: int
     status: TrackStatusEnum
@@ -165,9 +165,6 @@ class TrackResponse(TrackBase):
     metadata: Optional[TrackMetadata] = None
     user: Optional[UserPublic] = None
     category: Optional[CategoryResponse] = None
-
-    class Config:
-        from_attributes = True
 
 
 class TrackUploadResponse(TrackResponse):
@@ -195,6 +192,8 @@ class TrackLikeListResponse(BaseModel):
 
 # Admin Schemas
 class AdminLogResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     admin_id: int
     action: str
@@ -203,9 +202,6 @@ class AdminLogResponse(BaseModel):
     timestamp: datetime
     ip_address: Optional[str] = None
     details: Optional[dict] = None
-
-    class Config:
-        from_attributes = True
 
 class TrackModeration(BaseModel):
     status: Optional[TrackStatusEnum] = None

@@ -27,7 +27,8 @@ The current flow covers:
 1. The user creates track metadata with `POST /api/v1/tracks`.
 2. The user may upload a cover with `POST /api/v1/tracks/{id}/cover`.
 3. The user uploads the source audio with `POST /api/v1/tracks/upload`.
-4. Backend validates ownership, size, extension, and content type.
+4. Backend validates ownership, status, size, extension, and server-side file
+   signatures before trusting the upload.
 5. Backend stores the original file in MinIO and moves the track to `processing`.
 6. Celery downloads the original object from MinIO.
 7. Worker generates `128/320 mp3` and waveform data.
@@ -52,6 +53,9 @@ The current flow covers:
 - disallowed source states:
   - `processing`
   - `deleted`
+- source files must pass server-side signature sniffing:
+  - MP3: ID3 header or MPEG frame sync
+  - WAV: RIFF/WAVE header
 
 ### `POST /api/v1/tracks/{id}/cover`
 
@@ -63,6 +67,11 @@ The current flow covers:
   - `jpeg`
   - `png`
   - `webp`
+- cover files must pass server-side signature sniffing:
+  - JPEG
+  - PNG
+  - WebP
+- cover uploads are rejected for deleted tracks
 
 ### `GET /api/v1/tracks/{id}/stream`
 
@@ -123,7 +132,8 @@ The current logical document may include:
 ## Failure Handling
 
 - validation failure:
-  request is rejected before MinIO write
+  request is rejected before MinIO write with a stable `code` / `message` /
+  `request_id` error payload
 - broker failure after original upload:
   backend restores previous state and removes the new object
 - worker failure:

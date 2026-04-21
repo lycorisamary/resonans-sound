@@ -3,7 +3,9 @@ import time
 from uuid import uuid4
 
 import structlog
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
@@ -11,6 +13,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_
 from app.core.config import settings
 from app.db.schema import validate_schema_revision
 from app.db.session import engine
+from app.exceptions import DomainError
 
 # Import currently active routers
 from app.api import admin, auth, categories, interactions, tracks, users
@@ -128,6 +131,82 @@ async def log_and_metrics(request: Request, call_next):
 
 
 # Exception handlers
+def _build_error_payload(
+    *,
+    code: str,
+    message: str,
+    request_id: str | None,
+    details: object | None = None,
+) -> dict:
+    payload = {
+        "code": code,
+        "message": message,
+        "request_id": request_id,
+    }
+    if details is not None:
+        payload["details"] = jsonable_encoder(details)
+    return payload
+
+
+@app.exception_handler(DomainError)
+async def domain_exception_handler(request: Request, exc: DomainError):
+    request_id = getattr(request.state, "request_id", None)
+    content = _build_error_payload(
+        code=exc.code,
+        message=exc.message,
+        request_id=request_id,
+        details=exc.details,
+    )
+
+    logger.warning(
+        "domain_exception",
+        request_id=request_id,
+        path=request.url.path,
+        code=exc.code,
+        status_code=exc.status_code,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content,
+        headers={"X-Request-ID": request_id} if request_id else None,
+    )
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    request_id = getattr(request.state, "request_id", None)
+    message = exc.detail if isinstance(exc.detail, str) else "HTTP error"
+    headers = dict(exc.headers or {})
+    if request_id:
+        headers["X-Request-ID"] = request_id
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=_build_error_payload(
+            code=f"http_{exc.status_code}",
+            message=message,
+            request_id=request_id,
+            details=None if isinstance(exc.detail, str) else exc.detail,
+        ),
+        headers=headers or None,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    request_id = getattr(request.state, "request_id", None)
+    return JSONResponse(
+        status_code=422,
+        content=_build_error_payload(
+            code="request_validation_error",
+            message="Request validation error",
+            request_id=request_id,
+            details=exc.errors(),
+        ),
+        headers={"X-Request-ID": request_id} if request_id else None,
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     request_id = getattr(request.state, "request_id", None)
@@ -138,7 +217,11 @@ async def global_exception_handler(request: Request, exc: Exception):
     )
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error", "request_id": request_id},
+        content=_build_error_payload(
+            code="internal_server_error",
+            message="Internal server error",
+            request_id=request_id,
+        ),
         headers={"X-Request-ID": request_id} if request_id else None,
     )
 
