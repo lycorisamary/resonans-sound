@@ -40,6 +40,8 @@ explicitly changes direction.
 - Track metadata can be created and edited by the owner
 - Frontend Studio shows the metadata form directly and can upload selected
   audio/cover files immediately after metadata creation
+- Public approved track cards include native browser audio controls as a
+  playback fallback in addition to the shared player button
 - Audio upload goes to MinIO and is processed by Celery
 - After successful processing, tracks are auto-published
 - Manual moderation is currently not part of the main product flow

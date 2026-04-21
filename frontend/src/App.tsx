@@ -56,8 +56,8 @@ function AppRoutes() {
               path="/"
               element={
                 <Stack spacing={3}>
-                  <PlayerPanel player={player} />
                   <StudioForm auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
+                  <PlayerPanel player={player} />
                   <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
                 </Stack>
               }

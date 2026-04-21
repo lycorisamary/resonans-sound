@@ -11,10 +11,12 @@ import { alpha } from '@mui/material/styles';
 
 import {
   canUploadTrackMedia,
+  getPlayableQualityCandidates,
   getOwnerTrackState,
   getTrackStatusColor,
   hasPlayableMedia,
 } from '@/entities/track/model/track';
+import api from '@/shared/api/client';
 import { Track } from '@/shared/api/types';
 import { formatTime } from '@/shared/lib/time';
 import { ActionButton } from '@/shared/ui';
@@ -71,6 +73,11 @@ export function TrackCard({
   onUploadCover,
 }: TrackCardProps) {
   const ownerState = getOwnerTrackState(track);
+  const playable = hasPlayableMedia(track);
+  const nativePreviewQuality = getPlayableQualityCandidates(track, '320')[0];
+  const nativePreviewUrl = playable && track.status === 'approved' && nativePreviewQuality
+    ? api.getDirectTrackStreamUrl(track.id, nativePreviewQuality)
+    : null;
 
   return (
     <Card
@@ -161,7 +168,7 @@ export function TrackCard({
                 size="small"
                 startIcon={active && isPlaying ? <PauseRoundedIcon /> : <PlayArrowRoundedIcon />}
                 onClick={() => onPlayTrack(track)}
-                disabled={!hasPlayableMedia(track)}
+                disabled={!playable}
               >
                 {active && isPlaying ? 'Пауза' : variant === 'mine' ? 'Проверить playback' : 'Слушать'}
               </ActionButton>
@@ -236,6 +243,15 @@ export function TrackCard({
               </ActionButton>
             ) : null}
           </Stack>
+
+          {nativePreviewUrl ? (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
+                Быстрое прослушивание через нативный браузерный плеер
+              </Typography>
+              <audio controls preload="none" src={nativePreviewUrl} style={{ width: '100%' }} />
+            </Box>
+          ) : null}
         </Stack>
       </CardContent>
     </Card>
