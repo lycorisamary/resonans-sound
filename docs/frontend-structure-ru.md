@@ -1,0 +1,235 @@
+# Структура frontend
+
+Этот документ описывает текущую структуру `frontend/src`, чтобы правки можно
+было вносить вручную без повторного разбора всего приложения.
+
+## Общий принцип
+
+Frontend больше не должен расти как один большой `App.tsx`.
+
+`App.tsx` отвечает только за:
+
+- общий layout страницы
+- React Router
+- подключение крупных feature-блоков
+- общий hero/header и footer status
+
+Бизнес-логика, API, карточки, формы и shared UI лежат в отдельных папках.
+
+## Маршруты
+
+Маршруты находятся в `frontend/src/App.tsx`.
+
+- `/` — главная: player, catalog, studio form
+- `/login` — auth panel
+- `/studio` — отдельная studio-страница для metadata/upload flow
+- `/me` — профильная зона: auth context и catalog/library
+- `/tracks/:id` — страница одного трека
+
+Если добавляется новая страница, сначала добавьте feature/page-компонент, потом
+подключайте его в `Routes` внутри `App.tsx`.
+
+## Папки
+
+### `app/`
+
+Глобальная настройка приложения.
+
+- `app/theme.ts` — MUI theme, typography, базовые component overrides
+
+Править здесь стоит только внешний вид всего приложения: цвета, шрифты,
+глобальные радиусы, дефолтные стили MUI-компонентов.
+
+### `entities/`
+
+Переиспользуемые сущности предметной области.
+
+Сейчас активна сущность track:
+
+- `entities/track/model/track.ts` — чистые функции по треку
+- `entities/track/ui/TrackCard.tsx` — карточка трека
+- `entities/track/ui/TrackArtwork.tsx` — cover/fallback artwork
+- `entities/track/ui/WaveformPreview.tsx` — waveform preview
+
+Важно: public catalog не отдаёт приватные media URL-поля
+`mp3_320_url/original_url`. Поэтому playback для `approved` треков не должен
+зависеть только от этих полей. Для выбора stream quality используется
+`getPlayableQualityCandidates()`.
+
+### `features/`
+
+Крупные пользовательские блоки.
+
+- `features/auth/AuthPanel.tsx` — login/register/session UI
+- `features/auth/model/authData.ts` — загрузка/сброс auth-зависимого состояния
+- `features/catalog/CatalogPanel.tsx` — каталог, поиск, фильтры, liked tab
+- `features/catalog/model/catalogData.ts` — загрузка catalog и общий refresh UI
+- `features/player/PlayerPanel.tsx` — верхний player block
+- `features/studio/StudioForm.tsx` — metadata form, upload cover/audio, мои треки
+- `features/tracks/TrackDetailPage.tsx` — страница `/tracks/:id`
+
+Если правка касается конкретного пользовательского блока, начинайте с
+соответствующего файла в `features/`, а не с `App.tsx`.
+
+### `hooks/`
+
+Логика, которую нельзя держать в UI-компонентах.
+
+- `useAuth.ts` — login/register/logout и переходы после auth-действий
+- `useCatalog.ts` — bootstrap, загрузка каталога, поиск, фильтры
+- `useAudioPlayer.ts` — audio element, stream-url, play/pause, player state
+- `useTrackActions.ts` — create/update metadata, delete, like, cover/audio upload
+
+Правило: если компонент начинает содержать async API calls, побочные эффекты
+или сложные state transitions, выносите это в hook.
+
+### `shared/api/`
+
+Типизированный API-клиент и backend DTO.
+
+- `shared/api/client.ts` — axios client, auth refresh, методы API
+- `shared/api/types.ts` — типы `User`, `Track`, `Category`, `AuthTokens`,
+  `TrackMetadataPayload`, `PaginatedResponse` и другие DTO
+
+Новые API-методы добавляются сюда. Не используйте `any`: сначала добавьте тип
+request/response в `types.ts`, затем метод в `client.ts`.
+
+### `shared/store/`
+
+Централизованный Zustand state.
+
+- `shared/store/appStore.ts`
+
+Сейчас state разделён логически:
+
+- `useAppStatusStore` — health, initial loading, page error, banner
+- `useAuthStore` — user, auth mode, auth busy
+- `useCatalogStore` — categories, public tracks, liked tracks, my tracks,
+  filters/search/sort
+- `usePlayerStore` — active track, player quality, play/loading/error/progress
+- `useStudioStore` — studio form, editing track, upload busy flags
+
+Не добавляйте Redux Toolkit параллельно: активный state-подход сейчас Zustand.
+
+### `shared/lib/`
+
+Маленькие чистые утилиты без React.
+
+- `error.ts` — нормализация ошибок API в пользовательский текст
+- `time.ts` — форматирование времени
+- `tokens.ts` — access/refresh tokens в `localStorage`
+
+### `shared/ui/`
+
+Переиспользуемые UI-примитивы.
+
+- `ActionButton.tsx`
+- `AppTextField.tsx`
+- `MetricTile.tsx`
+- `SectionCard.tsx`
+- `icons.tsx`
+
+Иконки лежат локально в `icons.tsx`, чтобы не тащить тяжёлый
+`@mui/icons-material`. Если нужна новая иконка, добавьте маленький SVG wrapper
+туда.
+
+### `test/`
+
+Общие test helpers.
+
+- `test/render.tsx` — render с MUI theme для Vitest SSR smoke-тестов
+
+## Частые ручные правки
+
+### Изменить карточку трека
+
+Файл: `frontend/src/entities/track/ui/TrackCard.tsx`.
+
+Если меняется правило доступности playback, также проверьте:
+
+- `frontend/src/entities/track/model/track.ts`
+- `frontend/src/hooks/useAudioPlayer.ts`
+- `frontend/src/entities/track/ui/TrackCard.test.tsx`
+
+### Изменить форму выкладывания трека
+
+Файл: `frontend/src/features/studio/StudioForm.tsx`.
+
+Логика сохранения metadata/upload лежит в:
+
+- `frontend/src/hooks/useTrackActions.ts`
+
+Тип payload для backend:
+
+- `frontend/src/shared/api/types.ts`
+- `TrackMetadataPayload`
+
+### Изменить каталог
+
+UI:
+
+- `frontend/src/features/catalog/CatalogPanel.tsx`
+
+Загрузка данных:
+
+- `frontend/src/hooks/useCatalog.ts`
+- `frontend/src/features/catalog/model/catalogData.ts`
+
+### Изменить player
+
+UI:
+
+- `frontend/src/features/player/PlayerPanel.tsx`
+
+Логика:
+
+- `frontend/src/hooks/useAudioPlayer.ts`
+- `frontend/src/entities/track/model/track.ts`
+
+Важно: для public approved треков frontend ставит в `<audio>` прямой backend URL
+`GET /api/v1/tracks/{id}/stream?quality=...`, чтобы запуск не терял пользовательский
+клик из-за предварительного async-запроса. Если выбранное качество недоступно,
+hook должен пробовать fallback-качества.
+
+### Добавить поле в track metadata
+
+1. Проверьте backend schema/API.
+2. Добавьте поле в `Track`, `TrackFormState` и `TrackMetadataPayload` в
+   `shared/api/types.ts`.
+3. Добавьте поле в `initialTrackForm` в `shared/store/appStore.ts`.
+4. Добавьте input в `features/studio/StudioForm.tsx`.
+5. Добавьте сериализацию в `buildTrackPayload()` внутри `hooks/useTrackActions.ts`.
+6. При необходимости обновите `TrackCard.tsx`.
+
+## Проверки перед коммитом
+
+Локально из `frontend/`:
+
+```bash
+npm install
+npm run test
+npm run build
+```
+
+В текущей Windows-среде может не быть системного `npm`; тогда проверяйте через
+Docker или на сервере, но коммитить frontend-изменения без `test/build` нельзя.
+
+Production deploy frontend:
+
+```bash
+cd /root/resonans-sound
+git pull --ff-only origin main
+cd infra
+docker compose build frontend
+docker compose up -d frontend
+curl https://resonance-sound.ru/api/v1/health
+```
+
+После деплоя проверить:
+
+- `/`
+- `/login`
+- `/studio`
+- `/me`
+- playback из catalog
+- наличие studio form на главной и на `/studio`

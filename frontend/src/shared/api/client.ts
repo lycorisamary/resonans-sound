@@ -191,6 +191,10 @@ class ApiClient {
     return response.data;
   }
 
+  getDirectTrackStreamUrl(id: number, quality: StreamQuality): string {
+    return `${API_BASE_URL}/tracks/${id}/stream?quality=${encodeURIComponent(quality)}`;
+  }
+
   async getCategories(): Promise<Category[]> {
     const response = await this.client.get<Category[]>('/categories');
     return response.data;

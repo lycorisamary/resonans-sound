@@ -80,6 +80,7 @@ explicitly changes direction.
 - [`docs/index.md`](docs/index.md)
 - [`docs/project-status-ru.md`](docs/project-status-ru.md)
 - [`docs/manual-test-checklist-ru.md`](docs/manual-test-checklist-ru.md)
+- [`docs/frontend-structure-ru.md`](docs/frontend-structure-ru.md)
 - [`docs/upload-flow-blueprint.md`](docs/upload-flow-blueprint.md)
 - [`docs/database-blueprint.md`](docs/database-blueprint.md)
 - [`docs/minio-storage-ru.md`](docs/minio-storage-ru.md)

@@ -83,6 +83,7 @@ Key documents:
 - [`docs/project-status-ru.md`](docs/project-status-ru.md) — current project state, MVP readiness, manual checks, next plan
 - [`docs/manual-test-checklist-ru.md`](docs/manual-test-checklist-ru.md) — exact manual QA checklist for the current iteration
 - [`docs/staff-access-ru.md`](docs/staff-access-ru.md) — admin login and moderator access instructions
+- [`docs/frontend-structure-ru.md`](docs/frontend-structure-ru.md) — frontend structure and manual edit guide
 - [`docs/minio-storage-ru.md`](docs/minio-storage-ru.md) — how MinIO works in this project
 - [`docs/upload-flow-blueprint.md`](docs/upload-flow-blueprint.md) — source of truth for the current upload/media lifecycle
 - [`docs/database-blueprint.md`](docs/database-blueprint.md) — current data model and logical rules

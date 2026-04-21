@@ -10,6 +10,7 @@ This folder is the current documentation center for `resonans-sound`.
 
 ## Architecture
 
+- [`frontend-structure-ru.md`](frontend-structure-ru.md) — current frontend folders, routes, state, API layer, and manual edit guide
 - [`upload-flow-blueprint.md`](upload-flow-blueprint.md) — upload/media lifecycle and status model
 - [`database-blueprint.md`](database-blueprint.md) — current data model and logical ownership rules
 - [`minio-storage-ru.md`](minio-storage-ru.md) — how object storage works and how to inspect it

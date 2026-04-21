@@ -78,29 +78,40 @@ export function hasPlayableMedia(track: Track): boolean {
   return track.status === 'approved' || Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
 }
 
-export function resolvePlayableQuality(track: Track, preferredQuality: StreamQuality): StreamQuality | null {
-  if (preferredQuality === 'original' && track.original_url) {
-    return 'original';
+export function getPlayableQualityCandidates(track: Track, preferredQuality: StreamQuality): StreamQuality[] {
+  const qualities: StreamQuality[] = [];
+  const addQuality = (quality: StreamQuality) => {
+    if (!qualities.includes(quality)) {
+      qualities.push(quality);
+    }
+  };
+
+  const hasPublicStreamFallback = track.status === 'approved';
+  const hasQuality = (quality: StreamQuality) => {
+    if (hasPublicStreamFallback) {
+      return true;
+    }
+    if (quality === '320') {
+      return Boolean(track.mp3_320_url);
+    }
+    if (quality === '128') {
+      return Boolean(track.mp3_128_url);
+    }
+    return Boolean(track.original_url);
+  };
+
+  if (hasQuality(preferredQuality)) {
+    addQuality(preferredQuality);
   }
-  if (preferredQuality === '320' && track.mp3_320_url) {
-    return '320';
+
+  const fallbackQualities: StreamQuality[] = ['320', '128', 'original'];
+  for (const quality of fallbackQualities) {
+    if (hasQuality(quality)) {
+      addQuality(quality);
+    }
   }
-  if (preferredQuality === '128' && track.mp3_128_url) {
-    return '128';
-  }
-  if (track.mp3_320_url) {
-    return '320';
-  }
-  if (track.mp3_128_url) {
-    return '128';
-  }
-  if (track.original_url) {
-    return 'original';
-  }
-  if (track.status === 'approved') {
-    return preferredQuality;
-  }
-  return null;
+
+  return qualities;
 }
 
 export const emptyTrack: Track = {

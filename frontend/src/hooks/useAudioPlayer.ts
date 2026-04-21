@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-import { resolvePlayableQuality } from '@/entities/track/model/track';
+import { getPlayableQualityCandidates } from '@/entities/track/model/track';
 import api from '@/shared/api/client';
 import { StreamQuality, Track } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
@@ -72,6 +72,24 @@ export function useAudioPlayer() {
     const onWaiting = () => setPlayerLoading(true);
     const onCanPlay = () => setPlayerLoading(false);
     const onError = () => {
+      const trackId = Number(audio.dataset.trackId ?? '0');
+      const publicQualityCandidates = audio.dataset.publicQualityCandidates?.split(',') as StreamQuality[] | undefined;
+      const qualityIndex = Number(audio.dataset.publicQualityIndex ?? '0');
+      const nextQuality = publicQualityCandidates?.[qualityIndex + 1];
+
+      if (trackId > 0 && nextQuality) {
+        audio.dataset.publicQualityIndex = String(qualityIndex + 1);
+        audio.dataset.streamQuality = nextQuality;
+        audio.src = api.getDirectTrackStreamUrl(trackId, nextQuality);
+        audio.load();
+        void audio.play().catch(() => {
+          setIsPlaying(false);
+          setPlayerLoading(false);
+          setPlayerError('Не удалось загрузить поток. Проверьте, что трек уже обработан и для него есть готовый audio-asset.');
+        });
+        return;
+      }
+
       setIsPlaying(false);
       setPlayerLoading(false);
       setPlayerError('Не удалось загрузить поток. Проверьте, что трек уже обработан и для него есть готовый audio-asset.');
@@ -111,6 +129,8 @@ export function useAudioPlayer() {
     delete audio.dataset.streamUrl;
     delete audio.dataset.trackId;
     delete audio.dataset.streamQuality;
+    delete audio.dataset.publicQualityCandidates;
+    delete audio.dataset.publicQualityIndex;
     audio.load();
     setPlayerCurrentTime(0);
     setPlayerDuration(0);
@@ -126,28 +146,61 @@ export function useAudioPlayer() {
 
     try {
       setPlayerError(null);
-      const quality = resolvePlayableQuality(track, playerQuality);
-      if (!quality) {
+      const qualityCandidates = getPlayableQualityCandidates(track, playerQuality);
+      if (qualityCandidates.length === 0) {
         throw new Error('Для этого трека пока нет готового аудио-ассета для воспроизведения.');
       }
 
       const loadedTrackId = Number(audio.dataset.trackId ?? '0');
       const loadedQuality = audio.dataset.streamQuality as StreamQuality | undefined;
-      const shouldReuseCurrentSource = loadedTrackId === track.id && loadedQuality === quality && Boolean(audio.src);
+      const shouldPauseCurrentTrack = loadedTrackId === track.id && activeTrackId === track.id && isPlaying && Boolean(audio.src);
+      const shouldReuseCurrentSource =
+        loadedTrackId === track.id &&
+        loadedQuality !== undefined &&
+        qualityCandidates.includes(loadedQuality) &&
+        Boolean(audio.src);
 
-      if (activeTrackId === track.id && isPlaying && shouldReuseCurrentSource) {
+      if (shouldPauseCurrentTrack) {
         audio.pause();
         return;
       }
 
       if (!shouldReuseCurrentSource) {
         setPlayerLoading(true);
-        const streamResponse = await api.getTrackStreamUrl(track.id, quality);
+        let streamUrl: string | null = null;
+        let resolvedQuality = qualityCandidates[0];
+
+        if (track.status === 'approved') {
+          streamUrl = api.getDirectTrackStreamUrl(track.id, resolvedQuality);
+          audio.dataset.publicQualityCandidates = qualityCandidates.join(',');
+          audio.dataset.publicQualityIndex = '0';
+        } else {
+          let lastStreamError: unknown = null;
+
+          for (const quality of qualityCandidates) {
+            try {
+              const streamResponse = await api.getTrackStreamUrl(track.id, quality);
+              streamUrl = streamResponse.url;
+              resolvedQuality = quality;
+              break;
+            } catch (err) {
+              lastStreamError = err;
+            }
+          }
+
+          delete audio.dataset.publicQualityCandidates;
+          delete audio.dataset.publicQualityIndex;
+
+          if (!streamUrl) {
+            throw lastStreamError ?? new Error('Для этого трека пока нет доступного stream quality.');
+          }
+        }
+
         audio.pause();
-        audio.src = streamResponse.url;
-        audio.dataset.streamUrl = streamResponse.url;
+        audio.src = streamUrl;
+        audio.dataset.streamUrl = streamUrl;
         audio.dataset.trackId = String(track.id);
-        audio.dataset.streamQuality = quality;
+        audio.dataset.streamQuality = resolvedQuality;
         audio.load();
         setPlayerCurrentTime(0);
         setPlayerDuration(track.duration_seconds ?? 0);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { getPlayableQualityCandidates } from '@/entities/track/model/track';
 import { Track } from '@/shared/api/types';
 import { renderWithTheme } from '@/test/render';
 import { TrackCard } from './TrackCard';
@@ -87,5 +88,10 @@ describe('TrackCard', () => {
 
     expect(markup).toContain('Public Catalog Track');
     expect(markup).not.toContain('disabled=""');
+  });
+
+  it('falls back across stream qualities for approved public tracks without media url hints', () => {
+    expect(getPlayableQualityCandidates(publicCatalogTrack, '320')).toEqual(['320', '128', 'original']);
+    expect(getPlayableQualityCandidates(publicCatalogTrack, 'original')).toEqual(['original', '320', '128']);
   });
 });
