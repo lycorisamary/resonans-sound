@@ -38,6 +38,8 @@ explicitly changes direction.
 
 - Auth works through JWT access + refresh tokens
 - Track metadata can be created and edited by the owner
+- Frontend Studio shows the metadata form directly and can upload selected
+  audio/cover files immediately after metadata creation
 - Audio upload goes to MinIO and is processed by Celery
 - After successful processing, tracks are auto-published
 - Manual moderation is currently not part of the main product flow

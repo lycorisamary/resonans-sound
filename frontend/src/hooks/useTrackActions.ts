@@ -18,6 +18,11 @@ interface UseTrackActionsOptions {
   stopAndResetAudio: () => void;
 }
 
+interface StudioUploadSelection {
+  audioFile?: File | null;
+  coverFile?: File | null;
+}
+
 function buildTrackPayload(trackForm: typeof initialTrackForm): TrackMetadataPayload {
   return {
     title: trackForm.title,
@@ -66,10 +71,11 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
   const resetTrackForm = useStudioStore((state) => state.resetTrackForm);
   const isStaff = user?.role === 'moderator' || user?.role === 'admin';
 
-  const submitTrack = async (event: FormEvent<HTMLFormElement>) => {
+  const submitTrackWithUploads = async (event: FormEvent<HTMLFormElement>, files: StudioUploadSelection = {}) => {
     event.preventDefault();
     if (!user) {
-      return;
+      setPageError('Чтобы создать трек, сначала откройте сессию.');
+      return false;
     }
 
     setStudioBusy(true);
@@ -78,22 +84,50 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
 
     try {
       const payload = buildTrackPayload(trackForm);
+      let savedTrack: Track;
+      const completedSteps: string[] = [];
+
       if (editingTrackId) {
-        await api.updateTrack(editingTrackId, payload);
-        setBanner('Metadata обновлено.');
+        savedTrack = await api.updateTrack(editingTrackId, payload);
+        completedSteps.push('metadata обновлено');
       } else {
-        await api.createTrackMetadata(payload);
-        setBanner('Metadata создано. Теперь загрузите MP3 или WAV, чтобы трек автоматически дошёл до публикации.');
+        savedTrack = await api.createTrackMetadata(payload);
+        completedSteps.push('metadata создано');
+      }
+
+      if (files.coverFile) {
+        setUploadingCoverTrackId(savedTrack.id);
+        savedTrack = await api.uploadTrackCover(savedTrack.id, files.coverFile);
+        completedSteps.push('cover загружен');
+        setUploadingCoverTrackId(null);
+      }
+
+      if (files.audioFile) {
+        setUploadingTrackId(savedTrack.id);
+        savedTrack = await api.uploadTrack(savedTrack.id, files.audioFile);
+        completedSteps.push('audio принято в processing');
+        setUploadingTrackId(null);
       }
 
       resetTrackForm();
+      setBanner(
+        files.audioFile
+          ? `${completedSteps.join(', ')}. После processing трек опубликуется автоматически.`
+          : `${completedSteps.join(', ')}. Audio можно загрузить здесь же в блоке "Мои треки".`
+      );
       await refreshWholeUiIntoStore();
+      return true;
     } catch (err) {
-      setPageError(getErrorMessage(err, 'Не удалось сохранить metadata трека'));
+      setPageError(getErrorMessage(err, 'Не удалось сохранить или загрузить трек'));
+      return false;
     } finally {
+      setUploadingTrackId(null);
+      setUploadingCoverTrackId(null);
       setStudioBusy(false);
     }
   };
+
+  const submitTrack = (event: FormEvent<HTMLFormElement>) => submitTrackWithUploads(event);
 
   const startEditingTrack = (track: Track) => {
     setEditingTrackId(track.id);
@@ -237,6 +271,7 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
     startEditingTrack,
     studioBusy,
     submitTrack,
+    submitTrackWithUploads,
     toggleLike,
     trackForm,
     updateTrackForm,

@@ -151,6 +151,10 @@ export function useAudioPlayer() {
         throw new Error('Для этого трека пока нет готового аудио-ассета для воспроизведения.');
       }
 
+      setActiveTrackId(track.id);
+      setActiveTrack(track);
+      setPlayerLoading(true);
+
       const loadedTrackId = Number(audio.dataset.trackId ?? '0');
       const loadedQuality = audio.dataset.streamQuality as StreamQuality | undefined;
       const shouldPauseCurrentTrack = loadedTrackId === track.id && activeTrackId === track.id && isPlaying && Boolean(audio.src);
@@ -162,11 +166,11 @@ export function useAudioPlayer() {
 
       if (shouldPauseCurrentTrack) {
         audio.pause();
+        setPlayerLoading(false);
         return;
       }
 
       if (!shouldReuseCurrentSource) {
-        setPlayerLoading(true);
         let streamUrl: string | null = null;
         let resolvedQuality = qualityCandidates[0];
 
@@ -205,9 +209,6 @@ export function useAudioPlayer() {
         setPlayerCurrentTime(0);
         setPlayerDuration(track.duration_seconds ?? 0);
       }
-
-      setActiveTrackId(track.id);
-      setActiveTrack(track);
 
       try {
         await audio.play();
