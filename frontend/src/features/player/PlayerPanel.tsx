@@ -13,7 +13,16 @@ interface PlayerPanelProps {
 
 export function PlayerPanel({ player }: PlayerPanelProps) {
   return (
-    <SectionCard tone="blue" sx={{ flex: 1.35 }}>
+    <SectionCard
+      tone="blue"
+      sx={{
+        flex: 1.35,
+        position: 'sticky',
+        top: { xs: 8, md: 12 },
+        zIndex: 20,
+        boxShadow: '0 18px 48px rgba(15,23,42,0.12)',
+      }}
+    >
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
           <Box>

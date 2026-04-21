@@ -51,13 +51,14 @@ function AppRoutes() {
           {catalog.pageError ? <Alert severity="error">{catalog.pageError}</Alert> : null}
           {catalog.banner ? <Alert severity="success">{catalog.banner}</Alert> : null}
 
+          <PlayerPanel player={player} />
+
           <Routes>
             <Route
               path="/"
               element={
                 <Stack spacing={3}>
                   <StudioForm auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
-                  <PlayerPanel player={player} />
                   <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
                 </Stack>
               }
