@@ -46,6 +46,8 @@ explicitly changes direction.
 - Audio upload goes to MinIO and is processed by Celery
 - After successful processing, tracks are auto-published
 - Manual moderation is currently not part of the main product flow
+- Staff post-publication control is active: `admin` and `moderator` can hide,
+  restore, and delete tracks without adding a premoderation gate
 - All published tracks are visible in the shared catalog
 - Owners can delete their own tracks
 - `admin` and `moderator` roles can delete any track
@@ -64,6 +66,9 @@ explicitly changes direction.
 - Active ORM models are split by context under `backend/app/models/`
 - Track access, streaming, deletion, and upload rules live in
   `backend/app/policies/`
+- `hidden` tracks are staff-controlled: they are not public, owners cannot
+  re-publish them by replacing media, and staff can inspect them through admin
+  APIs
 - New domain errors should use the stable `code` / `message` / `request_id`
   response contract
 - Critical auth, upload, stream-url, and stream routes are protected by
@@ -78,7 +83,7 @@ explicitly changes direction.
   production CORS must not include wildcard or localhost origins
 - Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
 - Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
-  and `/tracks/:id`
+  `/tracks/:id`, and `/admin`
 - Frontend shared state uses Zustand; Redux is not part of the active runtime
 - Frontend API client lives in `shared/api/` and is typed against the active
   backend API
@@ -112,8 +117,7 @@ explicitly changes direction.
 
 The desired release flow is:
 
-1. Verify changes locally when possible.
-2. Commit a finished logical slice.
-3. Push to `origin/main`.
-4. Deploy on the server carefully.
-5. Re-test the changed flows on production.
+1. Commit a finished logical slice.
+2. Push to `origin/main`.
+3. Deploy on the server carefully.
+4. Re-test the changed flows on production.

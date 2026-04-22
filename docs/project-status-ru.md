@@ -139,6 +139,14 @@
 - download rules
 - playlists
 - comments
+
+### Staff-control without premoderation
+
+- Automatic publication after successful processing remains the main product flow.
+- `admin` and `moderator` now use `/admin` to review recent uploads.
+- Staff can move a track to `hidden`, restore a ready media track to `approved`, or delete it.
+- `hidden` tracks are absent from the public catalog and public stream surface.
+- Owners still see hidden tracks in their own library, but cannot republish them by replacing audio or cover files.
 - artist profile / artist view
 - расширить frontend tests за пределы первичных smoke-тестов
 - backup strategy для Postgres и MinIO

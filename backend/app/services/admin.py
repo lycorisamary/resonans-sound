@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from math import ceil
 
 from fastapi import HTTPException, status
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import AdminLog, Track, TrackStatus, User
@@ -47,8 +47,12 @@ def _track_has_ready_media(track: Track) -> bool:
     return bool(track.original_url or track.mp3_128_url or track.mp3_320_url)
 
 
-def _track_is_waiting_for_moderation(track: Track) -> bool:
-    return track.status == TrackStatus.pending and _track_has_ready_media(track)
+def _coerce_track_status(status_filter: TrackStatus | str | None) -> TrackStatus | None:
+    if status_filter is None:
+        return None
+    if isinstance(status_filter, TrackStatus):
+        return status_filter
+    return TrackStatus(status_filter)
 
 
 def get_system_stats(db: Session) -> SystemStats:
@@ -77,6 +81,7 @@ def get_system_stats(db: Session) -> SystemStats:
         .scalar()
         or 0
     )
+    tracks_hidden = db.query(func.count(Track.id)).filter(Track.status == TrackStatus.hidden).scalar() or 0
 
     return SystemStats(
         total_users=total_users,
@@ -86,18 +91,42 @@ def get_system_stats(db: Session) -> SystemStats:
         active_users_today=active_users_today,
         new_users_today=new_users_today,
         tracks_pending_moderation=tracks_pending_moderation,
+        tracks_hidden=tracks_hidden,
     )
 
 
-def get_moderation_queue(db: Session, page: int, size: int) -> PaginatedResponse:
+def get_moderation_queue(
+    db: Session,
+    page: int,
+    size: int,
+    status_filter: TrackStatus | str | None = None,
+    search: str | None = None,
+) -> PaginatedResponse:
+    requested_status = _coerce_track_status(status_filter)
     query = (
         db.query(Track)
         .options(joinedload(Track.user), joinedload(Track.category))
-        .filter(Track.status == TrackStatus.pending, Track.original_url.is_not(None))
     )
+    if requested_status is None:
+        query = query.filter(Track.status != TrackStatus.deleted)
+    else:
+        query = query.filter(Track.status == requested_status)
+
+    if search:
+        pattern = f"%{search.strip()}%"
+        query = query.join(User, Track.user_id == User.id).filter(
+            or_(
+                Track.title.ilike(pattern),
+                Track.description.ilike(pattern),
+                Track.genre.ilike(pattern),
+                User.username.ilike(pattern),
+                User.email.ilike(pattern),
+            )
+        )
+
     total = query.order_by(None).count()
     items = (
-        query.order_by(Track.updated_at.desc(), Track.id.desc())
+        query.order_by(Track.created_at.desc(), Track.id.desc())
         .offset((page - 1) * size)
         .limit(size)
         .all()
@@ -143,34 +172,46 @@ def moderate_track(db: Session, admin_user: User, track_id: int, payload: TrackM
     track = _get_track_for_moderation(db, track_id)
     requested_status = payload.status
 
-    if requested_status not in {TrackStatus.approved, TrackStatus.rejected}:
+    if requested_status is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Track moderation only supports approved or rejected",
+            detail="Track moderation status is required",
+        )
+
+    requested_status = TrackStatus(requested_status.value)
+
+    if requested_status not in {TrackStatus.approved, TrackStatus.rejected, TrackStatus.hidden}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Track moderation only supports approved, rejected, or hidden",
         )
 
     if track.status == TrackStatus.deleted:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Deleted track cannot be moderated")
 
+    previous_status = track.status
     if requested_status == TrackStatus.approved:
-        if not _track_is_waiting_for_moderation(track):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Track is not ready for approval",
-            )
-        track.status = TrackStatus.approved
-        track.rejection_reason = None
-        action = "track_approved"
-    else:
         if not _track_has_ready_media(track):
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Track has no uploaded media to reject",
+                detail="Track has no ready media to publish",
             )
+        track.status = TrackStatus.approved
+        track.is_public = True
+        track.rejection_reason = None
+        action = "track_restored" if previous_status == TrackStatus.hidden else "track_approved"
+    elif requested_status == TrackStatus.hidden:
+        track.status = TrackStatus.hidden
+        track.is_public = False
+        track.rejection_reason = payload.rejection_reason or "Hidden by staff"
+        action = "track_hidden"
+    elif requested_status == TrackStatus.rejected:
         track.status = TrackStatus.rejected
         track.is_public = False
         track.rejection_reason = payload.rejection_reason or "Rejected during moderation"
         action = "track_rejected"
+    else:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported moderation status")
 
     db.add(track)
     _log_admin_action(
@@ -180,6 +221,7 @@ def moderate_track(db: Session, admin_user: User, track_id: int, payload: TrackM
         target_type="track",
         target_id=track.id,
         details={
+            "previous_status": previous_status.value,
             "status": track.status.value,
             "rejection_reason": track.rejection_reason,
         },

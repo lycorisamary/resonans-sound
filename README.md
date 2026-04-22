@@ -20,6 +20,7 @@ Implemented in `main` right now:
 - public playback and owner preview where needed
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
+- staff post-publication controls for hiding, restoring, and deleting tracks
 - frontend split into feature/entity/shared layers with React Router routes
 - Zustand-backed auth/catalog/player state
 - typed frontend API client in `shared/api/`
@@ -171,6 +172,11 @@ Current active model files:
 Track access rules live in `backend/app/policies/`, so routers and services can
 delegate "can this user see/stream/delete/upload this track?" decisions to one
 place.
+
+The active track status set now includes `hidden`. Hidden tracks are a
+post-publication staff control, not a premoderation step: they disappear from
+the public catalog and public stream surface, remain visible to staff review,
+and cannot be republished by the owner through a media replacement.
 
 ## Production Update Flow
 

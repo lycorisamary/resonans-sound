@@ -126,6 +126,10 @@ Reads all owner tracks, including:
 Manual moderation is not currently the mandatory publication gate.
 The active product flow now publishes tracks automatically after successful processing.
 
+Staff post-publication control is active through `hidden` status. It is used to
+remove a published or recently uploaded track from public surfaces without
+deleting the row or adding a premoderation gate.
+
 ## 6. Current Social Layer In DB
 
 The first social loop is implemented through `interactions`.
@@ -166,8 +170,10 @@ This is enough for the current moderation history block in the frontend.
 ## 9. Integrity Rules
 
 - a track must not be playable publicly before `approved`
+- a `hidden` track must stay out of the public catalog and public stream surface
 - a deleted track must not re-enter the public catalog
 - only the owner may upload or replace the source file
+- owners may not republish `hidden` tracks by replacing media; only staff can restore them
 - moderators/admins may still exercise extended delete rights
 - owner/private playback must not depend on exposing MinIO object keys
 - duplicate follows are prevented at the database index level for the physical

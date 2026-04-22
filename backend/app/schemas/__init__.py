@@ -22,6 +22,7 @@ class TrackStatusEnum(str, Enum):
     processing = "processing"
     approved = "approved"
     rejected = "rejected"
+    hidden = "hidden"
     deleted = "deleted"
 
 
@@ -216,6 +217,7 @@ class SystemStats(BaseModel):
     active_users_today: int
     new_users_today: int
     tracks_pending_moderation: int
+    tracks_hidden: int
 
 
 class PaginatedResponse(BaseModel):

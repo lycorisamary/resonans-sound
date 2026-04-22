@@ -278,6 +278,9 @@ def _assert_uploadable_track(track: Track, current_user: User) -> None:
     if track.status == TrackStatus.deleted:
         raise TrackConflictError("Deleted tracks cannot accept uploads")
 
+    if track.status == TrackStatus.hidden:
+        raise TrackConflictError("Hidden tracks cannot accept uploads")
+
     raise TrackAccessDeniedError("You can upload only your own tracks")
 
 
@@ -287,6 +290,9 @@ def _assert_cover_uploadable_track(track: Track, current_user: User) -> None:
 
     if track.status == TrackStatus.deleted:
         raise TrackConflictError("Deleted tracks cannot accept cover uploads")
+
+    if track.status == TrackStatus.hidden:
+        raise TrackConflictError("Hidden tracks cannot accept cover uploads")
 
     raise TrackAccessDeniedError("You can upload covers only for your own tracks")
 
@@ -376,10 +382,14 @@ def update_track_metadata(
     for field, value in updates.items():
         setattr(track, field, value)
 
-    track.is_public = True
-    if track.status == TrackStatus.rejected:
+    if track.status == TrackStatus.hidden:
+        track.is_public = False
+    elif track.status == TrackStatus.rejected:
+        track.is_public = True
         track.status = TrackStatus.pending
         track.rejection_reason = None
+    else:
+        track.is_public = True
 
     db.add(track)
     db.commit()

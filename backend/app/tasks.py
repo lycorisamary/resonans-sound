@@ -81,6 +81,17 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
             TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
             return {"status": "missing", "track_id": track_id}
 
+        if track.status in {TrackStatus.deleted, TrackStatus.hidden}:
+            TRACK_PROCESSING_EVENTS.labels(outcome="suppressed").inc()
+            TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
+            logger.info(
+                "track_processing_suppressed",
+                track_id=track_id,
+                task_id=self.request.id,
+                track_status=track.status.value,
+            )
+            return {"status": "suppressed", "track_id": track_id, "track_status": track.status.value}
+
         metadata_json = _load_metadata(track)
         storage = metadata_json.get("storage") if isinstance(metadata_json.get("storage"), dict) else {}
         original_object_key = storage.get("original_object_key")
@@ -130,6 +141,20 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
                 processed_object_keys[quality] = object_key
                 generated_keys.append(object_key)
 
+        db.refresh(track)
+        if track.status == TrackStatus.deleted:
+            delete_objects(generated_keys)
+            TRACK_PROCESSING_EVENTS.labels(outcome="suppressed").inc()
+            TRACK_PROCESSING_LATENCY.observe(time.monotonic() - started_at)
+            logger.info(
+                "track_processing_suppressed",
+                track_id=track_id,
+                task_id=self.request.id,
+                track_status=track.status.value,
+            )
+            return {"status": "suppressed", "track_id": track_id, "track_status": track.status.value}
+
+        should_keep_hidden = track.status == TrackStatus.hidden
         metadata_json = _load_metadata(track)
         metadata_json.update(
             {
@@ -158,9 +183,13 @@ def process_track_upload(self, track_id: int) -> dict[str, object]:
         track.mp3_320_url = stream_urls["320"]
         track.waveform_data_json = processed_assets.waveform_data_json
         track.metadata_json = metadata_json
-        track.is_public = True
-        track.status = TrackStatus.approved
-        track.rejection_reason = None
+        if should_keep_hidden:
+            track.is_public = False
+            track.status = TrackStatus.hidden
+        else:
+            track.is_public = True
+            track.status = TrackStatus.approved
+            track.rejection_reason = None
         db.add(track)
         db.commit()
         TRACK_PROCESSING_EVENTS.labels(outcome="processed").inc()

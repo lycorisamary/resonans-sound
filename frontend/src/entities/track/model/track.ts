@@ -9,7 +9,7 @@ export function getTrackStatusColor(status: Track['status']): 'default' | 'warni
     return 'warning';
   }
 
-  if (status === 'rejected' || status === 'deleted') {
+  if (status === 'rejected' || status === 'hidden' || status === 'deleted') {
     return 'error';
   }
 
@@ -28,6 +28,14 @@ export function getOwnerTrackState(track: Track): {
       tone: 'error',
       title: 'Трек снят с публикации',
       description: 'Этот трек переведён в deleted и больше не отображается в живом каталоге.',
+    };
+  }
+
+  if (track.status === 'hidden') {
+    return {
+      tone: 'error',
+      title: 'Трек скрыт staff-командой',
+      description: 'Запись не видна в публичном каталоге. Заменить audio или cover можно только после восстановления staff-ролью.',
     };
   }
 
@@ -75,6 +83,9 @@ export function canUploadTrackMedia(track: Track): boolean {
 }
 
 export function hasPlayableMedia(track: Track): boolean {
+  if (track.status === 'hidden' || track.status === 'deleted') {
+    return false;
+  }
   return track.status === 'approved' || Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
 }
 

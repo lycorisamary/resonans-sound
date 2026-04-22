@@ -1,6 +1,8 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 
 import {
+  AdminSystemStats,
+  AdminTrackListParams,
   AuthTokens,
   Category,
   HealthResponse,
@@ -13,6 +15,7 @@ import {
   Track,
   TrackLikeListResponse,
   TrackListParams,
+  TrackModerationPayload,
   TrackMetadataPayload,
   User,
 } from './types';
@@ -222,6 +225,24 @@ class ApiClient {
 
   async getMyLikedTracks(params?: Pick<TrackListParams, 'page' | 'size'>): Promise<PaginatedResponse<Track>> {
     const response = await this.client.get<PaginatedResponse<Track>>('/interactions/likes/mine/tracks', { params });
+    return response.data;
+  }
+
+  async getAdminStats(): Promise<AdminSystemStats> {
+    const response = await this.client.get<AdminSystemStats>('/admin/stats');
+    return response.data;
+  }
+
+  async getAdminTracks(params?: AdminTrackListParams): Promise<PaginatedResponse<Track>> {
+    const response = await this.client.get<PaginatedResponse<Track>>('/admin/moderation', { params });
+    return response.data;
+  }
+
+  async moderateTrack(trackId: number, data: TrackModerationPayload): Promise<Track> {
+    const response = await this.client.post<Track, { data: Track }, TrackModerationPayload>(
+      `/admin/moderate/${trackId}`,
+      data
+    );
     return response.data;
   }
 }

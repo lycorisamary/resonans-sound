@@ -21,4 +21,4 @@ class TrackUploadPolicy:
 
     @staticmethod
     def can_upload_cover(track: Any, current_user: Any) -> bool:
-        return is_owner(track, current_user) and track.status != TrackStatus.deleted
+        return is_owner(track, current_user) and track.status not in {TrackStatus.hidden, TrackStatus.deleted}

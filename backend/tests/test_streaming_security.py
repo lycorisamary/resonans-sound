@@ -89,6 +89,14 @@ def test_private_streams_are_owner_or_moderator_only():
     assert streaming._can_stream_track(private_track, current_user=make_user(user_id=99, role=UserRole.moderator))
 
 
+def test_hidden_streams_are_staff_only():
+    hidden_track = make_track(status=TrackStatus.hidden, is_public=False, user_id=42)
+
+    assert not streaming._can_stream_track(hidden_track, current_user=None)
+    assert not streaming._can_stream_track(hidden_track, current_user=make_user(user_id=42))
+    assert streaming._can_stream_track(hidden_track, current_user=make_user(user_id=99, role=UserRole.moderator))
+
+
 def test_build_track_stream_url_response_returns_direct_public_url(monkeypatch):
     track = make_track(track_id=21, status=TrackStatus.approved, is_public=False)
 

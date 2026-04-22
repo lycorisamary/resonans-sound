@@ -12,6 +12,7 @@ class TrackStatus(str, PyEnum):
     processing = "processing"
     approved = "approved"
     rejected = "rejected"
+    hidden = "hidden"
     deleted = "deleted"
 
 

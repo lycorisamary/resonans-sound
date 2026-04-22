@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.core.security import get_moderator_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import PaginatedResponse, SystemStats, TrackModeration, TrackUploadResponse
+from app.schemas import PaginatedResponse, SystemStats, TrackModeration, TrackStatusEnum, TrackUploadResponse
 from app.services.admin import get_moderation_queue, get_system_stats, list_admin_logs, moderate_track
 
 
@@ -24,11 +24,13 @@ def admin_stats(
 def moderation_queue(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
+    status: TrackStatusEnum | None = Query(None),
+    search: str | None = Query(None, min_length=1, max_length=255),
     current_user: User = Depends(get_moderator_user),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
-    """Return tracks waiting for approval after media processing."""
-    return get_moderation_queue(db, page=page, size=size)
+    """Return recent tracks for staff review and visibility control."""
+    return get_moderation_queue(db, page=page, size=size, status_filter=status, search=search)
 
 
 @router.get("/logs", response_model=PaginatedResponse)
@@ -50,5 +52,5 @@ def moderate_track_endpoint(
     current_user: User = Depends(get_moderator_user),
     db: Session = Depends(get_db),
 ) -> TrackUploadResponse:
-    """Approve or reject a track as moderator/admin."""
+    """Approve, hide, or reject a track as moderator/admin."""
     return moderate_track(db=db, admin_user=current_user, track_id=track_id, payload=payload)

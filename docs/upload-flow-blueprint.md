@@ -155,3 +155,6 @@ The current logical document may include:
   track moves to `rejected`
 - re-upload after reject:
   the new upload replaces the previous processing context and restarts the flow
+- staff hide during or after processing:
+  track stays `hidden`, is not public, and the worker must not auto-promote it
+  back to `approved`

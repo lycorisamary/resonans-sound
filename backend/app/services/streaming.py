@@ -137,7 +137,7 @@ def _is_public_stream(track: Track) -> bool:
 
 def build_track_cover_response(db: Session, track_id: int) -> StreamingResponse:
     track = _get_streamable_track(db, track_id)
-    if track.status == TrackStatus.deleted:
+    if track.status in {TrackStatus.hidden, TrackStatus.deleted}:
         raise TrackMediaNotFoundError("Track cover not found")
 
     metadata_json = track.metadata_json if isinstance(track.metadata_json, dict) else {}

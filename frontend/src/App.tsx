@@ -1,6 +1,7 @@
 import { Alert, Box, Button, Chip, CircularProgress, Container, Divider, Paper, Stack, Typography } from '@mui/material';
 import { BrowserRouter, Link as RouterLink, Navigate, Route, Routes } from 'react-router-dom';
 
+import { AdminPanel } from '@/features/admin/AdminPanel';
 import { AuthPanel } from '@/features/auth/AuthPanel';
 import { CatalogPanel } from '@/features/catalog/CatalogPanel';
 import { PlayerPanel } from '@/features/player/PlayerPanel';
@@ -95,6 +96,7 @@ function AppRoutes() {
               }
             />
             <Route path="/tracks/:id" element={<TrackDetailPage auth={auth} player={player} trackActions={trackActions} />} />
+            <Route path="/admin" element={<AdminPanel auth={auth} player={player} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
 
@@ -117,6 +119,9 @@ function Hero({ auth, catalog }: HeroProps) {
     { label: 'Studio', to: '/studio' },
     { label: 'Профиль', to: '/me' },
   ];
+  if (auth.isStaff) {
+    navItems.push({ label: 'Admin', to: '/admin' });
+  }
 
   return (
     <Paper

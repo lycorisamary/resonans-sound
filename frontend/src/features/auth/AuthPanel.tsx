@@ -54,7 +54,7 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
 
             <Alert severity="warning">
               Сейчас сервис работает по упрощённому flow: после успешного processing треки публикуются автоматически, а роли
-              `admin/moderator` нужны прежде всего для расширенных прав удаления.
+              `admin/moderator` нужны для staff-контроля: скрытия, восстановления и удаления треков.
             </Alert>
 
             <Stack direction="row" spacing={1}>
@@ -130,7 +130,7 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
 
                 {auth.isStaff ? (
                   <Alert severity="info" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-                    У этой роли есть расширенное право удалять любые треки, не только свои.
+                    У этой роли есть доступ к staff-разделу: можно скрывать, восстанавливать и удалять любые треки.
                   </Alert>
                 ) : null}
 

@@ -43,6 +43,14 @@
 
 ## 5. Staff access
 
+Additional staff-control checks:
+
+- Open `/admin` under `admin` or `moderator`.
+- Verify that recent non-deleted tracks are visible by default.
+- Hide a disposable approved track and verify it disappears from the public catalog and `/tracks/<id>`.
+- Restore the same track and verify it becomes public again.
+- Delete the disposable track and verify it no longer appears in staff default review.
+
 - Войти под `admin`.
 - Убедиться, что роль отображается корректно.
 - Если есть пользователь с ролью `moderator`, войти и проверить те же staff delete-права.
@@ -64,6 +72,7 @@
 - discovery работает
 - likes работают
 - role-based delete работает
+- staff hide/restore работает
 
 ## 7. Operations hardening smoke
 

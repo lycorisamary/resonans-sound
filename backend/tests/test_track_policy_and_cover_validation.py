@@ -51,8 +51,16 @@ def test_track_upload_policy_blocks_processing_and_deleted_source_uploads():
     assert TrackUploadPolicy.can_upload_source(make_track(42, TrackStatus.pending), owner)
     assert TrackUploadPolicy.can_upload_source(make_track(42, TrackStatus.approved), owner)
     assert not TrackUploadPolicy.can_upload_source(make_track(42, TrackStatus.processing), owner)
+    assert not TrackUploadPolicy.can_upload_source(make_track(42, TrackStatus.hidden), owner)
     assert not TrackUploadPolicy.can_upload_source(make_track(42, TrackStatus.deleted), owner)
     assert not TrackUploadPolicy.can_upload_source(make_track(7, TrackStatus.pending), owner)
+
+
+def test_track_upload_policy_blocks_hidden_cover_uploads():
+    owner = make_user(user_id=42)
+
+    assert TrackUploadPolicy.can_upload_cover(make_track(42, TrackStatus.approved), owner)
+    assert not TrackUploadPolicy.can_upload_cover(make_track(42, TrackStatus.hidden), owner)
 
 
 def test_validate_cover_upload_accepts_supported_image():

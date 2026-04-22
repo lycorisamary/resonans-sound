@@ -1,6 +1,6 @@
 export type UserRole = 'user' | 'moderator' | 'admin';
 export type UserStatus = 'active' | 'inactive' | 'banned';
-export type TrackStatus = 'pending' | 'processing' | 'approved' | 'rejected' | 'deleted';
+export type TrackStatus = 'pending' | 'processing' | 'approved' | 'rejected' | 'hidden' | 'deleted';
 export type AuthMode = 'login' | 'register';
 export type CatalogView = 'catalog' | 'liked';
 export type StreamQuality = '128' | '320' | 'original';
@@ -155,6 +155,29 @@ export interface LikeToggleResponse {
 
 export interface TrackLikeListResponse {
   track_ids: number[];
+}
+
+export interface AdminSystemStats {
+  total_users: number;
+  total_tracks: number;
+  total_plays: number;
+  total_likes: number;
+  active_users_today: number;
+  new_users_today: number;
+  tracks_pending_moderation: number;
+  tracks_hidden: number;
+}
+
+export interface TrackModerationPayload {
+  status: Extract<TrackStatus, 'approved' | 'rejected' | 'hidden'>;
+  rejection_reason?: string | null;
+}
+
+export interface AdminTrackListParams {
+  status?: TrackStatus;
+  search?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface PaginatedResponse<T> {
