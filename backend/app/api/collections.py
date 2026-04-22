@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.exceptions import CollectionNotFoundError
 from app.schemas import CollectionResponse, PaginatedResponse
-from app.services.collections import get_public_collection, list_public_collections
+from app.services.collections import build_public_collection_cover_response, get_public_collection, list_public_collections
 
 
 router = APIRouter()
@@ -27,3 +28,9 @@ def get_collection(collection_id: int, db: Session = Depends(get_db)) -> Collect
     if collection is None:
         raise CollectionNotFoundError()
     return collection
+
+
+@router.get("/{collection_id}/cover")
+def get_collection_cover(collection_id: int, db: Session = Depends(get_db)) -> StreamingResponse:
+    """Return the public collection cover image when it exists."""
+    return build_public_collection_cover_response(db=db, collection_id=collection_id)

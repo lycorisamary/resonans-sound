@@ -21,8 +21,8 @@ Implemented in `main` right now:
 - play counters after a real listen threshold with guest/auth dedupe
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
-- public staff-curated collections with approved-track filtering
-- staff collection management for drafts, publishing, track membership, and ordering
+- public staff-curated collections with approved-track filtering and ordered playback
+- staff collection management for drafts, publishing, searchable track membership, ordering, and collection covers
 - staff post-publication controls for hiding, restoring, and deleting tracks
 - frontend split into feature/entity/shared layers with React Router routes
 - Zustand-backed auth/catalog/player state
@@ -69,6 +69,7 @@ Currently active routes in `main`:
 - `GET /api/v1/categories/{slug}`
 - `GET /api/v1/collections`
 - `GET /api/v1/collections/{id}`
+- `GET /api/v1/collections/{id}/cover`
 - `GET /api/v1/tracks`
 - `GET /api/v1/tracks/mine`
 - `POST /api/v1/tracks`
@@ -92,6 +93,7 @@ Currently active routes in `main`:
 - `GET /api/v1/admin/collections`
 - `POST /api/v1/admin/collections`
 - `PUT /api/v1/admin/collections/{id}`
+- `POST /api/v1/admin/collections/{id}/cover`
 - `DELETE /api/v1/admin/collections/{id}`
 - `POST /api/v1/admin/collections/{id}/tracks`
 - `DELETE /api/v1/admin/collections/{id}/tracks/{track_id}`

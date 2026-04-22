@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 
 import { TrackCard } from '@/entities/track/ui';
@@ -11,6 +11,7 @@ import api from '@/shared/api/client';
 import { Collection } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
 import { SectionCard } from '@/shared/ui';
+import { PlayArrowRoundedIcon } from '@/shared/ui/icons';
 
 interface CollectionDetailPageProps {
   auth: UseAuthResult;
@@ -62,12 +63,22 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
 
         {collection ? (
           <>
-            <Box>
-              <Typography variant="h4">{collection.name}</Typography>
-              <Typography color="text.secondary">
-                {collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
-              </Typography>
-            </Box>
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
+              <Box>
+                <Typography variant="h4">{collection.name}</Typography>
+                <Typography color="text.secondary">
+                  {collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
+                </Typography>
+              </Box>
+              <Button
+                variant="contained"
+                startIcon={<PlayArrowRoundedIcon />}
+                disabled={collection.tracks.length === 0}
+                onClick={() => void player.playTrackQueue(collection.tracks)}
+              >
+                Play collection
+              </Button>
+            </Stack>
 
             {collection.tracks.length === 0 ? <Alert severity="info">This collection has no public tracks.</Alert> : null}
 
@@ -86,7 +97,7 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
                   studioBusy={trackActions.studioBusy}
                   uploadingTrackId={trackActions.uploadingTrackId}
                   uploadingCoverTrackId={trackActions.uploadingCoverTrackId}
-                  onPlayTrack={(selectedTrack) => void player.playTrack(selectedTrack)}
+                  onPlayTrack={(selectedTrack) => void player.playTrackQueue(collection.tracks, collection.tracks.findIndex((item) => item.id === selectedTrack.id))}
                   onToggleLike={(selectedTrack) => void trackActions.toggleLike(selectedTrack)}
                   onEditTrack={trackActions.startEditingTrack}
                   onDeleteTrack={(selectedTrack) => void trackActions.deleteTrack(selectedTrack)}

@@ -1,108 +1,79 @@
-import { Alert, Box, Chip, LinearProgress, MenuItem, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, MenuItem, Paper, Stack, Typography } from '@mui/material';
 
 import { emptyTrack } from '@/entities/track/model/track';
-import { TrackArtwork, WaveformPreview } from '@/entities/track/ui';
+import { TrackArtwork } from '@/entities/track/ui';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import { StreamQuality } from '@/shared/api/types';
 import { formatTime } from '@/shared/lib/time';
-import { AppTextField, SectionCard } from '@/shared/ui';
+import { AppTextField } from '@/shared/ui';
 
 interface PlayerPanelProps {
   player: UseAudioPlayerResult;
 }
 
 export function PlayerPanel({ player }: PlayerPanelProps) {
+  const track = player.activeTrack;
+
   return (
-    <SectionCard
-      tone="blue"
+    <Paper
+      elevation={8}
       sx={{
-        flex: 1.35,
-        position: 'sticky',
-        top: { xs: 8, md: 12 },
-        zIndex: 20,
-        boxShadow: '0 18px 48px rgba(15,23,42,0.12)',
+        border: '1px solid rgba(15,118,110,0.16)',
+        borderRadius: { xs: 0, md: 4 },
+        bottom: { xs: 0, md: 16 },
+        boxShadow: '0 18px 48px rgba(15,23,42,0.18)',
+        left: { xs: 0, md: '50%' },
+        maxWidth: { xs: '100%', md: 980 },
+        mx: 'auto',
+        p: { xs: 1.25, md: 1.5 },
+        position: 'fixed',
+        right: { xs: 0, md: 'auto' },
+        transform: { xs: 'none', md: 'translateX(-50%)' },
+        width: { xs: '100%', md: 'calc(100% - 48px)' },
+        zIndex: 40,
       }}
     >
-      <Stack spacing={3}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography variant="h4">Единый player flow</Typography>
-            <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 720 }}>
-              Плеер работает поверх live API, автоматически берёт доступный stream quality и не требует отдельной ручной
-              модерации для публикации.
+      <Stack spacing={1}>
+        {player.playerError ? <Alert severity="error">{player.playerError}</Alert> : null}
+
+        <Stack direction="row" spacing={1.25} alignItems="center">
+          <TrackArtwork track={track ?? emptyTrack} size={56} radius={12} />
+
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} alignItems={{ xs: 'flex-start', sm: 'center' }}>
+              <Typography variant="subtitle1" noWrap sx={{ fontWeight: 800, maxWidth: { xs: '100%', sm: 340 } }}>
+                {track?.title ?? 'Choose a track'}
+              </Typography>
+              <Chip
+                size="small"
+                label={player.playerLoading ? 'Loading' : player.isPlaying ? 'Playing' : track ? 'Paused' : 'Idle'}
+                color={player.playerLoading ? 'warning' : player.isPlaying ? 'success' : 'default'}
+                variant={player.isPlaying || player.playerLoading ? 'filled' : 'outlined'}
+              />
+            </Stack>
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {track ? `${track.user?.username ?? 'Unknown artist'} · ${formatTime(player.playerCurrentTime)} / ${formatTime(player.playerDuration || (track.duration_seconds ?? 0))}` : 'Playback stays active across pages.'}
             </Typography>
           </Box>
+
           <AppTextField
             select
-            label="Качество"
+            label="Quality"
+            size="small"
             value={player.playerQuality}
             onChange={(event) => player.setPlayerQuality(event.target.value as StreamQuality)}
-            sx={{ minWidth: 180 }}
+            sx={{ display: { xs: 'none', sm: 'block' }, minWidth: 132 }}
           >
             <MenuItem value="128">128 kbps</MenuItem>
             <MenuItem value="320">320 kbps</MenuItem>
             <MenuItem value="original">Original</MenuItem>
           </AppTextField>
-        </Stack>
 
-        {player.playerError ? <Alert severity="error">{player.playerError}</Alert> : null}
-
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={3}>
-          <TrackArtwork track={player.activeTrack ?? emptyTrack} size={160} radius={40} />
-
-          <Stack spacing={2} flex={1}>
-            <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-              <Box>
-                <Typography variant="h5">{player.activeTrack?.title ?? 'Выберите трек из каталога'}</Typography>
-                <Typography color="text.secondary">
-                  {player.activeTrack
-                    ? `${player.activeTrack.user?.username ?? 'Unknown artist'} • ${player.activeTrack.category?.name ?? 'Без категории'}`
-                    : 'После выбора трека здесь появятся обложка, прогресс и текущая длительность.'}
-                </Typography>
-              </Box>
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip
-                  label={
-                    player.playerLoading
-                      ? 'Подключаем поток'
-                      : player.isPlaying
-                        ? 'Сейчас играет'
-                        : player.activeTrackId
-                          ? 'Готов к продолжению'
-                          : 'Idle'
-                  }
-                  color={player.playerLoading ? 'warning' : player.isPlaying ? 'success' : 'default'}
-                  variant={player.playerLoading || player.isPlaying ? 'filled' : 'outlined'}
-                />
-                <Chip label={`Quality ${player.playerQuality}`} variant="outlined" />
-              </Stack>
-            </Stack>
-
-            <audio ref={player.audioRef} controls style={{ width: '100%' }} />
-
-            <LinearProgress
-              variant={player.playerDuration > 0 ? 'determinate' : 'indeterminate'}
-              value={player.playerDuration > 0 ? Math.min(100, (player.playerCurrentTime / player.playerDuration) * 100) : 0}
-              sx={{ height: 10, borderRadius: 999, bgcolor: 'rgba(15,118,110,0.08)' }}
-            />
-
-            <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-              <Typography variant="body2" color="text.secondary">
-                {formatTime(player.playerCurrentTime)} / {formatTime(player.playerDuration || (player.activeTrack?.duration_seconds ?? 0))}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {player.activeTrack
-                  ? player.activeTrack.status === 'approved'
-                    ? 'Опубликованный трек играет напрямую через API stream.'
-                    : 'Для этого трека пока доступен только owner preview.'
-                  : 'Выберите любой готовый трек ниже, чтобы проверить playback.'}
-              </Typography>
-            </Stack>
-
-            {player.activeTrack ? <WaveformPreview track={player.activeTrack} active={player.isPlaying || player.playerLoading} /> : null}
-          </Stack>
+          <Box sx={{ flex: { xs: '0 0 44%', md: '0 0 360px' }, minWidth: 160 }}>
+            <audio ref={player.audioRef} controls style={{ width: '100%', height: 40 }} />
+          </Box>
         </Stack>
       </Stack>
-    </SectionCard>
+    </Paper>
   );
 }

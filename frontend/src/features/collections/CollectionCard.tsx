@@ -1,15 +1,15 @@
 import { Box, Button, Card, CardContent, Chip, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-import { Collection, Track } from '@/shared/api/types';
+import { Collection } from '@/shared/api/types';
 import { PlayArrowRoundedIcon, QueueMusicRoundedIcon } from '@/shared/ui/icons';
 
 interface CollectionCardProps {
   collection: Collection;
-  onPlayTrack: (track: Track) => void;
+  onPlayCollection: (collection: Collection) => void;
 }
 
-export function CollectionCard({ collection, onPlayTrack }: CollectionCardProps) {
+export function CollectionCard({ collection, onPlayCollection }: CollectionCardProps) {
   const firstTrack = collection.tracks[0];
 
   return (
@@ -61,9 +61,9 @@ export function CollectionCard({ collection, onPlayTrack }: CollectionCardProps)
               size="small"
               startIcon={<PlayArrowRoundedIcon />}
               disabled={!firstTrack}
-              onClick={() => firstTrack && onPlayTrack(firstTrack)}
+              onClick={() => onPlayCollection(collection)}
             >
-              Play first
+              Play collection
             </Button>
           </Stack>
         </Stack>

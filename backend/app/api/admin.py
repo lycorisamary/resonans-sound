@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.security import get_moderator_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import User
 from app.schemas import (
@@ -25,7 +26,9 @@ from app.services.collections import (
     remove_collection_track,
     reorder_collection_tracks,
     update_collection,
+    upload_collection_cover,
 )
+from app.services.rate_limit import RateLimit, enforce_rate_limit, user_subject
 
 
 router = APIRouter()
@@ -107,6 +110,29 @@ def update_collection_endpoint(
 ) -> CollectionResponse:
     """Update a staff-managed collection and publish only when it has approved tracks."""
     return update_collection(db=db, admin_user=current_user, collection_id=collection_id, payload=payload)
+
+
+@router.post("/collections/{collection_id}/cover", response_model=CollectionResponse, status_code=202)
+def upload_collection_cover_endpoint(
+    request: Request,
+    collection_id: int,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> CollectionResponse:
+    """Attach or replace a staff-managed collection cover image."""
+    enforce_rate_limit(
+        request=request,
+        scope="collections_upload_cover",
+        subject=user_subject(current_user.id),
+        limit=RateLimit(settings.COVER_UPLOAD_RATE_LIMIT_PER_HOUR, 60 * 60),
+    )
+    return upload_collection_cover(
+        db=db,
+        admin_user=current_user,
+        collection_id=collection_id,
+        upload_file_object=file,
+    )
 
 
 @router.delete("/collections/{collection_id}")

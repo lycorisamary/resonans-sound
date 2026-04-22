@@ -101,6 +101,16 @@ def test_public_collection_serialization_filters_non_approved_tracks():
     assert response.cover_image_url == approved_track.cover_image_url
 
 
+def test_collection_serialization_prefers_explicit_collection_cover():
+    approved_track = make_track(10, TrackStatus.approved)
+    collection = make_collection(track_links=[make_link(approved_track, 1)], is_public=True)
+    collection.cover_image_url = "/api/v1/collections/3/cover"
+
+    response = collections_service.serialize_collection(collection, public_only=True, include_tracks=True)
+
+    assert response.cover_image_url == "/api/v1/collections/3/cover"
+
+
 def test_create_collection_rejects_public_empty_collection():
     with pytest.raises(CollectionConflictError):
         collections_service.create_collection(

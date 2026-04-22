@@ -30,6 +30,9 @@ function applyTrackPlayCount(trackId: number, playCount: number) {
 
 export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const queueTracksRef = useRef<Track[]>([]);
+  const queueIndexRef = useRef(-1);
+  const playTrackRef = useRef<(track: Track, options?: { preserveQueue?: boolean }) => Promise<void>>(async () => undefined);
   const activeTrack = usePlayerStore((state) => state.activeTrack);
   const activeTrackId = usePlayerStore((state) => state.activeTrackId);
   const playerQuality = usePlayerStore((state) => state.playerQuality);
@@ -127,6 +130,14 @@ export function useAudioPlayer() {
     };
     const onPause = () => setIsPlaying(false);
     const onEnded = () => {
+      const nextIndex = queueIndexRef.current + 1;
+      const nextTrack = queueTracksRef.current[nextIndex];
+      if (nextTrack) {
+        queueIndexRef.current = nextIndex;
+        void playTrackRef.current(nextTrack, { preserveQueue: true });
+        return;
+      }
+
       setIsPlaying(false);
       setPlayerCurrentTime(0);
     };
@@ -197,19 +208,26 @@ export function useAudioPlayer() {
     delete audio.dataset.playReported;
     delete audio.dataset.playReportPending;
     audio.load();
+    queueTracksRef.current = [];
+    queueIndexRef.current = -1;
     setPlayerCurrentTime(0);
     setPlayerDuration(0);
     setIsPlaying(false);
     setPlayerLoading(false);
   };
 
-  const playTrack = async (track: Track) => {
+  const playTrack = async (track: Track, options: { preserveQueue?: boolean } = {}) => {
     const audio = audioRef.current;
     if (!audio) {
       return;
     }
 
     try {
+      if (!options.preserveQueue) {
+        queueTracksRef.current = [];
+        queueIndexRef.current = -1;
+      }
+
       setPlayerError(null);
       const qualityCandidates = getPlayableQualityCandidates(track, playerQuality);
       if (qualityCandidates.length === 0) {
@@ -292,12 +310,28 @@ export function useAudioPlayer() {
     }
   };
 
+  playTrackRef.current = playTrack;
+
+  const playTrackQueue = async (tracks: Track[], startIndex = 0) => {
+    const playableTracks = tracks.filter((track) => track.status === 'approved');
+    if (playableTracks.length === 0) {
+      setPlayerError('No playable tracks in this collection.');
+      return;
+    }
+
+    const resolvedStartIndex = Math.min(Math.max(startIndex, 0), playableTracks.length - 1);
+    queueTracksRef.current = playableTracks;
+    queueIndexRef.current = resolvedStartIndex;
+    await playTrack(playableTracks[resolvedStartIndex], { preserveQueue: true });
+  };
+
   return {
     activeTrack,
     activeTrackId,
     audioRef,
     isPlaying,
     playTrack,
+    playTrackQueue,
     playerCurrentTime,
     playerDuration,
     playerError,

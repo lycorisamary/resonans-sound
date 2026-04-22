@@ -16,6 +16,8 @@ class Collection(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text)
     cover_image_url = Column(Text)
+    cover_storage_key = Column(Text)
+    cover_content_type = Column(String(100))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     is_public = Column(Boolean, default=False, index=True)

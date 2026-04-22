@@ -40,9 +40,9 @@ explicitly changes direction.
 - Track metadata can be created and edited by the owner
 - Frontend Studio shows the metadata form directly and can upload selected
   audio/cover files immediately after metadata creation
-- The frontend player is a single global sticky `PlayerPanel` mounted outside
-  `Routes`; do not move its `<audio>` element back into route-local screens or
-  playback will stop on navigation
+- The frontend player is a single global compact bottom `PlayerPanel` mounted
+  outside `Routes`; do not move its `<audio>` element back into route-local
+  screens or playback will stop on navigation
 - Audio upload goes to MinIO and is processed by Celery
 - After successful processing, tracks are auto-published
 - Manual moderation is currently not part of the main product flow
@@ -59,7 +59,10 @@ explicitly changes direction.
 - Users have a separate liked-tracks view
 - Staff-managed collections are active runtime: guests can view public
   collections, while only `admin` and `moderator` can create, publish,
-  unpublish, delete, add approved tracks, remove tracks, and reorder them
+  unpublish, delete, add approved tracks, remove tracks, reorder them, and
+  upload collection covers
+- Public collection playback is queue-based: pressing collection play starts
+  approved tracks in collection order and advances automatically
 
 ## Current Technical Notes
 
@@ -68,6 +71,8 @@ explicitly changes direction.
   repository Alembic head
 - Media storage currently uses the `tracks` row as the main source of truth
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
+- Collection covers are stored in MinIO with explicit `playlists`
+  storage metadata and served through `/api/v1/collections/{id}/cover`
 - Active ORM models are split by context under `backend/app/models/`
 - Existing physical `playlists` / `playlist_tracks` tables are now active as
   staff-managed `Collection` / `CollectionTrack` runtime models; they are not
@@ -98,6 +103,8 @@ explicitly changes direction.
 - Frontend shared state uses Zustand; Redux is not part of the active runtime
 - Frontend API client lives in `shared/api/` and is typed against the active
   backend API
+- Staff collection track add uses searchable approved-track lookup in the
+  admin feature module, not a static all-track select
 
 ## Working Rules For Agents
 

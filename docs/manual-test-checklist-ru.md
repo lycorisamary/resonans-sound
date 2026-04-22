@@ -56,7 +56,10 @@ Additional staff-control checks:
 - Delete the disposable track and verify it no longer appears in staff default review.
 - Create a draft collection in `/admin`.
 - Add an approved disposable track to that collection.
+- Use the approved-track search field, not a static list, when adding the track.
+- Upload a collection cover and verify the public cover URL works after publish.
 - Publish the collection and verify it appears on `/collections` and `/collections/<id>`.
+- Press collection play and verify tracks advance in collection order.
 - Reorder tracks inside the collection and verify the public page follows the staff order.
 - Hide the linked track and verify it disappears from the public collection surface.
 - Remove the track from the collection and delete the disposable collection.

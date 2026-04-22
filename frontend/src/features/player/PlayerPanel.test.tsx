@@ -10,6 +10,7 @@ const player: UseAudioPlayerResult = {
   audioRef: { current: null },
   isPlaying: false,
   playTrack: async () => undefined,
+  playTrackQueue: async () => undefined,
   playerCurrentTime: 0,
   playerDuration: 0,
   playerError: null,
@@ -20,12 +21,11 @@ const player: UseAudioPlayerResult = {
 };
 
 describe('PlayerPanel', () => {
-  it('renders idle player state', () => {
+  it('renders idle compact player state', () => {
     const markup = renderWithTheme(<PlayerPanel player={player} />);
 
-    expect(markup).toContain('Единый player flow');
-    expect(markup).toContain('Выберите трек из каталога');
-    expect(markup).toContain('Quality 320');
+    expect(markup).toContain('Choose a track');
+    expect(markup).toContain('Idle');
   });
 
   it('uses the earlier listen-threshold between thirty seconds and half duration', () => {

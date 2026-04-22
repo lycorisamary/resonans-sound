@@ -192,6 +192,9 @@ Runtime rules:
 - publishing an empty collection is rejected
 - duplicate track links are blocked by `uq_playlist_tracks_playlist_track`
 - `track_count` is maintained as a denormalized linked-track count for staff UI
+- collection cover storage is explicit on `playlists` through
+  `cover_storage_key` and `cover_content_type`; `cover_image_url` remains the
+  backend URL exposed to clients
 
 ## 9. Current Moderation History In DB
 

@@ -30,6 +30,7 @@ const player: UseAudioPlayerResult = {
   audioRef: { current: null },
   isPlaying: false,
   playTrack: async () => undefined,
+  playTrackQueue: async () => undefined,
   playerCurrentTime: 0,
   playerDuration: 0,
   playerError: null,

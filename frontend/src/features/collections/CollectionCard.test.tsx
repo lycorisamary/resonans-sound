@@ -49,12 +49,12 @@ describe('CollectionCard', () => {
   it('renders a public curated collection with track preview', () => {
     const markup = renderWithTheme(
       <MemoryRouter>
-        <CollectionCard collection={collection} onPlayTrack={() => undefined} />
+        <CollectionCard collection={collection} onPlayCollection={() => undefined} />
       </MemoryRouter>
     );
 
     expect(markup).toContain('Staff Picks');
     expect(markup).toContain('Public Track');
-    expect(markup).toContain('Play first');
+    expect(markup).toContain('Play collection');
   });
 });

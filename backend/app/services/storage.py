@@ -13,6 +13,7 @@ from app.core.config import settings
 
 
 TRACKS_STORAGE_PREFIX = "tracks"
+COLLECTIONS_STORAGE_PREFIX = "collections"
 
 
 @dataclass(frozen=True)
@@ -73,6 +74,11 @@ def build_derived_object_key(user_id: int, track_id: int, quality: str) -> str:
 def build_cover_object_key(user_id: int, track_id: int, filename: str | None) -> str:
     extension = Path(filename or "cover.bin").suffix.lower() or ".bin"
     return f"{TRACKS_STORAGE_PREFIX}/{user_id}/{track_id}/cover/{uuid4().hex}{extension}"
+
+
+def build_collection_cover_object_key(collection_id: int, filename: str | None) -> str:
+    extension = Path(filename or "cover.bin").suffix.lower() or ".bin"
+    return f"{COLLECTIONS_STORAGE_PREFIX}/{collection_id}/cover/{uuid4().hex}{extension}"
 
 
 def upload_file(file_path: str, object_key: str, content_type: str | None = None) -> StoredObject:

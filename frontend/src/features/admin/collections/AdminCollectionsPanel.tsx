@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 
-import { Alert, Box, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Typography } from '@mui/material';
+import { Alert, Autocomplete, Box, Card, CardContent, Chip, CircularProgress, Stack, Typography } from '@mui/material';
 
 import { TrackArtwork } from '@/entities/track/ui';
 import { UseAuthResult } from '@/hooks/useAuth';
@@ -11,6 +11,7 @@ import { getErrorMessage } from '@/shared/lib/error';
 import { ActionButton, AppTextField, SectionCard } from '@/shared/ui';
 import {
   DeleteOutlineRoundedIcon,
+  PhotoCameraRoundedIcon,
   PlayArrowRoundedIcon,
   QueueMusicRoundedIcon,
   RefreshRoundedIcon,
@@ -26,7 +27,8 @@ interface AdminCollectionsPanelProps {
 export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelProps) {
   const [collections, setCollections] = useState<Collection[]>([]);
   const [approvedTracks, setApprovedTracks] = useState<Track[]>([]);
-  const [selectedTrackIds, setSelectedTrackIds] = useState<Record<number, string>>({});
+  const [selectedTracks, setSelectedTracks] = useState<Record<number, Track | null>>({});
+  const [trackSearch, setTrackSearch] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -35,6 +37,11 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
   const [actionKey, setActionKey] = useState<string | null>(null);
   const [panelError, setPanelError] = useState<string | null>(null);
   const [panelMessage, setPanelMessage] = useState<string | null>(null);
+
+  const loadApprovedTracks = useCallback(async (searchValue: string) => {
+    const trackPage = await api.getTracks({ sort: 'newest', size: 25, search: searchValue.trim() || undefined });
+    setApprovedTracks(trackPage.items);
+  }, []);
 
   const loadCollections = useCallback(async () => {
     if (!auth.isStaff) {
@@ -47,7 +54,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
     try {
       const [collectionPage, trackPage] = await Promise.all([
         api.getAdminCollections({ search: search || undefined, size: 50 }),
-        api.getTracks({ sort: 'newest', size: 100 }),
+        api.getTracks({ sort: 'newest', size: 25 }),
       ]);
       setCollections(collectionPage.items);
       setApprovedTracks(trackPage.items);
@@ -61,6 +68,18 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
   useEffect(() => {
     void loadCollections();
   }, [loadCollections]);
+
+  useEffect(() => {
+    if (!auth.isStaff) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      void loadApprovedTracks(trackSearch);
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [auth.isStaff, loadApprovedTracks, trackSearch]);
 
   const totalPublic = useMemo(() => collections.filter((collection) => collection.is_public).length, [collections]);
 
@@ -154,8 +173,8 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
   };
 
   const addTrack = async (collection: Collection) => {
-    const selectedTrackId = Number(selectedTrackIds[collection.id]);
-    if (!Number.isFinite(selectedTrackId) || selectedTrackId <= 0) {
+    const selectedTrack = selectedTracks[collection.id];
+    if (!selectedTrack) {
       setPanelError('Select an approved track first');
       return;
     }
@@ -165,12 +184,32 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
     setPanelMessage(null);
 
     try {
-      await api.addCollectionTrack(collection.id, selectedTrackId);
-      setSelectedTrackIds((current) => ({ ...current, [collection.id]: '' }));
+      await api.addCollectionTrack(collection.id, selectedTrack.id);
+      setSelectedTracks((current) => ({ ...current, [collection.id]: null }));
       setPanelMessage(`Track added to "${collection.name}".`);
       await loadCollections();
     } catch (err) {
       setPanelError(getErrorMessage(err, 'Failed to add track'));
+    } finally {
+      setActionKey(null);
+    }
+  };
+
+  const uploadCover = async (collection: Collection, file: File | undefined) => {
+    if (!file) {
+      return;
+    }
+
+    setActionKey(`collection-${collection.id}`);
+    setPanelError(null);
+    setPanelMessage(null);
+
+    try {
+      await api.uploadCollectionCover(collection.id, file);
+      setPanelMessage(`Cover uploaded for "${collection.name}".`);
+      await loadCollections();
+    } catch (err) {
+      setPanelError(getErrorMessage(err, 'Failed to upload collection cover'));
     } finally {
       setActionKey(null);
     }
@@ -317,6 +356,15 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                         <ActionButton variant="outlined" size="small" disabled={busy} onClick={() => void editCollectionText(collection)}>
                           Edit
                         </ActionButton>
+                        <ActionButton variant="outlined" size="small" component="label" startIcon={<PhotoCameraRoundedIcon />} disabled={busy}>
+                          Cover
+                          <input
+                            hidden
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={(event) => void uploadCover(collection, event.target.files?.[0])}
+                          />
+                        </ActionButton>
                         <ActionButton
                           color={collection.is_public ? 'warning' : 'success'}
                           variant={collection.is_public ? 'outlined' : 'contained'}
@@ -340,22 +388,18 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                     </Stack>
 
                     <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
-                      <AppTextField
-                        select
+                      <Autocomplete
                         fullWidth
-                        label="Approved track"
-                        value={selectedTrackIds[collection.id] ?? ''}
-                        onChange={(event) =>
-                          setSelectedTrackIds((current) => ({ ...current, [collection.id]: event.target.value }))
-                        }
-                      >
-                        {approvedTracks.map((track) => (
-                          <MenuItem key={track.id} value={String(track.id)}>
-                            {track.title} by {track.user?.username ?? `user ${track.user_id}`}
-                          </MenuItem>
-                        ))}
-                      </AppTextField>
-                      <ActionButton variant="contained" disabled={busy || approvedTracks.length === 0} onClick={() => void addTrack(collection)}>
+                        options={approvedTracks}
+                        value={selectedTracks[collection.id] ?? null}
+                        inputValue={trackSearch}
+                        onInputChange={(_, value) => setTrackSearch(value)}
+                        onChange={(_, value) => setSelectedTracks((current) => ({ ...current, [collection.id]: value }))}
+                        getOptionLabel={(track) => `${track.title} by ${track.user?.username ?? `user ${track.user_id}`} (#${track.id})`}
+                        isOptionEqualToValue={(option, value) => option.id === value.id}
+                        renderInput={(params) => <AppTextField {...params} label="Search approved track" />}
+                      />
+                      <ActionButton variant="contained" disabled={busy || !selectedTracks[collection.id]} onClick={() => void addTrack(collection)}>
                         Add track
                       </ActionButton>
                     </Stack>

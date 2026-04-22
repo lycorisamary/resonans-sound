@@ -37,7 +37,8 @@ function AppRoutes() {
         minHeight: '100vh',
         background:
           'radial-gradient(circle at top left, rgba(15,118,110,0.18), transparent 28%), radial-gradient(circle at top right, rgba(249,115,22,0.14), transparent 30%), linear-gradient(180deg, #f8f2e8 0%, #f5ede0 40%, #f3f4f6 100%)',
-        py: { xs: 3, md: 6 },
+        pb: { xs: 13, md: 15 },
+        pt: { xs: 3, md: 6 },
       }}
     >
       <Container maxWidth="xl">

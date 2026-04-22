@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+import os
 from math import ceil
+from pathlib import Path
 from typing import Any
 
+from fastapi import UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.config import settings
 from app.exceptions import (
     CollectionConflictError,
     CollectionNotFoundError,
@@ -22,6 +27,14 @@ from app.schemas import (
     PaginatedResponse,
 )
 from app.services.catalog import serialize_track
+from app.services.storage import (
+    build_collection_cover_object_key,
+    delete_objects,
+    get_object_stream,
+    stat_object,
+    upload_file,
+)
+from app.services.upload_validation import validate_cover_upload, write_upload_to_temp_file
 
 
 PUBLIC_COLLECTION_PREVIEW_LIMIT = 4
@@ -229,6 +242,28 @@ def get_public_collection(db: Session, collection_id: int) -> CollectionResponse
     return serialize_collection(collection, public_only=True, include_tracks=True)
 
 
+def build_public_collection_cover_response(db: Session, collection_id: int) -> StreamingResponse:
+    collection = (
+        db.query(Collection)
+        .filter(Collection.id == collection_id, Collection.is_public.is_(True))
+        .first()
+    )
+    if collection is None or not collection.cover_storage_key:
+        raise CollectionNotFoundError()
+
+    object_info = stat_object(collection.cover_storage_key)
+    content_type = object_info.content_type or collection.cover_content_type or "image/jpeg"
+    stream = get_object_stream(collection.cover_storage_key)
+    return StreamingResponse(
+        stream.stream(32 * 1024),
+        media_type=content_type,
+        headers={
+            "Content-Length": str(object_info.size_bytes),
+            "Cache-Control": "public, max-age=3600",
+        },
+    )
+
+
 def list_admin_collections(db: Session, page: int, size: int, search: str | None = None) -> PaginatedResponse:
     query = _collection_query(db)
     if search:
@@ -312,8 +347,56 @@ def update_collection(
     return serialize_collection(_get_collection_for_staff(db, collection.id), public_only=False, include_tracks=True)
 
 
+def upload_collection_cover(
+    db: Session,
+    admin_user: User,
+    collection_id: int,
+    upload_file_object: UploadFile,
+) -> CollectionResponse:
+    collection = _get_collection_for_staff(db, collection_id)
+    safe_filename, content_type = validate_cover_upload(upload_file_object)
+    previous_cover_key = collection.cover_storage_key
+    temp_file_path = ""
+    new_cover_key = ""
+
+    try:
+        temp_file_path, _ = write_upload_to_temp_file(
+            upload_file_object,
+            suffix=Path(safe_filename).suffix.lower(),
+            max_file_size=int(settings.MAX_COVER_IMAGE_SIZE),
+        )
+        new_cover_key = build_collection_cover_object_key(collection.id, safe_filename)
+        upload_file(temp_file_path, new_cover_key, content_type=content_type)
+
+        collection.cover_storage_key = new_cover_key
+        collection.cover_content_type = content_type
+        collection.cover_image_url = f"{settings.API_PREFIX}/collections/{collection.id}/cover"
+        db.add(collection)
+        _log_collection_action(
+            db=db,
+            admin_user=admin_user,
+            action="collection_cover_uploaded",
+            collection_id=collection.id,
+            details={"content_type": content_type},
+        )
+        db.commit()
+
+        if previous_cover_key and previous_cover_key != new_cover_key:
+            delete_objects([previous_cover_key])
+
+        return serialize_collection(_get_collection_for_staff(db, collection.id), public_only=False, include_tracks=True)
+    finally:
+        try:
+            upload_file_object.file.close()
+        except Exception:
+            pass
+        if temp_file_path and os.path.exists(temp_file_path):
+            os.remove(temp_file_path)
+
+
 def delete_collection(db: Session, admin_user: User, collection_id: int) -> None:
     collection = _get_collection_for_staff(db, collection_id)
+    cover_storage_key = collection.cover_storage_key
     _log_collection_action(
         db=db,
         admin_user=admin_user,
@@ -323,6 +406,8 @@ def delete_collection(db: Session, admin_user: User, collection_id: int) -> None
     )
     db.delete(collection)
     db.commit()
+    if cover_storage_key:
+        delete_objects([cover_storage_key])
 
 
 def add_collection_track(

@@ -254,3 +254,11 @@ curl https://resonance-sound.ru/api/v1/health
 - `/me`
 - playback из catalog
 - наличие studio form на главной и на `/studio`
+## 2026-04-22 Collection UX note
+
+- Collection play uses `useAudioPlayer.playTrackQueue()` so a public collection
+  plays approved tracks in order and advances automatically.
+- `PlayerPanel` is a compact fixed bottom player, still mounted outside
+  `Routes`.
+- Admin collection management uses searchable approved-track lookup and
+  supports collection cover upload through the typed API client.

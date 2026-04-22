@@ -190,3 +190,14 @@
 - rate limiting, request id/correlation id, базовые metrics, Grafana provisioning
   и security headers начаты в итерации 4
 - automated backup/restore и load baseline остаются следующими reliability-блоками
+## 2026-04-22 Collection UX update
+
+- Public collections support ordered queue playback: collection play starts
+  approved tracks in staff-defined order and advances automatically.
+- The global player is now a compact bottom player while keeping the single
+  shared `<audio>` element outside route-local screens.
+- Staff collection management supports searchable approved-track add instead
+  of a static all-track select.
+- Staff can upload collection covers through
+  `POST /api/v1/admin/collections/{id}/cover`; public covers are served through
+  `GET /api/v1/collections/{id}/cover`.

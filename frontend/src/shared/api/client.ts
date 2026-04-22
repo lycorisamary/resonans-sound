@@ -287,6 +287,14 @@ class ApiClient {
     return response.data;
   }
 
+  async uploadCollectionCover(id: number, file: File): Promise<Collection> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post<Collection>(`/admin/collections/${id}/cover`, formData, uploadRequestConfig);
+    return response.data;
+  }
+
   async deleteCollection(id: number): Promise<void> {
     await this.client.delete(`/admin/collections/${id}`);
   }
