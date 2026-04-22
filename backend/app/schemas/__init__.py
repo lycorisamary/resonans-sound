@@ -1,7 +1,8 @@
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-from typing import Optional, List
+from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
+from urllib.parse import urlparse
 
 
 # Enums for schemas
@@ -73,8 +74,10 @@ class TokenData(BaseModel):
 class UserBase(BaseModel):
     email: EmailStr
     username: str
+    display_name: Optional[str] = None
     bio: Optional[str] = None
     avatar_url: Optional[str] = None
+    banner_image_url: Optional[str] = None
 
 
 class UserResponse(UserBase):
@@ -92,11 +95,102 @@ class UserPublic(BaseModel):
 
     id: int
     username: str
+    display_name: Optional[str] = None
     avatar_url: Optional[str] = None
+    banner_image_url: Optional[str] = None
     bio: Optional[str] = None
     track_count: Optional[int] = 0
     follower_count: Optional[int] = 0
     following_count: Optional[int] = 0
+
+
+SOCIAL_LINK_KEYS = {"instagram", "telegram", "vk", "youtube", "tiktok", "x", "website"}
+STREAMING_LINK_KEYS = {"soundcloud", "spotify", "apple_music", "youtube_music", "bandcamp", "yandex_music", "vk_music"}
+
+
+def _clean_optional_text(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _validate_profile_links(value: Optional[Dict[str, str]], allowed_keys: set[str], field_name: str) -> Optional[Dict[str, str]]:
+    if value is None:
+        return None
+
+    cleaned: Dict[str, str] = {}
+    for key, raw_url in value.items():
+        normalized_key = key.strip().lower()
+        if normalized_key not in allowed_keys:
+            raise ValueError(f"Unsupported {field_name} key: {key}")
+
+        url = raw_url.strip()
+        parsed = urlparse(url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError(f"{field_name} values must be absolute http(s) URLs")
+        cleaned[normalized_key] = url
+
+    return cleaned
+
+
+class ArtistProfileUpdate(BaseModel):
+    display_name: Optional[str] = Field(None, max_length=120)
+    bio: Optional[str] = Field(None, max_length=2000)
+    location: Optional[str] = Field(None, max_length=120)
+    profile_genres: Optional[List[str]] = Field(None, max_length=12)
+    social_links: Optional[Dict[str, str]] = None
+    streaming_links: Optional[Dict[str, str]] = None
+
+    @field_validator("display_name", "bio", "location")
+    @classmethod
+    def clean_profile_text(cls, value):
+        return _clean_optional_text(value)
+
+    @field_validator("profile_genres")
+    @classmethod
+    def clean_profile_genres(cls, value):
+        if value is None:
+            return None
+        cleaned = []
+        for item in value:
+            genre = item.strip()
+            if not genre:
+                continue
+            if len(genre) > 60:
+                raise ValueError("Profile genre is too long")
+            if genre.lower() not in {existing.lower() for existing in cleaned}:
+                cleaned.append(genre)
+        return cleaned
+
+    @field_validator("social_links")
+    @classmethod
+    def validate_social_links(cls, value):
+        return _validate_profile_links(value, SOCIAL_LINK_KEYS, "social_links")
+
+    @field_validator("streaming_links")
+    @classmethod
+    def validate_streaming_links(cls, value):
+        return _validate_profile_links(value, STREAMING_LINK_KEYS, "streaming_links")
+
+
+class ArtistProfileResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
+    display_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+    banner_image_url: Optional[str] = None
+    bio: Optional[str] = None
+    location: Optional[str] = None
+    profile_genres: List[str] = Field(default_factory=list)
+    social_links: Dict[str, str] = Field(default_factory=dict)
+    streaming_links: Dict[str, str] = Field(default_factory=dict)
+    track_count: int = 0
+    play_count: int = 0
+    like_count: int = 0
+    created_at: datetime
 
 
 # Active category schemas

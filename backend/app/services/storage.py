@@ -14,6 +14,7 @@ from app.core.config import settings
 
 TRACKS_STORAGE_PREFIX = "tracks"
 COLLECTIONS_STORAGE_PREFIX = "collections"
+PROFILES_STORAGE_PREFIX = "profiles"
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,11 @@ def build_cover_object_key(user_id: int, track_id: int, filename: str | None) ->
 def build_collection_cover_object_key(collection_id: int, filename: str | None) -> str:
     extension = Path(filename or "cover.bin").suffix.lower() or ".bin"
     return f"{COLLECTIONS_STORAGE_PREFIX}/{collection_id}/cover/{uuid4().hex}{extension}"
+
+
+def build_profile_image_object_key(user_id: int, image_kind: str, filename: str | None) -> str:
+    extension = Path(filename or "profile.bin").suffix.lower() or ".bin"
+    return f"{PROFILES_STORAGE_PREFIX}/{user_id}/{image_kind}/{uuid4().hex}{extension}"
 
 
 def upload_file(file_path: str, object_key: str, content_type: str | None = None) -> StoredObject:

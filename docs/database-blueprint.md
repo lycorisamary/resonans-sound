@@ -17,6 +17,10 @@ The current implementation still centers the MVP around a few core tables:
 - `admin_logs`
 - `api_tokens`
 
+Artist profile data lives on `users` for the current MVP. This keeps artist
+identity aligned with auth identity while the product does not yet have
+separate band/team accounts.
+
 The existing physical `playlists` and `playlist_tracks` tables are now active as
 staff-managed collections. They are not user playlists: only staff roles manage
 them, and public reads expose only published collections with approved tracks.
@@ -96,6 +100,8 @@ The current schema already covers the active MVP slice:
 - owner/private preview playback
 - likes
 - staff-managed collections
+- public artist profiles with profile images, profile links, and approved-track
+  artist pages
 
 That is why the project still does not need a separate normalized media-assets
 subsystem for the current stage.
@@ -225,6 +231,8 @@ This is enough for the current moderation history block in the frontend.
 - owners may not republish `hidden` tracks by replacing media; only staff can restore them
 - moderators/admins may still exercise extended delete rights
 - owner/private playback must not depend on exposing MinIO object keys
+- artist avatar/banner delivery must use backend URLs and must not expose MinIO
+  object keys
 - listen-threshold play counters must not store raw guest IP/user-agent values
 - `hidden` and non-approved tracks must not increment `tracks.play_count`
 - public collections must not expose non-approved tracks

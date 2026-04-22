@@ -57,6 +57,10 @@ explicitly changes direction.
 - Upload validation checks extension, server-side file signatures, size, and
   track state before writing to MinIO
 - Users have a separate liked-tracks view
+- Public artist profiles are active runtime: guests can browse `/artists`, open
+  `/artists/:username`, and see only approved tracks for active users
+- Authenticated users can edit their own artist profile text fields and upload
+  profile avatar/banner images through backend-owned MinIO delivery URLs
 - Staff-managed collections are active runtime: guests can view public
   collections, while only `admin` and `moderator` can create, publish,
   unpublish, delete, add approved tracks, remove tracks, reorder them, and
@@ -73,6 +77,9 @@ explicitly changes direction.
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
 - Collection covers are stored in MinIO with explicit `playlists`
   storage metadata and served through `/api/v1/collections/{id}/cover`
+- Artist avatar/banner objects are stored in MinIO under `profiles/...`; public
+  clients receive `/api/v1/artists/{username}/avatar` and
+  `/api/v1/artists/{username}/banner`, never object keys
 - Active ORM models are split by context under `backend/app/models/`
 - Existing physical `playlists` / `playlist_tracks` tables are now active as
   staff-managed `Collection` / `CollectionTrack` runtime models; they are not
@@ -99,7 +106,8 @@ explicitly changes direction.
   production CORS must not include wildcard or localhost origins
 - Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
 - Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
-  `/tracks/:id`, `/collections`, `/collections/:id`, and `/admin`
+  `/tracks/:id`, `/artists`, `/artists/:username`, `/collections`,
+  `/collections/:id`, and `/admin`
 - Frontend shared state uses Zustand; Redux is not part of the active runtime
 - Frontend API client lives in `shared/api/` and is typed against the active
   backend API

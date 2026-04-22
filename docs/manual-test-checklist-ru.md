@@ -89,6 +89,15 @@ Additional staff-control checks:
 - staff hide/restore работает
 - staff-managed collections работают
 
+## 6.1 Artist profile smoke
+
+- Open `/artists` as a guest and verify active artists load.
+- Open `/artists/<username>` and verify the page shows profile data and only approved tracks.
+- From a public track card, click the artist link and verify it opens `/artists/<username>`.
+- Log in, open `/me`, edit display name, location, genres, bio, social links, and streaming links.
+- Upload avatar and banner images; verify public `/artists/<username>/avatar` and `/artists/<username>/banner` return images.
+- Hide one of the artist's tracks as staff and verify it disappears from the public artist page.
+
 ## 7. Operations hardening smoke
 
 - Проверить, что `curl -i https://resonance-sound.ru/api/v1/health` возвращает

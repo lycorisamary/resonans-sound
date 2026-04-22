@@ -3,6 +3,9 @@ import axios, { AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import {
   AdminSystemStats,
   AdminTrackListParams,
+  ArtistListParams,
+  ArtistProfile,
+  ArtistProfilePayload,
   AuthTokens,
   Category,
   Collection,
@@ -143,6 +146,45 @@ class ApiClient {
 
   async getCurrentUser(): Promise<User> {
     const response = await this.client.get<User>('/users/me');
+    return response.data;
+  }
+
+  async updateMyArtistProfile(data: ArtistProfilePayload): Promise<ArtistProfile> {
+    const response = await this.client.put<ArtistProfile, { data: ArtistProfile }, ArtistProfilePayload>(
+      '/users/me/profile',
+      data
+    );
+    return response.data;
+  }
+
+  async uploadMyArtistAvatar(file: File): Promise<ArtistProfile> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post<ArtistProfile>('/users/me/avatar', formData, uploadRequestConfig);
+    return response.data;
+  }
+
+  async uploadMyArtistBanner(file: File): Promise<ArtistProfile> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await this.client.post<ArtistProfile>('/users/me/banner', formData, uploadRequestConfig);
+    return response.data;
+  }
+
+  async getArtists(params?: ArtistListParams): Promise<PaginatedResponse<ArtistProfile>> {
+    const response = await this.client.get<PaginatedResponse<ArtistProfile>>('/artists', { params });
+    return response.data;
+  }
+
+  async getArtist(username: string): Promise<ArtistProfile> {
+    const response = await this.client.get<ArtistProfile>(`/artists/${encodeURIComponent(username)}`);
+    return response.data;
+  }
+
+  async getArtistTracks(username: string, params?: Pick<TrackListParams, 'page' | 'size' | 'sort'>): Promise<PaginatedResponse<Track>> {
+    const response = await this.client.get<PaginatedResponse<Track>>(`/artists/${encodeURIComponent(username)}/tracks`, { params });
     return response.data;
   }
 

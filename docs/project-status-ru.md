@@ -158,7 +158,7 @@
 - Staff can move a track to `hidden`, restore a ready media track to `approved`, or delete it.
 - `hidden` tracks are absent from the public catalog and public stream surface.
 - Owners still see hidden tracks in their own library, but cannot republish them by replacing audio or cover files.
-- artist profile / artist view
+- stronger artist discovery beyond the first public profile implementation
 - расширить frontend tests за пределы первичных smoke-тестов
 - backup strategy для Postgres и MinIO
 - rate limiting для upload/stream
@@ -175,7 +175,7 @@
 
 - фильтры по тегам, BPM и key
 - более сильные карточки треков
-- artist profile view
+- deeper artist discovery filters, if needed after public profile usage
 - расширение витрины подборок, если потребуется
 
 ### Этап 3. Social layer
@@ -201,3 +201,15 @@
 - Staff can upload collection covers through
   `POST /api/v1/admin/collections/{id}/cover`; public covers are served through
   `GET /api/v1/collections/{id}/cover`.
+
+## 2026-04-22 Artist profile update
+
+- Public artist profiles are active through `/artists` and
+  `/artists/{username}`.
+- Artist pages expose only approved tracks for active users; hidden/deleted and
+  non-approved tracks stay out of public artist surfaces.
+- Authenticated users can edit display name, location, genres, bio, social
+  links, and streaming links from `/me`.
+- Artist avatar/banner uploads go through backend endpoints and MinIO storage
+  under `profiles/...`; public clients receive only backend image URLs.
+- Track cards now link artists to `/artists/{username}`.

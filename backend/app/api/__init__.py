@@ -1,3 +1,3 @@
-from app.api import admin, auth, categories, collections, interactions, tracks, users
+from app.api import admin, artists, auth, categories, collections, interactions, tracks, users
 
-__all__ = ["admin", "auth", "categories", "collections", "interactions", "tracks", "users"]
+__all__ = ["admin", "artists", "auth", "categories", "collections", "interactions", "tracks", "users"]

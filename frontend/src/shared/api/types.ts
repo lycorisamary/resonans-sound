@@ -16,9 +16,11 @@ export interface User {
   id: number;
   email: string;
   username: string;
+  display_name?: string | null;
   role: UserRole;
   status: UserStatus;
   avatar_url?: string | null;
+  banner_image_url?: string | null;
   bio?: string | null;
   created_at: string;
   email_verified: boolean;
@@ -27,11 +29,45 @@ export interface User {
 export interface UserPublic {
   id: number;
   username: string;
+  display_name?: string | null;
   avatar_url?: string | null;
+  banner_image_url?: string | null;
   bio?: string | null;
   track_count?: number;
   follower_count?: number;
   following_count?: number;
+}
+
+export interface ArtistProfile {
+  id: number;
+  username: string;
+  display_name?: string | null;
+  avatar_url?: string | null;
+  banner_image_url?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  profile_genres: string[];
+  social_links: Record<string, string>;
+  streaming_links: Record<string, string>;
+  track_count: number;
+  play_count: number;
+  like_count: number;
+  created_at: string;
+}
+
+export interface ArtistProfilePayload {
+  display_name?: string | null;
+  bio?: string | null;
+  location?: string | null;
+  profile_genres?: string[] | null;
+  social_links?: Record<string, string> | null;
+  streaming_links?: Record<string, string> | null;
+}
+
+export interface ArtistListParams {
+  search?: string;
+  page?: number;
+  size?: number;
 }
 
 export interface Category {

@@ -8,6 +8,7 @@ import {
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
+import { Link as RouterLink } from 'react-router-dom';
 
 import {
   canUploadTrackMedia,
@@ -96,9 +97,22 @@ export function TrackCard({
                   <Typography variant="h6" sx={{ lineHeight: 1.05 }}>
                     {track.title}
                   </Typography>
-                  <Typography color="text.secondary">
-                    {track.user?.username ?? 'Unknown artist'} • {track.category?.name ?? 'Без категории'}
-                  </Typography>
+                  <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+                    {track.user?.username ? (
+                      <Typography
+                        component={RouterLink}
+                        to={`/artists/${track.user.username}`}
+                        color="text.secondary"
+                        sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                      >
+                        {track.user.display_name || track.user.username}
+                      </Typography>
+                    ) : (
+                      <Typography color="text.secondary">Unknown artist</Typography>
+                    )}
+                    <Typography color="text.secondary">•</Typography>
+                    <Typography color="text.secondary">{track.category?.name ?? 'Без категории'}</Typography>
+                  </Stack>
                 </Box>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
                   <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />

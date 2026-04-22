@@ -2,6 +2,9 @@ import { Alert, Box, Button, Chip, CircularProgress, Container, Divider, Paper, 
 import { BrowserRouter, Link as RouterLink, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AdminPanel } from '@/features/admin/AdminPanel';
+import { ArtistDetailPage } from '@/features/artists/ArtistDetailPage';
+import { ArtistProfileEditor } from '@/features/artists/ArtistProfileEditor';
+import { ArtistsPanel } from '@/features/artists/ArtistsPanel';
 import { AuthPanel } from '@/features/auth/AuthPanel';
 import { CatalogPanel } from '@/features/catalog/CatalogPanel';
 import { CollectionDetailPage } from '@/features/collections/CollectionDetailPage';
@@ -69,6 +72,8 @@ function AppRoutes() {
               }
             />
             <Route path="/collections" element={<CollectionsPanel player={player} />} />
+            <Route path="/artists" element={<ArtistsPanel />} />
+            <Route path="/artists/:username" element={<ArtistDetailPage auth={auth} player={player} trackActions={trackActions} />} />
             <Route
               path="/collections/:id"
               element={<CollectionDetailPage auth={auth} player={player} trackActions={trackActions} />}
@@ -100,6 +105,7 @@ function AppRoutes() {
                     publicTracksCount={catalog.publicTracks.length}
                     onLogout={logout}
                   />
+                  <ArtistProfileEditor username={auth.user?.username ?? null} />
                   <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
                 </Stack>
               }
@@ -125,6 +131,7 @@ function Hero({ auth, catalog }: HeroProps) {
   const navItems = [
     { label: 'Каталог', to: '/' },
     { label: 'Collections', to: '/collections' },
+    { label: 'Artists', to: '/artists' },
     { label: 'Вход', to: '/login' },
     { label: 'Studio', to: '/studio' },
     { label: 'Профиль', to: '/me' },

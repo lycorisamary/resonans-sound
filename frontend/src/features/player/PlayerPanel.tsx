@@ -52,7 +52,7 @@ export function PlayerPanel({ player }: PlayerPanelProps) {
               />
             </Stack>
             <Typography variant="body2" color="text.secondary" noWrap>
-              {track ? `${track.user?.username ?? 'Unknown artist'} · ${formatTime(player.playerCurrentTime)} / ${formatTime(player.playerDuration || (track.duration_seconds ?? 0))}` : 'Playback stays active across pages.'}
+              {track ? `${track.user?.display_name || track.user?.username || 'Unknown artist'} · ${formatTime(player.playerCurrentTime)} / ${formatTime(player.playerDuration || (track.duration_seconds ?? 0))}` : 'Playback stays active across pages.'}
             </Typography>
           </Box>
 

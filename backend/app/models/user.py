@@ -1,6 +1,6 @@
 from enum import Enum as PyEnum
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, Integer, String, Text
+from sqlalchemy import ARRAY, JSON, Boolean, Column, DateTime, Enum, Integer, String, Text
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
@@ -26,9 +26,19 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     username = Column(String(100), unique=True, nullable=False, index=True)
+    display_name = Column(String(120))
     role = Column(Enum(UserRole, name="user_role"), default=UserRole.user)
     avatar_url = Column(Text)
+    avatar_storage_key = Column(Text)
+    avatar_content_type = Column(String(100))
+    banner_image_url = Column(Text)
+    banner_storage_key = Column(Text)
+    banner_content_type = Column(String(100))
     bio = Column(Text)
+    location = Column(String(120))
+    profile_genres = Column(ARRAY(String))
+    social_links = Column(JSON)
+    streaming_links = Column(JSON)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     last_login = Column(DateTime(timezone=True))

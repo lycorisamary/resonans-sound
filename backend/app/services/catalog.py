@@ -16,7 +16,9 @@ def serialize_user_public(user: Any | None) -> UserPublic | None:
         {
             "id": user.id,
             "username": user.username,
+            "display_name": getattr(user, "display_name", None),
             "avatar_url": user.avatar_url,
+            "banner_image_url": getattr(user, "banner_image_url", None),
             "bio": user.bio,
             "track_count": 0,
             "follower_count": 0,
