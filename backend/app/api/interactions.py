@@ -1,14 +1,40 @@
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query, Request
 from sqlalchemy.orm import Session
 
-from app.core.security import get_current_user
+from app.core.config import settings
+from app.core.security import get_current_user, get_optional_current_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import LikeToggleResponse, PaginatedResponse, TrackLikeListResponse
+from app.schemas import (
+    LikeToggleResponse,
+    PaginatedResponse,
+    TrackLikeListResponse,
+    TrackPlayCreate,
+    TrackPlayResponse,
+)
 from app.services.interactions import get_liked_track_ids, get_liked_tracks_page, like_track, unlike_track
+from app.services.play_events import record_track_play
+from app.services.rate_limit import RateLimit, enforce_rate_limit, user_or_ip_subject
 
 
 router = APIRouter()
+
+
+@router.post("/play", response_model=TrackPlayResponse)
+def record_play_endpoint(
+    payload: TrackPlayCreate,
+    request: Request,
+    current_user: User | None = Depends(get_optional_current_user),
+    db: Session = Depends(get_db),
+) -> TrackPlayResponse:
+    """Record a listen-threshold play event for a published track."""
+    enforce_rate_limit(
+        request=request,
+        scope="track_play_event",
+        subject=user_or_ip_subject(request, current_user.id if current_user else None),
+        limit=RateLimit(settings.PLAY_EVENT_RATE_LIMIT_PER_MINUTE, 60),
+    )
+    return record_track_play(db=db, track_id=payload.track_id, request=request, current_user=current_user)
 
 
 @router.get("/likes/mine", response_model=TrackLikeListResponse)

@@ -21,6 +21,7 @@ The current flow covers:
 - Celery audio processing
 - waveform generation
 - automatic publication after successful processing
+- listen-threshold play counters after public playback
 
 ## End-to-End Lifecycle
 
@@ -37,6 +38,10 @@ The current flow covers:
 10. Worker writes derived files back to MinIO.
 11. On success the track becomes `approved` automatically.
 12. The published track appears in the shared catalog and is playable through the public player flow.
+13. The frontend reports a play after the earlier of 30 seconds or 50% of the
+    track duration.
+14. The backend deduplicates the listener/track pair for 6 hours before
+    incrementing `tracks.play_count`.
 
 ## Current API Contract
 
@@ -56,6 +61,7 @@ The current flow covers:
   - `approved`
 - disallowed source states:
   - `processing`
+  - `hidden`
   - `deleted`
 - source files must pass server-side signature sniffing:
   - MP3: ID3 header or MPEG frame sync
@@ -75,7 +81,7 @@ The current flow covers:
   - JPEG
   - PNG
   - WebP
-- cover uploads are rejected for deleted tracks
+- cover uploads are rejected for hidden or deleted tracks
 - current default rate limit:
   - `30/hour` per user
 
@@ -93,6 +99,19 @@ The current flow covers:
 - current default rate limit:
   - `60/minute` per user or client IP
 
+### `POST /api/v1/interactions/play`
+
+- request: JSON `{ "track_id": number }`
+- available to guests and authenticated users
+- only counts `approved` tracks
+- current default rate limit:
+  - `120/minute` per user or client IP
+- backend stores a salted listener hash, not raw guest IP/user-agent values
+- response includes:
+  - `counted`
+  - current `play_count`
+  - `dedupe_window_seconds`
+
 ### `GET /api/v1/tracks/{id}/cover`
 
 - returns cover image bytes
@@ -108,6 +127,8 @@ The current flow covers:
   - track is processed and published
 - `rejected`
   - processing failed
+- `hidden`
+  - staff has removed the track from public surfaces without deleting it
 - `deleted`
   - soft-delete
 
@@ -158,3 +179,5 @@ The current logical document may include:
 - staff hide during or after processing:
   track stays `hidden`, is not public, and the worker must not auto-promote it
   back to `approved`
+- play counter reporting failure:
+  playback continues; analytics/reporting errors do not break the audio player

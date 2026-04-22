@@ -6,6 +6,28 @@ import { StreamQuality, Track } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
 import { useCatalogStore, usePlayerStore } from '@/shared/store/appStore';
 
+const PLAY_REPORT_SECONDS = 30;
+const PLAY_REPORT_RATIO = 0.5;
+
+export function getPlayReportThreshold(durationSeconds: number): number {
+  return Math.min(PLAY_REPORT_SECONDS, durationSeconds * PLAY_REPORT_RATIO);
+}
+
+function applyTrackPlayCount(trackId: number, playCount: number) {
+  const catalogState = useCatalogStore.getState();
+  const updateTracks = (tracks: Track[]) =>
+    tracks.map((track) => (track.id === trackId ? { ...track, play_count: playCount } : track));
+
+  catalogState.setPublicTracks(updateTracks(catalogState.publicTracks));
+  catalogState.setMyTracks(updateTracks(catalogState.myTracks));
+  catalogState.setLikedTracks(updateTracks(catalogState.likedTracks));
+
+  const playerState = usePlayerStore.getState();
+  if (playerState.activeTrack?.id === trackId) {
+    playerState.setActiveTrack({ ...playerState.activeTrack, play_count: playCount });
+  }
+}
+
 export function useAudioPlayer() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const activeTrack = usePlayerStore((state) => state.activeTrack);
@@ -58,7 +80,46 @@ export function useAudioPlayer() {
       setPlayerDuration(Number.isFinite(audio.duration) ? audio.duration : 0);
       setPlayerLoading(false);
     };
-    const onTimeUpdate = () => setPlayerCurrentTime(audio.currentTime || 0);
+    const maybeReportTrackPlay = async () => {
+      const trackId = Number(audio.dataset.trackId ?? '0');
+      if (
+        trackId <= 0 ||
+        audio.dataset.playReportEligible !== 'true' ||
+        audio.dataset.playReported === 'true' ||
+        audio.dataset.playReportPending === 'true'
+      ) {
+        return;
+      }
+
+      const mediaDuration = Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : Number(audio.dataset.trackDurationSeconds ?? '0');
+      if (!Number.isFinite(mediaDuration) || mediaDuration <= 0) {
+        return;
+      }
+
+      if ((audio.currentTime || 0) < getPlayReportThreshold(mediaDuration)) {
+        return;
+      }
+
+      audio.dataset.playReportPending = 'true';
+      try {
+        const response = await api.reportTrackPlay(trackId);
+        if (response.counted) {
+          applyTrackPlayCount(trackId, response.play_count);
+        }
+      } catch {
+        // Playback should never fail because analytics/reporting failed.
+      } finally {
+        audio.dataset.playReported = 'true';
+        delete audio.dataset.playReportPending;
+      }
+    };
+
+    const onTimeUpdate = () => {
+      setPlayerCurrentTime(audio.currentTime || 0);
+      void maybeReportTrackPlay();
+    };
     const onPlay = () => {
       setIsPlaying(true);
       setPlayerLoading(false);
@@ -131,6 +192,10 @@ export function useAudioPlayer() {
     delete audio.dataset.streamQuality;
     delete audio.dataset.publicQualityCandidates;
     delete audio.dataset.publicQualityIndex;
+    delete audio.dataset.trackDurationSeconds;
+    delete audio.dataset.playReportEligible;
+    delete audio.dataset.playReported;
+    delete audio.dataset.playReportPending;
     audio.load();
     setPlayerCurrentTime(0);
     setPlayerDuration(0);
@@ -205,6 +270,10 @@ export function useAudioPlayer() {
         audio.dataset.streamUrl = streamUrl;
         audio.dataset.trackId = String(track.id);
         audio.dataset.streamQuality = resolvedQuality;
+        audio.dataset.trackDurationSeconds = String(track.duration_seconds ?? 0);
+        audio.dataset.playReportEligible = track.status === 'approved' ? 'true' : 'false';
+        audio.dataset.playReported = 'false';
+        delete audio.dataset.playReportPending;
         audio.load();
         setPlayerCurrentTime(0);
         setPlayerDuration(track.duration_seconds ?? 0);

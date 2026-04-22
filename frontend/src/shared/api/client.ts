@@ -17,6 +17,7 @@ import {
   TrackListParams,
   TrackModerationPayload,
   TrackMetadataPayload,
+  TrackPlayResponse,
   User,
 } from './types';
 
@@ -225,6 +226,14 @@ class ApiClient {
 
   async getMyLikedTracks(params?: Pick<TrackListParams, 'page' | 'size'>): Promise<PaginatedResponse<Track>> {
     const response = await this.client.get<PaginatedResponse<Track>>('/interactions/likes/mine/tracks', { params });
+    return response.data;
+  }
+
+  async reportTrackPlay(trackId: number): Promise<TrackPlayResponse> {
+    const response = await this.client.post<TrackPlayResponse, { data: TrackPlayResponse }, { track_id: number }>(
+      '/interactions/play',
+      { track_id: trackId }
+    );
     return response.data;
   }
 

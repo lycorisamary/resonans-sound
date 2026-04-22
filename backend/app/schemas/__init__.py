@@ -197,6 +197,17 @@ class TrackLikeListResponse(BaseModel):
     track_ids: List[int]
 
 
+class TrackPlayCreate(BaseModel):
+    track_id: int = Field(..., gt=0)
+
+
+class TrackPlayResponse(BaseModel):
+    track_id: int
+    counted: bool
+    play_count: int
+    dedupe_window_seconds: int
+
+
 # Admin Schemas
 class AdminLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

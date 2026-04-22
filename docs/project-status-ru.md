@@ -70,6 +70,10 @@
 - `GET /api/v1/tracks` поддерживает `search`
 - `GET /api/v1/tracks` поддерживает `sort=newest|popular|title`
 - category filter работает
+- play counters работают после реального listen-threshold:
+  `min(30 секунд, 50% длительности)`
+- `POST /api/v1/interactions/play`
+- `sort=popular` опирается на активно обновляемый `tracks.play_count`
 - лайки:
   - `GET /api/v1/interactions/likes/mine`
   - `GET /api/v1/interactions/likes/mine/tracks`
@@ -101,6 +105,8 @@
   - media успешно обработано и трек опубликован
 - `rejected`
   - processing завершился ошибкой
+- `hidden`
+  - staff скрыл трек из публичных поверхностей без удаления
 - `deleted`
   - soft-delete
 
@@ -129,13 +135,13 @@
 - audio upload flow
 - cover upload flow
 - playback
+- play counters после listen-threshold
 - базовый discovery
 - лайки как первый social loop
 - разграничение прав на удаление
 
 ## 6. Что ещё остаётся до более цельного MVP
 
-- play counters при реальном прослушивании
 - download rules
 - playlists
 - comments
@@ -156,7 +162,7 @@
 
 ### Этап 1. Player и media polish
 
-- play counters только при реальном listen-threshold
+- донастроить мониторинг/дашборды play counters, если потребуется
 - download rules для `is_downloadable`
 - более сильный mobile/player UX
 

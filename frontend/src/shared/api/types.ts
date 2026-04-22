@@ -157,6 +157,13 @@ export interface TrackLikeListResponse {
   track_ids: number[];
 }
 
+export interface TrackPlayResponse {
+  track_id: number;
+  counted: boolean;
+  play_count: number;
+  dedupe_window_seconds: number;
+}
+
 export interface AdminSystemStats {
   total_users: number;
   total_tracks: number;

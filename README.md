@@ -18,6 +18,7 @@ Implemented in `main` right now:
 - waveform generation
 - automatic publication after successful processing
 - public playback and owner preview where needed
+- play counters after a real listen threshold with guest/auth dedupe
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
 - staff post-publication controls for hiding, restoring, and deleting tracks
@@ -32,7 +33,7 @@ Implemented in `main` right now:
 - server-side upload signature sniffing for audio and cover files
 - stable backend error payloads with `code`, `message`, and `request_id`
 - request id propagation from API upload requests into Celery processing tasks
-- Prometheus metrics for auth failures, rate limit hits, upload events, processing outcomes/latency, and stream errors
+- Prometheus metrics for auth failures, rate limit hits, upload events, processing outcomes/latency, stream errors, and play-event outcomes
 - provisioned Grafana overview dashboard available through a localhost SSH tunnel
 - backend/frontend security headers and production CORS guardrails
 - fail-fast runtime config validation for required secrets and production safety
@@ -77,6 +78,7 @@ Currently active routes in `main`:
 - `DELETE /api/v1/tracks/{id}`
 - `GET /api/v1/interactions/likes/mine`
 - `GET /api/v1/interactions/likes/mine/tracks`
+- `POST /api/v1/interactions/play`
 - `POST /api/v1/interactions/like`
 - `DELETE /api/v1/interactions/like`
 - `GET /api/v1/admin/stats`
@@ -165,6 +167,7 @@ Current active model files:
 - `backend/app/models/user.py`
 - `backend/app/models/category.py`
 - `backend/app/models/track.py`
+- `backend/app/models/track_play.py`
 - `backend/app/models/interaction.py`
 - `backend/app/models/admin.py`
 - `backend/app/models/token.py`
@@ -177,6 +180,11 @@ The active track status set now includes `hidden`. Hidden tracks are a
 post-publication staff control, not a premoderation step: they disappear from
 the public catalog and public stream surface, remain visible to staff review,
 and cannot be republished by the owner through a media replacement.
+
+Play counters are active through `track_play_events`. The frontend reports a
+play after the earlier of 30 seconds or 50% of the track duration, and the
+backend deduplicates one listener per track for 6 hours before incrementing the
+denormalized `tracks.play_count`.
 
 ## Production Update Flow
 
@@ -195,7 +203,6 @@ curl https://resonance-sound.ru/api/v1/health
 
 ## What Is Still Missing Before A Fuller MVP
 
-- play counters on real listen thresholds
 - download rules for original/derived assets
 - richer library/discovery views
 - playlists and comments

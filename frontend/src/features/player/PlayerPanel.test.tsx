@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
+import { getPlayReportThreshold, UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import { renderWithTheme } from '@/test/render';
 import { PlayerPanel } from './PlayerPanel';
 
@@ -26,5 +26,10 @@ describe('PlayerPanel', () => {
     expect(markup).toContain('Единый player flow');
     expect(markup).toContain('Выберите трек из каталога');
     expect(markup).toContain('Quality 320');
+  });
+
+  it('uses the earlier listen-threshold between thirty seconds and half duration', () => {
+    expect(getPlayReportThreshold(120)).toBe(30);
+    expect(getPlayReportThreshold(20)).toBe(10);
   });
 });

@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     COVER_UPLOAD_RATE_LIMIT_PER_HOUR: int = 30
     STREAM_URL_RATE_LIMIT_PER_MINUTE: int = 60
     STREAM_RATE_LIMIT_PER_MINUTE: int = 300
+    PLAY_EVENT_RATE_LIMIT_PER_MINUTE: int = 120
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

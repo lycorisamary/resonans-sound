@@ -49,6 +49,8 @@ explicitly changes direction.
 - Staff post-publication control is active: `admin` and `moderator` can hide,
   restore, and delete tracks without adding a premoderation gate
 - All published tracks are visible in the shared catalog
+- Published track play counters increment only after a real listen threshold:
+  30 seconds or 50% of duration, whichever is earlier
 - Owners can delete their own tracks
 - `admin` and `moderator` roles can delete any track
 - Track covers are uploaded separately and stored in MinIO
@@ -69,6 +71,9 @@ explicitly changes direction.
 - `hidden` tracks are staff-controlled: they are not public, owners cannot
   re-publish them by replacing media, and staff can inspect them through admin
   APIs
+- Play events are active runtime data in `track_play_events`; listener identity
+  is hashed, guest IP/user-agent values are not stored raw, and duplicate
+  listener/track plays are suppressed for 6 hours
 - New domain errors should use the stable `code` / `message` / `request_id`
   response contract
 - Critical auth, upload, stream-url, and stream routes are protected by
@@ -76,7 +81,7 @@ explicitly changes direction.
 - API responses include `X-Request-ID`; source upload passes that request id
   into Celery processing metadata/logs as a correlation id
 - Prometheus metrics cover HTTP traffic, auth failures, rate limit hits, upload
-  outcomes, processing outcomes/latency, and stream errors
+  outcomes, processing outcomes/latency, stream errors, and play-event outcomes
 - Grafana is intended to stay bound to server localhost and be viewed through an
   SSH tunnel, not exposed directly to the public internet
 - Backend and frontend responses should keep the current security headers and

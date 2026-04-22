@@ -47,3 +47,9 @@ TRACK_STREAM_ERRORS = Counter(
     "Track stream failures",
     ["route", "reason"],
 )
+
+TRACK_PLAY_EVENTS = Counter(
+    "track_play_events_total",
+    "Track play-event outcomes",
+    ["outcome"],
+)
