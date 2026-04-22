@@ -38,6 +38,7 @@ def _track_upload_response():
     return {
         "id": 7,
         "user_id": 42,
+        "artist_id": 4,
         "title": "Demo",
         "description": None,
         "genre": None,
@@ -58,6 +59,7 @@ def _track_upload_response():
         "cover_image_url": None,
         "waveform_data_json": None,
         "metadata": None,
+        "artist": None,
         "user": None,
         "category": None,
         "original_url": None,
