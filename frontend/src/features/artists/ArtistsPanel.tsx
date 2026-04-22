@@ -90,11 +90,11 @@ export function ArtistsPanel() {
                     <Stack spacing={1.5}>
                       <Stack direction="row" spacing={1.5} alignItems="center">
                         <Avatar src={artist.avatar_url ?? undefined} sx={{ bgcolor: '#0f766e' }}>
-                          {artist.display_name.slice(0, 1).toUpperCase()}
+                          {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
                         </Avatar>
                         <Box minWidth={0}>
                           <Typography variant="h6" noWrap>
-                            {artist.display_name}
+                            {artist.display_name || artist.slug}
                           </Typography>
                           <Typography color="text.secondary" noWrap>
                             /artists/{artist.slug}

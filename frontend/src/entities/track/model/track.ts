@@ -129,6 +129,7 @@ export const emptyTrack: Track = {
   id: 0,
   title: 'R',
   user_id: 0,
+  artist_id: 0,
   is_public: true,
   is_downloadable: false,
   license_type: 'all-rights-reserved',

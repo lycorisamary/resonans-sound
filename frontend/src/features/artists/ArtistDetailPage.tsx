@@ -78,10 +78,10 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
             <>
               <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ xs: 'flex-start', md: 'center' }}>
                 <Avatar src={artist.avatar_url ?? undefined} sx={{ width: 96, height: 96, bgcolor: '#0f766e', fontSize: 36 }}>
-                  {artist.display_name.slice(0, 1).toUpperCase()}
+                  {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
                 </Avatar>
                 <Box>
-                  <Typography variant="h3">{artist.display_name}</Typography>
+                  <Typography variant="h3">{artist.display_name || artist.slug}</Typography>
                   <Typography color="text.secondary">/artists/{artist.slug}</Typography>
                   {artist.location ? <Typography color="text.secondary">{artist.location}</Typography> : null}
                 </Box>
