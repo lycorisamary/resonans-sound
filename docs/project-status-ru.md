@@ -79,12 +79,16 @@
   - `GET /api/v1/interactions/likes/mine/tracks`
   - `POST /api/v1/interactions/like`
   - `DELETE /api/v1/interactions/like`
+- staff-managed подборки:
+  - `GET /api/v1/collections`
+  - `GET /api/v1/collections/{id}`
+  - staff CRUD and track ordering через `/api/v1/admin/collections`
 
 ### Frontend
 
 - `App.tsx` больше не монолит: он отвечает за layout и маршрутизацию
 - структура разнесена на `features/`, `entities/`, `shared/` и `hooks/`
-- React Router маршруты: `/`, `/login`, `/studio`, `/me`, `/tracks/:id`
+- React Router маршруты: `/`, `/login`, `/studio`, `/me`, `/tracks/:id`, `/collections`, `/collections/:id`, `/admin`
 - Zustand хранит auth/catalog/player/studio state
 - typed API client находится в `shared/api/`
 - единый player flow вынесен в `PlayerPanel` и `useAudioPlayer`
@@ -138,12 +142,13 @@
 - play counters после listen-threshold
 - базовый discovery
 - лайки как первый social loop
+- public staff-curated collections как первый витринный отбор
 - разграничение прав на удаление
 
 ## 6. Что ещё остаётся до более цельного MVP
 
 - download rules
-- playlists
+- user playlists
 - comments
 
 ### Staff-control without premoderation
@@ -171,10 +176,11 @@
 - фильтры по тегам, BPM и key
 - более сильные карточки треков
 - artist profile view
+- расширение витрины подборок, если потребуется
 
 ### Этап 3. Social layer
 
-- playlists
+- user playlists
 - comments
 
 ### Этап 4. Reliability

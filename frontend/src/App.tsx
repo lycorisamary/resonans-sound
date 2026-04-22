@@ -4,6 +4,8 @@ import { BrowserRouter, Link as RouterLink, Navigate, Route, Routes } from 'reac
 import { AdminPanel } from '@/features/admin/AdminPanel';
 import { AuthPanel } from '@/features/auth/AuthPanel';
 import { CatalogPanel } from '@/features/catalog/CatalogPanel';
+import { CollectionDetailPage } from '@/features/collections/CollectionDetailPage';
+import { CollectionsPanel } from '@/features/collections/CollectionsPanel';
 import { PlayerPanel } from '@/features/player/PlayerPanel';
 import { StudioForm } from '@/features/studio/StudioForm';
 import { TrackDetailPage } from '@/features/tracks/TrackDetailPage';
@@ -60,9 +62,15 @@ function AppRoutes() {
               element={
                 <Stack spacing={3}>
                   <StudioForm auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
+                  <CollectionsPanel player={player} />
                   <CatalogPanel auth={auth} catalog={catalog} player={player} trackActions={trackActions} />
                 </Stack>
               }
+            />
+            <Route path="/collections" element={<CollectionsPanel player={player} />} />
+            <Route
+              path="/collections/:id"
+              element={<CollectionDetailPage auth={auth} player={player} trackActions={trackActions} />}
             />
             <Route
               path="/login"
@@ -115,6 +123,7 @@ interface HeroProps {
 function Hero({ auth, catalog }: HeroProps) {
   const navItems = [
     { label: 'Каталог', to: '/' },
+    { label: 'Collections', to: '/collections' },
     { label: 'Вход', to: '/login' },
     { label: 'Studio', to: '/studio' },
     { label: 'Профиль', to: '/me' },

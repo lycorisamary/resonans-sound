@@ -18,7 +18,7 @@ from app.db.session import engine
 from app.exceptions import DomainError, RateLimitExceededError
 
 # Import currently active routers
-from app.api import admin, auth, categories, interactions, tracks, users
+from app.api import admin, auth, categories, collections, interactions, tracks, users
 
 
 configure_structured_logging()
@@ -241,6 +241,7 @@ async def metrics():
 # Include currently active routers
 app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Authentication"])
 app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories", tags=["Categories"])
+app.include_router(collections.router, prefix=f"{settings.API_PREFIX}/collections", tags=["Collections"])
 app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
 app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
@@ -260,6 +261,7 @@ async def root():
         "auth": "/api/v1/auth/login",
         "me": "/api/v1/users/me",
         "categories": "/api/v1/categories",
+        "collections": "/api/v1/collections",
         "category_detail_example": "/api/v1/categories/beats",
         "tracks": "/api/v1/tracks",
     }

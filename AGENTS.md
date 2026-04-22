@@ -57,6 +57,9 @@ explicitly changes direction.
 - Upload validation checks extension, server-side file signatures, size, and
   track state before writing to MinIO
 - Users have a separate liked-tracks view
+- Staff-managed collections are active runtime: guests can view public
+  collections, while only `admin` and `moderator` can create, publish,
+  unpublish, delete, add approved tracks, remove tracks, and reorder them
 
 ## Current Technical Notes
 
@@ -66,6 +69,9 @@ explicitly changes direction.
 - Media storage currently uses the `tracks` row as the main source of truth
 - Cover objects should be accessed through backend URLs, not direct MinIO keys
 - Active ORM models are split by context under `backend/app/models/`
+- Existing physical `playlists` / `playlist_tracks` tables are now active as
+  staff-managed `Collection` / `CollectionTrack` runtime models; they are not
+  user playlists or a general social playlist feature
 - Track access, streaming, deletion, and upload rules live in
   `backend/app/policies/`
 - `hidden` tracks are staff-controlled: they are not public, owners cannot
@@ -88,7 +94,7 @@ explicitly changes direction.
   production CORS must not include wildcard or localhost origins
 - Frontend is split into `features/`, `entities/`, `shared/`, and `hooks/`
 - Frontend routing uses React Router routes `/`, `/login`, `/studio`, `/me`,
-  `/tracks/:id`, and `/admin`
+  `/tracks/:id`, `/collections`, `/collections/:id`, and `/admin`
 - Frontend shared state uses Zustand; Redux is not part of the active runtime
 - Frontend API client lives in `shared/api/` and is typed against the active
   backend API

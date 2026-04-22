@@ -5,6 +5,10 @@ import {
   AdminTrackListParams,
   AuthTokens,
   Category,
+  Collection,
+  CollectionPayload,
+  CollectionReorderPayload,
+  CollectionTrackPayload,
   HealthResponse,
   LikeToggleResponse,
   LoginCredentials,
@@ -204,6 +208,16 @@ class ApiClient {
     return response.data;
   }
 
+  async getCollections(params?: Pick<TrackListParams, 'page' | 'size'>): Promise<PaginatedResponse<Collection>> {
+    const response = await this.client.get<PaginatedResponse<Collection>>('/collections', { params });
+    return response.data;
+  }
+
+  async getCollection(id: number): Promise<Collection> {
+    const response = await this.client.get<Collection>(`/collections/${id}`);
+    return response.data;
+  }
+
   async likeTrack(trackId: number): Promise<LikeToggleResponse> {
     const response = await this.client.post<LikeToggleResponse, { data: LikeToggleResponse }, { track_id: number }>(
       '/interactions/like',
@@ -251,6 +265,49 @@ class ApiClient {
     const response = await this.client.post<Track, { data: Track }, TrackModerationPayload>(
       `/admin/moderate/${trackId}`,
       data
+    );
+    return response.data;
+  }
+
+  async getAdminCollections(params?: { page?: number; size?: number; search?: string }): Promise<PaginatedResponse<Collection>> {
+    const response = await this.client.get<PaginatedResponse<Collection>>('/admin/collections', { params });
+    return response.data;
+  }
+
+  async createCollection(data: CollectionPayload): Promise<Collection> {
+    const response = await this.client.post<Collection, { data: Collection }, CollectionPayload>('/admin/collections', data);
+    return response.data;
+  }
+
+  async updateCollection(id: number, data: Partial<CollectionPayload>): Promise<Collection> {
+    const response = await this.client.put<Collection, { data: Collection }, Partial<CollectionPayload>>(
+      `/admin/collections/${id}`,
+      data
+    );
+    return response.data;
+  }
+
+  async deleteCollection(id: number): Promise<void> {
+    await this.client.delete(`/admin/collections/${id}`);
+  }
+
+  async addCollectionTrack(collectionId: number, trackId: number): Promise<Collection> {
+    const response = await this.client.post<Collection, { data: Collection }, CollectionTrackPayload>(
+      `/admin/collections/${collectionId}/tracks`,
+      { track_id: trackId }
+    );
+    return response.data;
+  }
+
+  async removeCollectionTrack(collectionId: number, trackId: number): Promise<Collection> {
+    const response = await this.client.delete<Collection>(`/admin/collections/${collectionId}/tracks/${trackId}`);
+    return response.data;
+  }
+
+  async reorderCollectionTracks(collectionId: number, trackIds: number[]): Promise<Collection> {
+    const response = await this.client.put<Collection, { data: Collection }, CollectionReorderPayload>(
+      `/admin/collections/${collectionId}/tracks/reorder`,
+      { track_ids: trackIds }
     );
     return response.data;
   }

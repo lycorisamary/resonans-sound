@@ -12,11 +12,14 @@ The current implementation still centers the MVP around a few core tables:
 - `tracks`
 - `track_play_events`
 - `interactions`
+- `playlists`
+- `playlist_tracks`
 - `admin_logs`
 - `api_tokens`
 
-Other tables such as `playlists` already exist in the schema, but they are not
-yet part of the active product flow.
+The existing physical `playlists` and `playlist_tracks` tables are now active as
+staff-managed collections. They are not user playlists: only staff roles manage
+them, and public reads expose only published collections with approved tracks.
 
 The active ORM runtime is split by context:
 
@@ -25,6 +28,7 @@ The active ORM runtime is split by context:
 - `app.models.track`
 - `app.models.track_play`
 - `app.models.interaction`
+- `app.models.collection`
 - `app.models.admin`
 - `app.models.token`
 
@@ -91,6 +95,7 @@ The current schema already covers the active MVP slice:
 - listen-threshold play counters
 - owner/private preview playback
 - likes
+- staff-managed collections
 
 That is why the project still does not need a separate normalized media-assets
 subsystem for the current stage.
@@ -173,7 +178,22 @@ Important details:
 - active likes are protected by a partial unique index on
   `(user_id, track_id)` where `type='like'` and `is_deleted=false`
 
-## 8. Current Moderation History In DB
+## 8. Current Collections In DB
+
+`playlists` and `playlist_tracks` are active as staff-managed collections.
+
+Runtime rules:
+
+- only `admin` and `moderator` create or change collections
+- public collection APIs return only `is_public=true` collections that still
+  contain at least one `approved` track
+- public collection track lists filter out `hidden`, `deleted`, `pending`,
+  `processing`, and `rejected` tracks
+- publishing an empty collection is rejected
+- duplicate track links are blocked by `uq_playlist_tracks_playlist_track`
+- `track_count` is maintained as a denormalized linked-track count for staff UI
+
+## 9. Current Moderation History In DB
 
 `admin_logs` is already used by the live moderation flow.
 
@@ -186,14 +206,14 @@ It currently stores:
 
 This is enough for the current moderation history block in the frontend.
 
-## 9. Data Ownership Rules
+## 10. Data Ownership Rules
 
 - PostgreSQL owns business truth
 - MinIO stores binary files only
 - Celery is execution infrastructure, not a system of record
 - signed stream URLs are derived access artifacts, not persistent track state
 
-## 10. Integrity Rules
+## 11. Integrity Rules
 
 - a track must not be playable publicly before `approved`
 - a `hidden` track must stay out of the public catalog and public stream surface
@@ -204,6 +224,8 @@ This is enough for the current moderation history block in the frontend.
 - owner/private playback must not depend on exposing MinIO object keys
 - listen-threshold play counters must not store raw guest IP/user-agent values
 - `hidden` and non-approved tracks must not increment `tracks.play_count`
+- public collections must not expose non-approved tracks
+- staff cannot publish a collection until it contains at least one approved track
 - duplicate follows are prevented at the database index level for the physical
   `follows` table, even though follow APIs are still outside the active runtime
 - common catalog, owner library, interaction, and token lookup paths have
@@ -219,8 +241,11 @@ Current compound indexes added after the baseline:
 - `ix_api_tokens_user_type_revoked`
 - `ix_track_play_events_track_listener_created`
 - `ix_track_play_events_user_created`
+- `uq_playlist_tracks_playlist_track`
+- `ix_playlist_tracks_playlist_order`
+- `ix_playlists_public_created_at`
 
-## 11. Deferred Normalization
+## 12. Deferred Normalization
 
 If the project grows beyond this MVP slice, the next normalized additions will
 likely be:

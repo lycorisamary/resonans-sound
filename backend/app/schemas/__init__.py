@@ -208,6 +208,69 @@ class TrackPlayResponse(BaseModel):
     dedupe_window_seconds: int
 
 
+# Collection Schemas
+class CollectionBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_public: bool = False
+
+    @field_validator("name")
+    @classmethod
+    def collection_name_not_blank(cls, value):
+        if not value.strip():
+            raise ValueError("Collection name must not be blank")
+        return value
+
+
+class CollectionCreate(CollectionBase):
+    pass
+
+
+class CollectionUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    description: Optional[str] = None
+    is_public: Optional[bool] = None
+
+    @field_validator("name")
+    @classmethod
+    def collection_update_name_not_blank(cls, value):
+        if value is not None and not value.strip():
+            raise ValueError("Collection name must not be blank")
+        return value
+
+
+class CollectionTrackAdd(BaseModel):
+    track_id: int = Field(..., gt=0)
+
+
+class CollectionTrackReorder(BaseModel):
+    track_ids: List[int] = Field(..., min_length=1)
+
+    @field_validator("track_ids")
+    @classmethod
+    def track_ids_must_be_unique(cls, value):
+        if len(value) != len(set(value)):
+            raise ValueError("track_ids must be unique")
+        if any(track_id <= 0 for track_id in value):
+            raise ValueError("track_ids must contain positive ids")
+        return value
+
+
+class CollectionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    user_id: int
+    name: str
+    description: Optional[str] = None
+    cover_image_url: Optional[str] = None
+    is_public: bool
+    track_count: int
+    created_at: datetime
+    updated_at: datetime
+    tracks: List[TrackResponse] = Field(default_factory=list)
+
+
 # Admin Schemas
 class AdminLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)

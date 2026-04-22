@@ -164,6 +164,33 @@ export interface TrackPlayResponse {
   dedupe_window_seconds: number;
 }
 
+export interface Collection {
+  id: number;
+  user_id: number;
+  name: string;
+  description?: string | null;
+  cover_image_url?: string | null;
+  is_public: boolean;
+  track_count: number;
+  created_at: string;
+  updated_at: string;
+  tracks: Track[];
+}
+
+export interface CollectionPayload {
+  name: string;
+  description?: string | null;
+  is_public: boolean;
+}
+
+export interface CollectionTrackPayload {
+  track_id: number;
+}
+
+export interface CollectionReorderPayload {
+  track_ids: number[];
+}
+
 export interface AdminSystemStats {
   total_users: number;
   total_tracks: number;

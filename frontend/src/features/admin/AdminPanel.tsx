@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Typography } from '@mui/material';
 
 import { TrackArtwork } from '@/entities/track/ui';
+import { AdminCollectionsPanel } from '@/features/admin/collections/AdminCollectionsPanel';
 import { UseAuthResult } from '@/hooks/useAuth';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import api from '@/shared/api/client';
@@ -26,7 +27,7 @@ interface AdminPanelProps {
 type StatusFilter = 'all' | TrackStatus;
 
 const statusFilters: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'Все активные' },
+  { value: 'all', label: 'All active' },
   { value: 'pending', label: 'Pending' },
   { value: 'processing', label: 'Processing' },
   { value: 'approved', label: 'Approved' },
@@ -40,6 +41,33 @@ function canPlayInStaffPanel(track: Track): boolean {
 }
 
 export function AdminPanel({ auth, player }: AdminPanelProps) {
+  if (!auth.user) {
+    return (
+      <SectionCard tone="orange">
+        <Alert severity="warning">Sign in as admin or moderator to open staff controls.</Alert>
+      </SectionCard>
+    );
+  }
+
+  if (!auth.isStaff) {
+    return (
+      <SectionCard tone="orange">
+        <Alert severity="warning" icon={<ShieldRoundedIcon fontSize="inherit" />}>
+          This section is available only to admin and moderator roles.
+        </Alert>
+      </SectionCard>
+    );
+  }
+
+  return (
+    <Stack spacing={3}>
+      <AdminTrackControl auth={auth} player={player} />
+      <AdminCollectionsPanel auth={auth} player={player} />
+    </Stack>
+  );
+}
+
+function AdminTrackControl({ auth, player }: AdminPanelProps) {
   const [stats, setStats] = useState<AdminSystemStats | null>(null);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -70,7 +98,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
       setStats(nextStats);
       setTracks(trackPage.items);
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Не удалось загрузить staff-раздел'));
+      setPanelError(getErrorMessage(err, 'Failed to load staff track controls'));
     } finally {
       setLoading(false);
     }
@@ -91,9 +119,9 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
     const defaultReason = track.rejection_reason ?? '';
     const reason =
       nextStatus === 'hidden'
-        ? window.prompt(`Причина скрытия "${track.title}"`, defaultReason)
+        ? window.prompt(`Hide reason for "${track.title}"`, defaultReason)
         : nextStatus === 'rejected'
-          ? window.prompt(`Причина отклонения "${track.title}"`, defaultReason)
+          ? window.prompt(`Reject reason for "${track.title}"`, defaultReason)
           : null;
 
     if ((nextStatus === 'hidden' || nextStatus === 'rejected') && reason === null) {
@@ -112,17 +140,17 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
       if (nextStatus === 'hidden' && player.activeTrackId === track.id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(`Трек "${track.title}" переведён в ${nextStatus}.`);
+      setPanelMessage(`Track "${track.title}" moved to ${nextStatus}.`);
       await loadAdminData();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Не удалось изменить статус трека'));
+      setPanelError(getErrorMessage(err, 'Failed to change track status'));
     } finally {
       setActionTrackId(null);
     }
   };
 
   const deleteTrack = async (track: Track) => {
-    if (!window.confirm(`Удалить трек "${track.title}"?`)) {
+    if (!window.confirm(`Delete track "${track.title}"?`)) {
       return;
     }
 
@@ -135,46 +163,28 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
       if (player.activeTrackId === track.id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(`Трек "${track.title}" удалён.`);
+      setPanelMessage(`Track "${track.title}" deleted.`);
       await loadAdminData();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Не удалось удалить трек'));
+      setPanelError(getErrorMessage(err, 'Failed to delete track'));
     } finally {
       setActionTrackId(null);
     }
   };
-
-  if (!auth.user) {
-    return (
-      <SectionCard tone="orange">
-        <Alert severity="warning">Войдите под admin или moderator, чтобы открыть staff-контроль треков.</Alert>
-      </SectionCard>
-    );
-  }
-
-  if (!auth.isStaff) {
-    return (
-      <SectionCard tone="orange">
-        <Alert severity="warning" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-          Этот раздел доступен только ролям admin и moderator.
-        </Alert>
-      </SectionCard>
-    );
-  }
 
   return (
     <SectionCard tone="blue">
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h4">Staff-контроль треков</Typography>
+            <Typography variant="h4">Staff track controls</Typography>
             <Typography color="text.secondary">
-              Последние загрузки без премодерации: скрытие, восстановление и удаление остаются staff-действиями с audit trail.
+              Recent uploads without premoderation. Hiding, restoring, rejecting, and deleting stay staff actions with audit logs.
             </Typography>
           </Box>
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip icon={<ShieldRoundedIcon />} label={auth.user.role} color="secondary" variant="outlined" />
+            <Chip icon={<ShieldRoundedIcon />} label={auth.user?.role ?? 'staff'} color="secondary" variant="outlined" />
             <Chip label={`Visible in page ${totalVisible}`} variant="outlined" />
           </Stack>
         </Stack>
@@ -192,7 +202,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
             <AppTextField
               select
-              label="Статус"
+              label="Status"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
               sx={{ minWidth: 190 }}
@@ -205,15 +215,15 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
             </AppTextField>
             <AppTextField
               fullWidth
-              label="Поиск по треку или артисту"
+              label="Search by track or artist"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
             <ActionButton type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-              Найти
+              Search
             </ActionButton>
             <ActionButton variant="outlined" onClick={() => void loadAdminData()} startIcon={<RefreshRoundedIcon />}>
-              Обновить
+              Refresh
             </ActionButton>
           </Stack>
         </Box>
@@ -224,11 +234,11 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
         {loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Загружаем staff-очередь...</Typography>
+            <Typography>Loading staff track queue...</Typography>
           </Stack>
         ) : null}
 
-        {!loading && tracks.length === 0 ? <Alert severity="info">Треков по текущему фильтру нет.</Alert> : null}
+        {!loading && tracks.length === 0 ? <Alert severity="info">No tracks for the current filter.</Alert> : null}
 
         <Stack spacing={1.5}>
           {tracks.map((track) => {
@@ -251,7 +261,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
                         {track.title}
                       </Typography>
                       <Typography color="text.secondary">
-                        {track.user?.username ?? `user ${track.user_id}`} · {track.category?.name ?? 'Без категории'} · Likes {track.like_count} · Plays {track.play_count}
+                        {track.user?.username ?? `user ${track.user_id}`} · {track.category?.name ?? 'Uncategorized'} · Likes {track.like_count} · Plays {track.play_count}
                       </Typography>
                       {track.rejection_reason ? <Typography color="error.main">{track.rejection_reason}</Typography> : null}
                     </Box>
@@ -267,11 +277,11 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
                       </ActionButton>
                       {track.status !== 'hidden' && track.status !== 'deleted' ? (
                         <ActionButton color="warning" variant="outlined" size="small" disabled={busy} onClick={() => void moderateTrack(track, 'hidden')}>
-                          Скрыть
+                          Hide
                         </ActionButton>
                       ) : track.status === 'hidden' ? (
                         <ActionButton color="success" variant="contained" size="small" disabled={busy} onClick={() => void moderateTrack(track, 'approved')}>
-                          Восстановить
+                          Restore
                         </ActionButton>
                       ) : null}
                       {track.status !== 'rejected' && track.status !== 'hidden' && track.status !== 'deleted' ? (
@@ -288,7 +298,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
                           disabled={busy}
                           onClick={() => void deleteTrack(track)}
                         >
-                          Удалить
+                          Delete
                         </ActionButton>
                       ) : null}
                     </Stack>

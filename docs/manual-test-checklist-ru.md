@@ -54,6 +54,12 @@ Additional staff-control checks:
 - Hide a disposable approved track and verify it disappears from the public catalog and `/tracks/<id>`.
 - Restore the same track and verify it becomes public again.
 - Delete the disposable track and verify it no longer appears in staff default review.
+- Create a draft collection in `/admin`.
+- Add an approved disposable track to that collection.
+- Publish the collection and verify it appears on `/collections` and `/collections/<id>`.
+- Reorder tracks inside the collection and verify the public page follows the staff order.
+- Hide the linked track and verify it disappears from the public collection surface.
+- Remove the track from the collection and delete the disposable collection.
 
 - Войти под `admin`.
 - Убедиться, что роль отображается корректно.
@@ -78,6 +84,7 @@ Additional staff-control checks:
 - likes работают
 - role-based delete работает
 - staff hide/restore работает
+- staff-managed collections работают
 
 ## 7. Operations hardening smoke
 
