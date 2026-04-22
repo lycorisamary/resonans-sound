@@ -173,7 +173,7 @@
 
 ### Этап 2. Discovery
 
-- фильтры по тегам, BPM и key
+- фильтры по жанрам и тегам; BPM и key убраны из активного runtime surface
 - более сильные карточки треков
 - deeper artist discovery filters, if needed after public profile usage
 - расширение витрины подборок, если потребуется
@@ -215,3 +215,16 @@
 - Artist avatar/banner uploads go through backend endpoints and MinIO storage
   under `profiles/...`; public clients receive only backend image URLs.
 - Track cards now link artists to `/artists/{username}`.
+
+## 2026-04-22 Track reports and discovery update
+
+- BPM and key signature were removed from the active track metadata surface.
+- Track genre is now selected from the supported list:
+  Ambient, Disco, Drum & Bass, Dubstep, Electronic, Folk & Singer-Songwriter,
+  Hip-hop & Rap, House, Indie, Jazz & Blues, Latin, Metal, Piano, Pop,
+  R&B & Soul, Reggae, Reggaeton, Rock, Soundtrack, Speech, Techno, Trance,
+  Trap, Triphop, World.
+- Public catalog discovery supports genre and tag filters in addition to search,
+  category and sort.
+- Authenticated users can submit track reports; staff reviews open reports in
+  `/admin` and can hide the linked track without introducing premoderation.

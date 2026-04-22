@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     STREAM_URL_RATE_LIMIT_PER_MINUTE: int = 60
     STREAM_RATE_LIMIT_PER_MINUTE: int = 300
     PLAY_EVENT_RATE_LIMIT_PER_MINUTE: int = 120
+    REPORT_RATE_LIMIT_PER_HOUR: int = 20
 
     CORS_ORIGINS: list[str] = [
         "http://localhost:3000",

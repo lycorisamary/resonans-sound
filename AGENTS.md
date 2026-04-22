@@ -57,6 +57,9 @@ explicitly changes direction.
 - Upload validation checks extension, server-side file signatures, size, and
   track state before writing to MinIO
 - Users have a separate liked-tracks view
+- Authenticated users can submit post-publication track reports; staff reviews
+  open reports in `/admin` and can hide the linked track without adding a
+  premoderation gate
 - User accounts and artist profiles are separate runtime concepts: a registered
   user can listen/like, but must create an artist profile before creating or
   uploading tracks
@@ -72,6 +75,8 @@ explicitly changes direction.
   upload collection covers
 - Public collection playback is queue-based: pressing collection play starts
   approved tracks in collection order and advances automatically
+- Track BPM and key signature are not part of the active runtime surface; track
+  metadata uses the supported genre list plus free-form tags
 
 ## Current Technical Notes
 
@@ -89,6 +94,8 @@ explicitly changes direction.
 - Existing physical `playlists` / `playlist_tracks` tables are now active as
   staff-managed `Collection` / `CollectionTrack` runtime models; they are not
   user playlists or a general social playlist feature
+- Existing physical `reports` is now active as the staff-reviewed track report
+  surface; comments/follows remain planned-only
 - Track access, streaming, deletion, and upload rules live in
   `backend/app/policies/`
 - `hidden` tracks are staff-controlled: they are not public, owners cannot

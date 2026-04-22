@@ -11,13 +11,33 @@ from app.schemas import (
     TrackLikeListResponse,
     TrackPlayCreate,
     TrackPlayResponse,
+    TrackReportCreate,
+    TrackReportResponse,
 )
 from app.services.interactions import get_liked_track_ids, get_liked_tracks_page, like_track, unlike_track
 from app.services.play_events import record_track_play
 from app.services.rate_limit import RateLimit, enforce_rate_limit, user_or_ip_subject
+from app.services.reports import create_track_report
 
 
 router = APIRouter()
+
+
+@router.post("/reports/track", response_model=TrackReportResponse, status_code=201)
+def report_track_endpoint(
+    payload: TrackReportCreate,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> TrackReportResponse:
+    """Submit a post-publication report for a published track."""
+    enforce_rate_limit(
+        request=request,
+        scope="track_report",
+        subject=user_or_ip_subject(request, current_user.id),
+        limit=RateLimit(settings.REPORT_RATE_LIMIT_PER_HOUR, 60 * 60),
+    )
+    return create_track_report(db=db, current_user=current_user, payload=payload)
 
 
 @router.post("/play", response_model=TrackPlayResponse)

@@ -3,7 +3,7 @@ import { FormEvent } from 'react';
 import { canUploadTrackMedia, hasPlayableMedia } from '@/entities/track/model/track';
 import { refreshWholeUiIntoStore } from '@/features/catalog/model/catalogData';
 import api from '@/shared/api/client';
-import { Track, TrackMetadataPayload } from '@/shared/api/types';
+import { Track, TrackMetadataPayload, TrackReportReason } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
 import {
   initialTrackForm,
@@ -23,6 +23,14 @@ interface StudioUploadSelection {
   coverFile?: File | null;
 }
 
+const reportReasons: { value: TrackReportReason; label: string }[] = [
+  { value: 'spam', label: 'Spam' },
+  { value: 'copyright', label: 'Copyright violation' },
+  { value: 'offensive', label: 'Offensive content' },
+  { value: 'not_music', label: 'Not music' },
+  { value: 'other', label: 'Other' },
+];
+
 function buildTrackPayload(trackForm: typeof initialTrackForm): TrackMetadataPayload {
   return {
     title: trackForm.title,
@@ -35,8 +43,6 @@ function buildTrackPayload(trackForm: typeof initialTrackForm): TrackMetadataPay
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean),
-    bpm: trackForm.bpm ? Number(trackForm.bpm) : null,
-    key_signature: trackForm.key_signature || null,
   };
 }
 
@@ -139,8 +145,6 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
       is_downloadable: track.is_downloadable,
       license_type: track.license_type,
       tags: track.tags?.join(', ') ?? '',
-      bpm: track.bpm ? String(track.bpm) : '',
-      key_signature: track.key_signature ?? '',
     });
   };
 
@@ -260,6 +264,36 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
     }
   };
 
+  const reportTrack = async (track: Track) => {
+    if (!user) {
+      setPageError('Чтобы отправить жалобу, сначала откройте сессию.');
+      return;
+    }
+
+    const selected = window.prompt(
+      `Report "${track.title}"\n${reportReasons.map((reason, index) => `${index + 1}. ${reason.label}`).join('\n')}`,
+      '1'
+    );
+    if (selected === null) {
+      return;
+    }
+
+    const reason = reportReasons[Number(selected.trim()) - 1];
+    if (!reason) {
+      setPageError('Выберите причину жалобы номером из списка.');
+      return;
+    }
+
+    const description = window.prompt('Additional note for staff', '')?.trim() || null;
+
+    try {
+      await api.reportTrack({ track_id: track.id, reason: reason.value, description });
+      setBanner(`Жалоба на "${track.title}" отправлена staff-команде.`);
+    } catch (err) {
+      setPageError(getErrorMessage(err, 'Не удалось отправить жалобу'));
+    }
+  };
+
   return {
     canDeleteTrack,
     canUploadTrackMedia,
@@ -272,6 +306,7 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
     studioBusy,
     submitTrack,
     submitTrackWithUploads,
+    reportTrack,
     toggleLike,
     trackForm,
     updateTrackForm,

@@ -28,8 +28,6 @@ const collection: Collection = {
       is_downloadable: false,
       license_type: 'all-rights-reserved',
       tags: null,
-      bpm: null,
-      key_signature: null,
       status: 'approved',
       created_at: '2026-04-22T00:00:00Z',
       updated_at: '2026-04-22T00:00:00Z',

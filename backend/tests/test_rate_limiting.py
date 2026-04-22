@@ -47,8 +47,6 @@ def _track_upload_response():
         "is_downloadable": False,
         "license_type": "all-rights-reserved",
         "tags": None,
-        "bpm": None,
-        "key_signature": None,
         "status": "processing",
         "created_at": now.isoformat(),
         "updated_at": now.isoformat(),

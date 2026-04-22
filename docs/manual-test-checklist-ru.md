@@ -99,6 +99,20 @@ Additional staff-control checks:
 - Upload avatar and banner images; verify public `/artists/<slug>/avatar` and `/artists/<slug>/banner` return images.
 - Hide one of the artist's tracks as staff and verify it disappears from the public artist page.
 
+## 6.2 Track reports and discovery smoke
+
+- Create or find an approved public track.
+- Verify Studio no longer shows BPM/key fields and genre is selected from the
+  supported genre list.
+- In the public catalog, filter by genre and by tag; verify only matching
+  approved tracks are returned.
+- Log in as a regular user and submit a report from a public track card or
+  `/tracks/<id>`.
+- Open `/admin` as staff and verify the report appears in Track reports.
+- Dismiss one disposable report and verify it leaves the open report list.
+- Submit another disposable report, resolve it with `Hide track`, and verify the
+  track disappears from public catalog, public track page and public artist page.
+
 ## 7. Operations hardening smoke
 
 - Проверить, что `curl -i https://resonance-sound.ru/api/v1/health` возвращает

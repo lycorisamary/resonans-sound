@@ -5,6 +5,8 @@ from enum import Enum
 from urllib.parse import urlparse
 import re
 
+from app.domain.genres import SUPPORTED_TRACK_GENRES, normalize_supported_genre
+
 
 # Enums for schemas
 class UserRoleEnum(str, Enum):
@@ -32,6 +34,21 @@ class TrackModerationStatusEnum(str, Enum):
     approved = "approved"
     rejected = "rejected"
     hidden = "hidden"
+
+
+class TrackReportReasonEnum(str, Enum):
+    spam = "spam"
+    copyright = "copyright"
+    offensive = "offensive"
+    not_music = "not_music"
+    other = "other"
+
+
+class TrackReportStatusEnum(str, Enum):
+    open = "open"
+    reviewed = "reviewed"
+    dismissed = "dismissed"
+    resolved = "resolved"
 
 
 # Auth Schemas
@@ -156,11 +173,11 @@ class ArtistProfileUpdate(BaseModel):
             return None
         cleaned = []
         for item in value:
-            genre = item.strip()
-            if not genre:
+            if not item.strip():
                 continue
-            if len(genre) > 60:
-                raise ValueError("Profile genre is too long")
+            genre = normalize_supported_genre(item)
+            if not genre:
+                raise ValueError(f"Unsupported genre. Supported genres: {', '.join(SUPPORTED_TRACK_GENRES)}")
             if genre.lower() not in {existing.lower() for existing in cleaned}:
                 cleaned.append(genre)
         return cleaned
@@ -254,12 +271,16 @@ class TrackBase(BaseModel):
     is_downloadable: bool = False
     license_type: str = "all-rights-reserved"
     tags: Optional[List[str]] = None
-    bpm: Optional[int] = None
-    key_signature: Optional[str] = Field(None, max_length=20)
 
 
 class TrackCreate(TrackBase):
-    pass
+    @field_validator("genre")
+    @classmethod
+    def validate_supported_genre(cls, value):
+        normalized = normalize_supported_genre(value)
+        if value is not None and normalized is None:
+            raise ValueError(f"Unsupported genre. Supported genres: {', '.join(SUPPORTED_TRACK_GENRES)}")
+        return normalized
 
 
 class TrackUpdate(BaseModel):
@@ -271,8 +292,14 @@ class TrackUpdate(BaseModel):
     is_downloadable: Optional[bool] = None
     license_type: Optional[str] = None
     tags: Optional[List[str]] = None
-    bpm: Optional[int] = None
-    key_signature: Optional[str] = None
+
+    @field_validator("genre")
+    @classmethod
+    def validate_supported_genre(cls, value):
+        normalized = normalize_supported_genre(value)
+        if value is not None and normalized is None:
+            raise ValueError(f"Unsupported genre. Supported genres: {', '.join(SUPPORTED_TRACK_GENRES)}")
+        return normalized
 
 
 class TrackMetadata(BaseModel):
@@ -402,6 +429,45 @@ class CollectionResponse(BaseModel):
     tracks: List[TrackResponse] = Field(default_factory=list)
 
 
+# Report Schemas
+class TrackReportCreate(BaseModel):
+    track_id: int = Field(..., gt=0)
+    reason: TrackReportReasonEnum
+    description: Optional[str] = Field(None, max_length=2000)
+
+    @field_validator("description")
+    @classmethod
+    def clean_report_description(cls, value):
+        return _clean_optional_text(value)
+
+
+class TrackReportResolve(BaseModel):
+    status: TrackReportStatusEnum
+    resolution_notes: Optional[str] = Field(None, max_length=2000)
+    hide_track: bool = False
+
+    @field_validator("resolution_notes")
+    @classmethod
+    def clean_resolution_notes(cls, value):
+        return _clean_optional_text(value)
+
+
+class TrackReportResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    reporter_id: int
+    track_id: Optional[int] = None
+    reason: TrackReportReasonEnum
+    description: Optional[str] = None
+    status: TrackReportStatusEnum
+    moderator_id: Optional[int] = None
+    reviewed_at: Optional[datetime] = None
+    resolution_notes: Optional[str] = None
+    created_at: datetime
+    track: Optional[TrackResponse] = None
+
+
 # Admin Schemas
 class AdminLogResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -439,5 +505,5 @@ class PaginatedResponse(BaseModel):
     pages: int
 
 
-# Future-only schemas for playlists/comments/follows/reports are intentionally
+# Future-only schemas for playlists/comments/follows are intentionally
 # excluded from the active MVP runtime until those APIs are reintroduced.

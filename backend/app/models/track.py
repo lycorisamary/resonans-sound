@@ -49,8 +49,6 @@ class Track(Base):
     is_downloadable = Column(Boolean, default=False)
     license_type = Column(String(50), default="all-rights-reserved")
     tags = Column(ARRAY(String))
-    bpm = Column(Integer)
-    key_signature = Column(String(20))
     rejection_reason = Column(Text)
 
     user = relationship("User", back_populates="tracks")

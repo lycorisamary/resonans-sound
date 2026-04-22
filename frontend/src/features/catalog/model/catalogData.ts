@@ -8,6 +8,8 @@ import { loadAuthenticatedStateIntoStore } from '@/features/auth/model/authData'
 interface CatalogLoadOverrides {
   category?: string;
   search?: string;
+  genre?: string;
+  tag?: string;
   sort?: TrackListParams['sort'];
 }
 
@@ -18,10 +20,14 @@ export async function loadPublicCatalogIntoStore(overrides: CatalogLoadOverrides
   try {
     const category = overrides.category ?? catalogState.selectedCategory;
     const search = overrides.search ?? catalogState.catalogSearch;
+    const genre = overrides.genre ?? catalogState.catalogGenre;
+    const tag = overrides.tag ?? catalogState.catalogTag;
     const sort = overrides.sort ?? catalogState.catalogSort;
     const params: TrackListParams = {
       ...(category === 'all' ? {} : { category }),
       ...(search ? { search } : {}),
+      ...(genre ? { genre } : {}),
+      ...(tag ? { tag } : {}),
       sort,
     };
 

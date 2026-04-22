@@ -49,6 +49,7 @@ interface TrackCardProps {
   onToggleLike: (track: Track) => void;
   onEditTrack: (track: Track) => void;
   onDeleteTrack: (track: Track) => void;
+  onReportTrack?: (track: Track) => void;
   onUploadTrack: (track: Track, file: File | null) => void;
   onUploadCover: (track: Track, file: File | null) => void;
 }
@@ -68,6 +69,7 @@ export function TrackCard({
   onToggleLike,
   onEditTrack,
   onDeleteTrack,
+  onReportTrack,
   onUploadTrack,
   onUploadCover,
 }: TrackCardProps) {
@@ -139,7 +141,6 @@ export function TrackCard({
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip label={`Duration ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
-                <Chip label={`BPM ${track.bpm ?? '-'}`} size="small" variant="outlined" />
                 <Chip label={`Теги ${track.tags?.join(', ') || '-'}`} size="small" variant="outlined" />
                 <Chip
                   label={track.cover_image_url ? 'Cover ready' : 'Cover missing'}
@@ -193,6 +194,11 @@ export function TrackCard({
                   disabled={likeDisabled}
                 >
                   {track.like_count}
+                </ActionButton>
+              ) : null}
+              {variant === 'catalog' && onReportTrack ? (
+                <ActionButton variant="outlined" color="warning" size="small" onClick={() => onReportTrack(track)}>
+                  Report
                 </ActionButton>
               ) : null}
 

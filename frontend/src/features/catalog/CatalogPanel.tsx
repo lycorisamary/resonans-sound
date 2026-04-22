@@ -18,6 +18,7 @@ import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import { UseCatalogResult } from '@/hooks/useCatalog';
 import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import { CatalogSort, CatalogView } from '@/shared/api/types';
+import { SUPPORTED_TRACK_GENRES } from '@/shared/constants/genres';
 import { ActionButton, AppTextField, SectionCard } from '@/shared/ui';
 import { FavoriteRoundedIcon, QueueMusicRoundedIcon, RefreshRoundedIcon, SearchRoundedIcon } from '@/shared/ui/icons';
 
@@ -74,6 +75,26 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
                 ),
               }}
             />
+            <AppTextField
+              select
+              label="Genre"
+              value={catalog.catalogGenre}
+              onChange={(event) => catalog.setCatalogGenre(event.target.value)}
+              sx={{ minWidth: 210 }}
+            >
+              <MenuItem value="">All genres</MenuItem>
+              {SUPPORTED_TRACK_GENRES.map((genre) => (
+                <MenuItem key={genre} value={genre}>
+                  {genre}
+                </MenuItem>
+              ))}
+            </AppTextField>
+            <AppTextField
+              label="Tag"
+              value={catalog.catalogTagInput}
+              onChange={(event) => catalog.setCatalogTagInput(event.target.value)}
+              sx={{ minWidth: 160 }}
+            />
             <ActionButton type="submit" variant="contained">
               Найти
             </ActionButton>
@@ -117,7 +138,11 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
           />
         </Tabs>
 
-        {catalog.catalogSearch ? <Chip label={`Активный поиск: ${catalog.catalogSearch}`} color="secondary" variant="outlined" /> : null}
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          {catalog.catalogSearch ? <Chip label={`Search: ${catalog.catalogSearch}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogGenre ? <Chip label={`Genre: ${catalog.catalogGenre}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogTag ? <Chip label={`Tag: ${catalog.catalogTag}`} color="secondary" variant="outlined" /> : null}
+        </Stack>
 
         {catalog.catalogBusy ? (
           <Stack direction="row" spacing={2} alignItems="center">
@@ -155,6 +180,7 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
               uploadingCoverTrackId={trackActions.uploadingCoverTrackId}
               onPlayTrack={(selectedTrack) => void player.playTrack(selectedTrack)}
               onToggleLike={(selectedTrack) => void trackActions.toggleLike(selectedTrack)}
+              onReportTrack={(selectedTrack) => void trackActions.reportTrack(selectedTrack)}
               onEditTrack={trackActions.startEditingTrack}
               onDeleteTrack={(selectedTrack) => void trackActions.deleteTrack(selectedTrack)}
               onUploadTrack={(selectedTrack, file) => void trackActions.uploadTrack(selectedTrack, file)}

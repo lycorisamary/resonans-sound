@@ -4,7 +4,7 @@ from types import SimpleNamespace
 import pytest
 from pydantic import ValidationError
 
-from app.schemas import ArtistProfileUpdate
+from app.schemas import ArtistProfileUpdate, TrackCreate
 from app.services import artists as artists_service
 
 
@@ -65,3 +65,19 @@ def test_artist_profile_update_cleans_genres_and_text():
     assert payload.display_name == "Demo Artist"
     assert payload.bio is None
     assert payload.profile_genres == ["Ambient", "Pop"]
+
+
+def test_artist_profile_update_rejects_unsupported_genres():
+    with pytest.raises(ValidationError):
+        ArtistProfileUpdate(profile_genres=["Ambient", "Future Genre"])
+
+
+def test_track_create_rejects_unsupported_genre():
+    with pytest.raises(ValidationError):
+        TrackCreate(title="Demo", genre="Future Genre")
+
+
+def test_track_create_normalizes_supported_genre_case():
+    payload = TrackCreate(title="Demo", genre="hip-hop & rap")
+
+    assert payload.genre == "Hip-hop & Rap"

@@ -26,12 +26,18 @@ export function useCatalog() {
   const selectedCategory = useCatalogStore((state) => state.selectedCategory);
   const catalogSearchInput = useCatalogStore((state) => state.catalogSearchInput);
   const catalogSearch = useCatalogStore((state) => state.catalogSearch);
+  const catalogGenre = useCatalogStore((state) => state.catalogGenre);
+  const catalogTagInput = useCatalogStore((state) => state.catalogTagInput);
+  const catalogTag = useCatalogStore((state) => state.catalogTag);
   const catalogSort = useCatalogStore((state) => state.catalogSort);
   const likedTrackIds = useCatalogStore((state) => state.likedTrackIds);
   const setCatalogView = useCatalogStore((state) => state.setCatalogView);
   const setSelectedCategory = useCatalogStore((state) => state.setSelectedCategory);
   const setCatalogSearchInput = useCatalogStore((state) => state.setCatalogSearchInput);
   const setCatalogSearch = useCatalogStore((state) => state.setCatalogSearch);
+  const setCatalogGenre = useCatalogStore((state) => state.setCatalogGenre);
+  const setCatalogTagInput = useCatalogStore((state) => state.setCatalogTagInput);
+  const setCatalogTag = useCatalogStore((state) => state.setCatalogTag);
   const setCatalogSort = useCatalogStore((state) => state.setCatalogSort);
 
   const displayedTracks = catalogView === 'liked' ? likedTracks : publicTracks;
@@ -66,16 +72,20 @@ export function useCatalog() {
     }
 
     void loadPublicCatalogIntoStore();
-  }, [selectedCategory, catalogSearch, catalogSort, initialLoading]);
+  }, [selectedCategory, catalogSearch, catalogGenre, catalogTag, catalogSort, initialLoading]);
 
   const handleCatalogSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setCatalogSearch(catalogSearchInput.trim());
+    setCatalogTag(catalogTagInput.trim());
   };
 
   const clearCatalogSearch = () => {
     setCatalogSearchInput('');
     setCatalogSearch('');
+    setCatalogTagInput('');
+    setCatalogTag('');
+    setCatalogGenre('');
   };
 
   return {
@@ -83,6 +93,9 @@ export function useCatalog() {
     catalogBusy,
     catalogSearch,
     catalogSearchInput,
+    catalogGenre,
+    catalogTag,
+    catalogTagInput,
     catalogSort,
     catalogView,
     categories,
@@ -99,6 +112,8 @@ export function useCatalog() {
     refreshWholeUi: refreshWholeUiIntoStore,
     selectedCategory,
     setCatalogSearchInput,
+    setCatalogGenre,
+    setCatalogTagInput,
     setCatalogSort: (sort: CatalogSort) => setCatalogSort(sort),
     setCatalogView: (view: CatalogView) => setCatalogView(view),
     setSelectedCategory,

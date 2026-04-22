@@ -322,8 +322,6 @@ def create_track_metadata(db: Session, current_user: User, payload: TrackCreate)
         is_downloadable=payload.is_downloadable,
         license_type=payload.license_type,
         tags=payload.tags,
-        bpm=payload.bpm,
-        key_signature=payload.key_signature,
         status=TrackStatus.pending,
     )
     db.add(track)

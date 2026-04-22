@@ -8,6 +8,7 @@ import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import { UseCatalogResult } from '@/hooks/useCatalog';
 import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import api from '@/shared/api/client';
+import { SUPPORTED_TRACK_GENRES } from '@/shared/constants/genres';
 import { ActionButton, AppTextField, SectionCard } from '@/shared/ui';
 import { AutoAwesomeRoundedIcon } from '@/shared/ui/icons';
 
@@ -92,11 +93,19 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                   <AppTextField
                     label="Жанр"
+                    select
                     value={trackActions.trackForm.genre}
                     onChange={(event) => trackActions.updateTrackForm({ genre: event.target.value })}
                     disabled={formDisabled}
                     fullWidth
-                  />
+                  >
+                    <MenuItem value="">No genre</MenuItem>
+                    {SUPPORTED_TRACK_GENRES.map((genre) => (
+                      <MenuItem key={genre} value={genre}>
+                        {genre}
+                      </MenuItem>
+                    ))}
+                  </AppTextField>
                   <AppTextField
                     select
                     label="Категория"
@@ -105,30 +114,13 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
                     disabled={formDisabled}
                     fullWidth
                   >
-                    <MenuItem value="">Без категории</MenuItem>
+                    <MenuItem value="">No category</MenuItem>
                     {catalog.categories.map((category) => (
                       <MenuItem key={category.id} value={String(category.id)}>
                         {category.name}
                       </MenuItem>
                     ))}
                   </AppTextField>
-                </Stack>
-                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                  <AppTextField
-                    label="BPM"
-                    type="number"
-                    value={trackActions.trackForm.bpm}
-                    onChange={(event) => trackActions.updateTrackForm({ bpm: event.target.value })}
-                    disabled={formDisabled}
-                    fullWidth
-                  />
-                  <AppTextField
-                    label="Тональность"
-                    value={trackActions.trackForm.key_signature}
-                    onChange={(event) => trackActions.updateTrackForm({ key_signature: event.target.value })}
-                    disabled={formDisabled}
-                    fullWidth
-                  />
                 </Stack>
                 <AppTextField
                   label="Теги через запятую"

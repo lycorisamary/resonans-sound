@@ -72,6 +72,7 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
             uploadingCoverTrackId={trackActions.uploadingCoverTrackId}
             onPlayTrack={(selectedTrack) => void player.playTrack(selectedTrack)}
             onToggleLike={(selectedTrack) => void trackActions.toggleLike(selectedTrack)}
+            onReportTrack={(selectedTrack) => void trackActions.reportTrack(selectedTrack)}
             onEditTrack={trackActions.startEditingTrack}
             onDeleteTrack={(selectedTrack) => void trackActions.deleteTrack(selectedTrack)}
             onUploadTrack={(selectedTrack, file) => void trackActions.uploadTrack(selectedTrack, file)}

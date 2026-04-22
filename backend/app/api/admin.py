@@ -14,6 +14,9 @@ from app.schemas import (
     PaginatedResponse,
     SystemStats,
     TrackModeration,
+    TrackReportResolve,
+    TrackReportResponse,
+    TrackReportStatusEnum,
     TrackStatusEnum,
     TrackUploadResponse,
 )
@@ -29,6 +32,7 @@ from app.services.collections import (
     upload_collection_cover,
 )
 from app.services.rate_limit import RateLimit, enforce_rate_limit, user_subject
+from app.services.reports import list_track_reports, resolve_track_report
 
 
 router = APIRouter()
@@ -66,6 +70,29 @@ def admin_logs(
 ) -> PaginatedResponse:
     """Return recent moderation/admin actions for audit visibility."""
     return list_admin_logs(db=db, page=page, size=size, target_type=target_type)
+
+
+@router.get("/reports", response_model=PaginatedResponse)
+def admin_reports(
+    page: int = Query(1, ge=1),
+    size: int = Query(20, ge=1, le=100),
+    status: TrackReportStatusEnum | None = Query(None),
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse:
+    """Return user-submitted track reports for staff review."""
+    return list_track_reports(db=db, page=page, size=size, status_filter=status.value if status else None)
+
+
+@router.post("/reports/{report_id}/resolve", response_model=TrackReportResponse)
+def resolve_report_endpoint(
+    report_id: int,
+    payload: TrackReportResolve,
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> TrackReportResponse:
+    """Resolve a user report and optionally hide the linked track."""
+    return resolve_track_report(db=db, admin_user=current_user, report_id=report_id, payload=payload)
 
 
 @router.post("/moderate/{track_id}", response_model=TrackUploadResponse)

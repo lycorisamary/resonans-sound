@@ -73,6 +73,7 @@ def get_tracks(
     size: int = Query(20, ge=1, le=100),
     category: str | None = Query(None, min_length=2, max_length=100),
     genre: str | None = Query(None, min_length=1, max_length=100),
+    tag: str | None = Query(None, min_length=1, max_length=60),
     search: str | None = Query(None, min_length=1, max_length=255),
     sort: str = Query("newest", min_length=3, max_length=32),
     db: Session = Depends(get_db),
@@ -84,6 +85,7 @@ def get_tracks(
         size=size,
         category_slug=category,
         genre=genre,
+        tag=tag,
         search=search,
         sort=sort,
     )

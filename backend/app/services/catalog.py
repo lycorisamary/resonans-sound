@@ -4,6 +4,7 @@ from typing import Any
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
+from app.domain.genres import normalize_supported_genre
 from app.models import Category, Track, TrackStatus
 from app.schemas import ArtistPublic, CategoryResponse, PaginatedResponse, TrackMetadata, TrackResponse, TrackUploadResponse, UserPublic
 
@@ -90,8 +91,6 @@ def serialize_track(track: Any, include_private_media: bool = False) -> TrackRes
         "is_downloadable": track.is_downloadable,
         "license_type": track.license_type,
         "tags": track.tags,
-        "bpm": track.bpm,
-        "key_signature": track.key_signature,
         "waveform_data_json": waveform_data,
         "metadata": metadata,
         "user": serialize_user_public(getattr(track, "user", None)),
@@ -154,6 +153,7 @@ def build_public_tracks_page(
     size: int,
     category_slug: str | None = None,
     genre: str | None = None,
+    tag: str | None = None,
     search: str | None = None,
     sort: str = "newest",
 ) -> PaginatedResponse:
@@ -171,7 +171,13 @@ def build_public_tracks_page(
         query = query.filter(Category.slug == category_slug, Category.is_active.is_(True))
 
     if genre:
-        query = query.filter(Track.genre.ilike(genre.strip()))
+        normalized_genre = normalize_supported_genre(genre)
+        query = query.filter(Track.genre == normalized_genre if normalized_genre else Track.genre.ilike(genre.strip()))
+
+    if tag:
+        cleaned_tag = tag.strip()
+        if cleaned_tag:
+            query = query.filter(Track.tags.any(cleaned_tag))
 
     if search:
         pattern = f"%{search.strip()}%"

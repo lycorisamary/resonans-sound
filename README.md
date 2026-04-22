@@ -21,6 +21,7 @@ Implemented in `main` right now:
 - play counters after a real listen threshold with guest/auth dedupe
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
+- authenticated track reports for post-publication staff safety review
 - separate user accounts and artist profiles: users can listen/like after auth,
   while track upload requires creating an artist profile
 - public artist profiles with `/artists`, `/artists/:slug`, approved-track
@@ -78,6 +79,9 @@ Currently active routes in `main`:
 - `GET /api/v1/artists/{slug}/banner`
 - `GET /api/v1/users/me/artist`
 - `POST /api/v1/users/me/artist`
+- `POST /api/v1/interactions/reports/track`
+- `GET /api/v1/admin/reports`
+- `POST /api/v1/admin/reports/{id}/resolve`
 - `PUT /api/v1/users/me/profile`
 - `POST /api/v1/users/me/avatar`
 - `POST /api/v1/users/me/banner`
@@ -196,6 +200,7 @@ Current active model files:
 - `backend/app/models/track.py`
 - `backend/app/models/track_play.py`
 - `backend/app/models/interaction.py`
+- `backend/app/models/report.py`
 - `backend/app/models/admin.py`
 - `backend/app/models/token.py`
 
@@ -212,6 +217,12 @@ Play counters are active through `track_play_events`. The frontend reports a
 play after the earlier of 30 seconds or 50% of the track duration, and the
 backend deduplicates one listener per track for 6 hours before incrementing the
 denormalized `tracks.play_count`.
+
+Track reports are active through `reports`. They are a post-publication safety
+tool: authenticated users can report approved tracks, and staff can resolve or
+hide the linked track from `/admin` without changing the auto-publication flow.
+Report submission is rate-limited separately through
+`REPORT_RATE_LIMIT_PER_HOUR`.
 
 ## Production Update Flow
 

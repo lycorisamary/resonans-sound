@@ -20,8 +20,6 @@ export const initialTrackForm: TrackFormState = {
   is_downloadable: false,
   license_type: 'all-rights-reserved',
   tags: '',
-  bpm: '',
-  key_signature: '',
 };
 
 interface AppStatusState {
@@ -54,6 +52,9 @@ interface CatalogState {
   selectedCategory: string;
   catalogSearchInput: string;
   catalogSearch: string;
+  catalogGenre: string;
+  catalogTagInput: string;
+  catalogTag: string;
   catalogSort: CatalogSort;
   likedTrackIds: number[];
   setCatalogBusy: (catalogBusy: boolean) => void;
@@ -65,6 +66,9 @@ interface CatalogState {
   setSelectedCategory: (selectedCategory: string) => void;
   setCatalogSearchInput: (catalogSearchInput: string) => void;
   setCatalogSearch: (catalogSearch: string) => void;
+  setCatalogGenre: (catalogGenre: string) => void;
+  setCatalogTagInput: (catalogTagInput: string) => void;
+  setCatalogTag: (catalogTag: string) => void;
   setCatalogSort: (catalogSort: CatalogSort) => void;
   setLikedTrackIds: (likedTrackIds: number[]) => void;
 }
@@ -134,6 +138,9 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   selectedCategory: 'all',
   catalogSearchInput: '',
   catalogSearch: '',
+  catalogGenre: '',
+  catalogTagInput: '',
+  catalogTag: '',
   catalogSort: 'newest',
   likedTrackIds: [],
   setCatalogBusy: (catalogBusy) => set({ catalogBusy }),
@@ -145,6 +152,9 @@ export const useCatalogStore = create<CatalogState>((set) => ({
   setSelectedCategory: (selectedCategory) => set({ selectedCategory }),
   setCatalogSearchInput: (catalogSearchInput) => set({ catalogSearchInput }),
   setCatalogSearch: (catalogSearch) => set({ catalogSearch }),
+  setCatalogGenre: (catalogGenre) => set({ catalogGenre }),
+  setCatalogTagInput: (catalogTagInput) => set({ catalogTagInput }),
+  setCatalogTag: (catalogTag) => set({ catalogTag }),
   setCatalogSort: (catalogSort) => set({ catalogSort }),
   setLikedTrackIds: (likedTrackIds) => set({ likedTrackIds }),
 }));

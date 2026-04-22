@@ -13,6 +13,7 @@ The current implementation still centers the MVP around a few core tables:
 - `tracks`
 - `track_play_events`
 - `interactions`
+- `reports`
 - `playlists`
 - `playlist_tracks`
 - `admin_logs`
@@ -33,6 +34,7 @@ The active ORM runtime is split by context:
 - `app.models.track`
 - `app.models.track_play`
 - `app.models.interaction`
+- `app.models.report`
 - `app.models.collection`
 - `app.models.admin`
 - `app.models.token`
@@ -81,8 +83,6 @@ CREATE TABLE tracks (
     is_downloadable BOOLEAN DEFAULT FALSE,
     license_type VARCHAR(50) DEFAULT 'all-rights-reserved',
     tags TEXT[],
-    bpm INTEGER,
-    key_signature VARCHAR(20),
     rejection_reason TEXT
 );
 ```
@@ -100,6 +100,7 @@ The current schema already covers the active MVP slice:
 - listen-threshold play counters
 - owner/private preview playback
 - likes
+- track reports
 - staff-managed collections
 - public artist profiles with profile images, profile links, and approved-track
   artist pages
@@ -187,6 +188,22 @@ Important details:
 
 ## 8. Current Collections In DB
 
+## 8. Current Track Reports In DB
+
+`reports` is active as a post-publication safety tool, not a premoderation
+queue.
+
+Runtime rules:
+
+- only authenticated users can create track reports
+- reports can be created only for `approved` tracks
+- one reporter can have only one open report per track
+- staff reviews open reports in `/admin`
+- resolving a report can optionally move the linked track to `hidden`
+- report actions that hide a track are also recorded in `admin_logs`
+
+## 9. Current Collections In DB
+
 `playlists` and `playlist_tracks` are active as staff-managed collections.
 
 Runtime rules:
@@ -203,7 +220,7 @@ Runtime rules:
   `cover_storage_key` and `cover_content_type`; `cover_image_url` remains the
   backend URL exposed to clients
 
-## 9. Current Moderation History In DB
+## 10. Current Moderation History In DB
 
 `admin_logs` is already used by the live moderation flow.
 
@@ -216,14 +233,14 @@ It currently stores:
 
 This is enough for the current moderation history block in the frontend.
 
-## 10. Data Ownership Rules
+## 11. Data Ownership Rules
 
 - PostgreSQL owns business truth
 - MinIO stores binary files only
 - Celery is execution infrastructure, not a system of record
 - signed stream URLs are derived access artifacts, not persistent track state
 
-## 11. Integrity Rules
+## 12. Integrity Rules
 
 - a track must not be playable publicly before `approved`
 - a `hidden` track must stay out of the public catalog and public stream surface

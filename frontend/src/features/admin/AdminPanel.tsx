@@ -7,7 +7,7 @@ import { AdminCollectionsPanel } from '@/features/admin/collections/AdminCollect
 import { UseAuthResult } from '@/hooks/useAuth';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import api from '@/shared/api/client';
-import { AdminSystemStats, Track, TrackStatus } from '@/shared/api/types';
+import { AdminSystemStats, Track, TrackReport, TrackStatus } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
 import { formatTime } from '@/shared/lib/time';
 import { ActionButton, AppTextField, MetricTile, SectionCard } from '@/shared/ui';
@@ -62,8 +62,135 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
   return (
     <Stack spacing={3}>
       <AdminTrackControl auth={auth} player={player} />
+      <AdminReportsPanel player={player} />
       <AdminCollectionsPanel auth={auth} player={player} />
     </Stack>
+  );
+}
+
+function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
+  const [reports, setReports] = useState<TrackReport[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [actionReportId, setActionReportId] = useState<number | null>(null);
+  const [panelError, setPanelError] = useState<string | null>(null);
+  const [panelMessage, setPanelMessage] = useState<string | null>(null);
+
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    setPanelError(null);
+    try {
+      const response = await api.getAdminReports({ status: 'open', size: 25 });
+      setReports(response.items);
+    } catch (err) {
+      setPanelError(getErrorMessage(err, 'Failed to load track reports'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadReports();
+  }, [loadReports]);
+
+  const resolveReport = async (report: TrackReport, hideTrack: boolean) => {
+    const notes = window.prompt(hideTrack ? 'Hide reason' : 'Resolution note', report.description ?? '');
+    if (notes === null) {
+      return;
+    }
+
+    setActionReportId(report.id);
+    setPanelError(null);
+    setPanelMessage(null);
+
+    try {
+      await api.resolveAdminReport(report.id, {
+        status: hideTrack ? 'resolved' : 'dismissed',
+        resolution_notes: notes || null,
+        hide_track: hideTrack,
+      });
+      if (hideTrack && report.track_id && player.activeTrackId === report.track_id) {
+        player.stopAndResetAudio();
+      }
+      setPanelMessage(hideTrack ? 'Report resolved and track hidden.' : 'Report dismissed.');
+      await loadReports();
+    } catch (err) {
+      setPanelError(getErrorMessage(err, 'Failed to resolve report'));
+    } finally {
+      setActionReportId(null);
+    }
+  };
+
+  return (
+    <SectionCard tone="orange">
+      <Stack spacing={2}>
+        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
+          <Box>
+            <Typography variant="h4">Track reports</Typography>
+            <Typography color="text.secondary">Open listener reports for post-publication safety review.</Typography>
+          </Box>
+          <ActionButton variant="outlined" onClick={() => void loadReports()} startIcon={<RefreshRoundedIcon />}>
+            Refresh
+          </ActionButton>
+        </Stack>
+
+        {panelError ? <Alert severity="error">{panelError}</Alert> : null}
+        {panelMessage ? <Alert severity="success">{panelMessage}</Alert> : null}
+        {loading ? (
+          <Stack direction="row" spacing={2} alignItems="center">
+            <CircularProgress size={20} />
+            <Typography>Loading reports...</Typography>
+          </Stack>
+        ) : null}
+        {!loading && reports.length === 0 ? <Alert severity="info">No open reports.</Alert> : null}
+
+        <Stack spacing={1.5}>
+          {reports.map((report) => {
+            const track = report.track;
+            const busy = actionReportId === report.id;
+
+            return (
+              <Card key={report.id} variant="outlined" sx={{ borderRadius: 4 }}>
+                <CardContent>
+                  <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
+                    {track ? <TrackArtwork track={track} size={76} radius={16} /> : null}
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                        <Chip label={report.reason} color="warning" size="small" />
+                        <Chip label={`report #${report.id}`} variant="outlined" size="small" />
+                        {track ? <Chip label={track.status} variant="outlined" size="small" /> : null}
+                      </Stack>
+                      <Typography variant="h6" sx={{ mt: 1 }}>
+                        {track?.title ?? `Track ${report.track_id ?? 'removed'}`}
+                      </Typography>
+                      {report.description ? <Typography color="text.secondary">{report.description}</Typography> : null}
+                    </Box>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      {track ? (
+                        <ActionButton
+                          variant="contained"
+                          size="small"
+                          startIcon={<PlayArrowRoundedIcon />}
+                          onClick={() => void player.playTrack(track)}
+                          disabled={!canPlayInStaffPanel(track) || busy}
+                        >
+                          Playback
+                        </ActionButton>
+                      ) : null}
+                      <ActionButton color="warning" variant="contained" size="small" disabled={busy || !track} onClick={() => void resolveReport(report, true)}>
+                        Hide track
+                      </ActionButton>
+                      <ActionButton variant="outlined" size="small" disabled={busy} onClick={() => void resolveReport(report, false)}>
+                        Dismiss
+                      </ActionButton>
+                    </Stack>
+                  </Stack>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </Stack>
+      </Stack>
+    </SectionCard>
   );
 }
 

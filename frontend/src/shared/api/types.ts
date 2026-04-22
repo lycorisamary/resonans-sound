@@ -6,6 +6,8 @@ export type CatalogView = 'catalog' | 'liked';
 export type StreamQuality = '128' | '320' | 'original';
 export type CatalogSort = 'newest' | 'popular' | 'title';
 export type OwnerTrackStateTone = 'info' | 'warning' | 'success' | 'error';
+export type TrackReportReason = 'spam' | 'copyright' | 'offensive' | 'not_music' | 'other';
+export type TrackReportStatus = 'open' | 'reviewed' | 'dismissed' | 'resolved';
 
 export interface HealthResponse {
   status: string;
@@ -124,8 +126,6 @@ export interface Track {
   is_downloadable: boolean;
   license_type: string;
   tags?: string[] | null;
-  bpm?: number | null;
-  key_signature?: string | null;
   status: TrackStatus;
   created_at: string;
   updated_at: string;
@@ -170,8 +170,6 @@ export interface TrackFormState {
   is_downloadable: boolean;
   license_type: string;
   tags: string;
-  bpm: string;
-  key_signature: string;
 }
 
 export interface TrackMetadataPayload {
@@ -182,12 +180,12 @@ export interface TrackMetadataPayload {
   is_downloadable: boolean;
   license_type: string;
   tags: string[];
-  bpm: number | null;
-  key_signature: string | null;
 }
 
 export interface TrackListParams {
   category?: string;
+  genre?: string;
+  tag?: string;
   search?: string;
   sort?: CatalogSort;
   page?: number;
@@ -215,6 +213,32 @@ export interface TrackPlayResponse {
   counted: boolean;
   play_count: number;
   dedupe_window_seconds: number;
+}
+
+export interface TrackReportPayload {
+  track_id: number;
+  reason: TrackReportReason;
+  description?: string | null;
+}
+
+export interface TrackReportResolvePayload {
+  status: TrackReportStatus;
+  resolution_notes?: string | null;
+  hide_track: boolean;
+}
+
+export interface TrackReport {
+  id: number;
+  reporter_id: number;
+  track_id?: number | null;
+  reason: TrackReportReason;
+  description?: string | null;
+  status: TrackReportStatus;
+  moderator_id?: number | null;
+  reviewed_at?: string | null;
+  resolution_notes?: string | null;
+  created_at: string;
+  track?: Track | null;
 }
 
 export interface Collection {

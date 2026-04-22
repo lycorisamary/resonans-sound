@@ -26,6 +26,9 @@ import {
   TrackModerationPayload,
   TrackMetadataPayload,
   TrackPlayResponse,
+  TrackReport,
+  TrackReportPayload,
+  TrackReportResolvePayload,
   User,
 } from './types';
 
@@ -307,6 +310,14 @@ class ApiClient {
     return response.data;
   }
 
+  async reportTrack(data: TrackReportPayload): Promise<TrackReport> {
+    const response = await this.client.post<TrackReport, { data: TrackReport }, TrackReportPayload>(
+      '/interactions/reports/track',
+      data
+    );
+    return response.data;
+  }
+
   async getAdminStats(): Promise<AdminSystemStats> {
     const response = await this.client.get<AdminSystemStats>('/admin/stats');
     return response.data;
@@ -314,6 +325,19 @@ class ApiClient {
 
   async getAdminTracks(params?: AdminTrackListParams): Promise<PaginatedResponse<Track>> {
     const response = await this.client.get<PaginatedResponse<Track>>('/admin/moderation', { params });
+    return response.data;
+  }
+
+  async getAdminReports(params?: { status?: string; page?: number; size?: number }): Promise<PaginatedResponse<TrackReport>> {
+    const response = await this.client.get<PaginatedResponse<TrackReport>>('/admin/reports', { params });
+    return response.data;
+  }
+
+  async resolveAdminReport(id: number, data: TrackReportResolvePayload): Promise<TrackReport> {
+    const response = await this.client.post<TrackReport, { data: TrackReport }, TrackReportResolvePayload>(
+      `/admin/reports/${id}/resolve`,
+      data
+    );
     return response.data;
   }
 
