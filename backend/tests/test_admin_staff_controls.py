@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from app.models import TrackStatus, UserRole
-from app.schemas import TrackModeration, TrackStatusEnum
+from app.schemas import TrackModeration, TrackModerationStatusEnum, TrackStatusEnum
 from app.services import admin as admin_service
 
 
@@ -69,7 +69,7 @@ def test_staff_can_hide_track_without_deleting(monkeypatch):
         db=db,
         admin_user=make_admin(),
         track_id=track.id,
-        payload=TrackModeration(status=TrackStatusEnum.hidden, rejection_reason="Spam upload"),
+        payload=TrackModeration(status=TrackModerationStatusEnum.hidden, rejection_reason="Spam upload"),
     )
 
     assert response.status == TrackStatusEnum.hidden
@@ -91,7 +91,7 @@ def test_staff_restore_requires_ready_media(monkeypatch):
             db=db,
             admin_user=make_admin(),
             track_id=track.id,
-            payload=TrackModeration(status=TrackStatusEnum.approved),
+            payload=TrackModeration(status=TrackModerationStatusEnum.approved),
         )
     except Exception as exc:
         assert "no ready media" in str(exc)

@@ -26,6 +26,12 @@ class TrackStatusEnum(str, Enum):
     deleted = "deleted"
 
 
+class TrackModerationStatusEnum(str, Enum):
+    approved = "approved"
+    rejected = "rejected"
+    hidden = "hidden"
+
+
 # Auth Schemas
 class UserRegister(BaseModel):
     email: EmailStr
@@ -205,7 +211,7 @@ class AdminLogResponse(BaseModel):
     details: Optional[dict] = None
 
 class TrackModeration(BaseModel):
-    status: Optional[TrackStatusEnum] = None
+    status: TrackModerationStatusEnum
     rejection_reason: Optional[str] = None
 
 
