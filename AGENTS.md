@@ -66,6 +66,8 @@ explicitly changes direction.
 - Public artist profiles are active runtime through `artists`: guests can browse
   `/artists`, open `/artists/:slug`, and see only approved tracks for active
   artists owned by active users
+- Artist discovery supports search plus genre, location and sort filters over
+  active public artist profiles
 - Authenticated users can create and edit their own artist profile text fields
   and upload profile avatar/banner images through backend-owned MinIO delivery
   URLs

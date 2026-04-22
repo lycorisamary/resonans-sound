@@ -11,6 +11,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
+from app.domain.genres import normalize_supported_genre
 from app.exceptions import ArtistConflictError, ArtistNotFoundError
 from app.models import Artist, Category, Track, TrackStatus, User, UserStatus
 from app.schemas import ArtistProfileCreate, ArtistProfileResponse, ArtistProfileUpdate, PaginatedResponse
@@ -77,7 +78,23 @@ def serialize_artist_profile(artist: Any, track_count: int = 0, play_count: int 
     )
 
 
-def list_public_artists(db: Session, page: int, size: int, search: str | None = None) -> PaginatedResponse:
+ARTIST_DISCOVERY_SORTS = {"recommended", "popular", "newest", "name"}
+
+
+def normalize_artist_discovery_sort(value: str | None) -> str:
+    sort_key = value.strip().lower() if value else "recommended"
+    return sort_key if sort_key in ARTIST_DISCOVERY_SORTS else "recommended"
+
+
+def list_public_artists(
+    db: Session,
+    page: int,
+    size: int,
+    search: str | None = None,
+    genre: str | None = None,
+    location: str | None = None,
+    sort: str = "recommended",
+) -> PaginatedResponse:
     query = _artist_stats_query(db)
     if search:
         pattern = f"%{search.strip()}%"
@@ -88,15 +105,40 @@ def list_public_artists(db: Session, page: int, size: int, search: str | None = 
                 Artist.bio.ilike(pattern),
             )
         )
+    if genre:
+        normalized_genre = normalize_supported_genre(genre)
+        if normalized_genre:
+            query = query.filter(Artist.profile_genres.any(normalized_genre))
+        else:
+            query = query.filter(Artist.id == -1)
+    if location:
+        location_pattern = f"%{location.strip()}%"
+        query = query.filter(Artist.location.ilike(location_pattern))
 
-    total = query.order_by(None).count()
-    rows = (
-        query.order_by(
+    sort_key = normalize_artist_discovery_sort(sort)
+    if sort_key == "popular":
+        order_by = [
+            func.coalesce(func.sum(Track.play_count), 0).desc(),
+            func.coalesce(func.sum(Track.like_count), 0).desc(),
+            func.count(Track.id).desc(),
+            Artist.created_at.desc(),
+            Artist.id.desc(),
+        ]
+    elif sort_key == "newest":
+        order_by = [Artist.created_at.desc(), Artist.id.desc()]
+    elif sort_key == "name":
+        order_by = [func.lower(Artist.display_name).asc(), Artist.id.asc()]
+    else:
+        order_by = [
             func.count(Track.id).desc(),
             func.coalesce(func.sum(Track.play_count), 0).desc(),
             Artist.created_at.desc(),
             Artist.id.desc(),
-        )
+        ]
+
+    total = query.order_by(None).count()
+    rows = (
+        query.order_by(*order_by)
         .offset((page - 1) * size)
         .limit(size)
         .all()

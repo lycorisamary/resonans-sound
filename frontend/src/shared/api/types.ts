@@ -5,6 +5,7 @@ export type AuthMode = 'login' | 'register';
 export type CatalogView = 'catalog' | 'liked';
 export type StreamQuality = '128' | '320' | 'original';
 export type CatalogSort = 'newest' | 'popular' | 'title';
+export type ArtistDiscoverySort = 'recommended' | 'popular' | 'newest' | 'name';
 export type OwnerTrackStateTone = 'info' | 'warning' | 'success' | 'error';
 export type TrackReportReason = 'spam' | 'copyright' | 'offensive' | 'not_music' | 'other';
 export type TrackReportStatus = 'open' | 'reviewed' | 'dismissed' | 'resolved';
@@ -83,6 +84,9 @@ export interface ArtistProfileCreatePayload extends ArtistProfilePayload {
 
 export interface ArtistListParams {
   search?: string;
+  genre?: string;
+  location?: string;
+  sort?: ArtistDiscoverySort;
   page?: number;
   size?: number;
 }

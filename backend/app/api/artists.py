@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
@@ -20,10 +22,13 @@ def get_artists(
     page: int = Query(1, ge=1),
     size: int = Query(20, ge=1, le=100),
     search: str | None = Query(None, min_length=1, max_length=255),
+    genre: str | None = Query(None, min_length=1, max_length=100),
+    location: str | None = Query(None, min_length=1, max_length=100),
+    sort: Literal["recommended", "popular", "newest", "name"] = Query("recommended"),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse:
     """Return active public artist profiles ordered for discovery."""
-    return list_public_artists(db=db, page=page, size=size, search=search)
+    return list_public_artists(db=db, page=page, size=size, search=search, genre=genre, location=location, sort=sort)
 
 
 @router.get("/{username}", response_model=ArtistProfileResponse)

@@ -45,6 +45,12 @@ def test_artist_profile_serialization_includes_public_stats_and_links():
     assert response.social_links == {"telegram": "https://t.me/artist"}
 
 
+def test_artist_discovery_sort_normalization():
+    assert artists_service.normalize_artist_discovery_sort("popular") == "popular"
+    assert artists_service.normalize_artist_discovery_sort(" NEWEST ") == "newest"
+    assert artists_service.normalize_artist_discovery_sort("unknown") == "recommended"
+
+
 def test_artist_profile_update_rejects_unsupported_link_keys():
     with pytest.raises(ValidationError):
         ArtistProfileUpdate(social_links={"unsafe": "https://example.com"})

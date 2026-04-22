@@ -92,6 +92,8 @@ Additional staff-control checks:
 ## 6.1 Artist profile smoke
 
 - Open `/artists` as a guest and verify active artists load.
+- Filter `/artists` by genre and location, then change sorting between
+  recommended, popular, newest and name.
 - Open `/artists/<slug>` and verify the page shows profile data and only approved tracks.
 - From a public track card, click the artist link and verify it opens `/artists/<slug>`.
 - Register a new user and verify Studio upload is blocked until an artist profile is created.

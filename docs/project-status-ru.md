@@ -228,3 +228,12 @@
   category and sort.
 - Authenticated users can submit track reports; staff reviews open reports in
   `/admin` and can hide the linked track without introducing premoderation.
+
+## 2026-04-22 Artist discovery filters update
+
+- Public `/artists` discovery now supports genre and location filters plus
+  `recommended`, `popular`, `newest` and `name` sorting.
+- Frontend filters live in `features/artists/ArtistsPanel.tsx`; routing remains
+  unchanged and `App.tsx` stays route-only.
+- This keeps artist profiles as the active runtime domain without adding
+  follows, comments or user playlists.

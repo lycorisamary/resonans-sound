@@ -19,7 +19,8 @@ Implemented in `main` right now:
 - automatic publication after successful processing
 - public playback and owner preview where needed
 - play counters after a real listen threshold with guest/auth dedupe
-- basic discovery: text search, category filter, sort
+- public track discovery: text search, category/genre/tag filters, sort
+- public artist discovery: text search, genre/location filters, sort
 - likes plus a dedicated liked-tracks view
 - authenticated track reports for post-publication staff safety review
 - separate user accounts and artist profiles: users can listen/like after auth,
