@@ -8,6 +8,7 @@ import { TrackCard } from './TrackCard';
 const track: Track = {
   id: 7,
   user_id: 1,
+  artist_id: 1,
   title: 'Morning Resonance',
   description: 'Live API smoke track',
   genre: 'ambient',

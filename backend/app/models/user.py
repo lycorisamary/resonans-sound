@@ -49,6 +49,7 @@ class User(Base):
     reset_token_expires = Column(DateTime(timezone=True))
 
     tracks = relationship("Track", back_populates="user", cascade="all, delete-orphan")
+    artist_profile = relationship("Artist", back_populates="user", uselist=False, cascade="all, delete-orphan")
     interactions = relationship(
         "Interaction",
         back_populates="user",

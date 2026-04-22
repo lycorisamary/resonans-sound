@@ -16,6 +16,7 @@ describe('artist profile form helpers', () => {
 
   it('builds profile payload from text fields', () => {
     const payload = buildProfilePayload({
+      slug: 'demo',
       displayName: ' Demo ',
       bio: '',
       location: ' Kaliningrad ',
@@ -37,6 +38,8 @@ describe('artist profile form helpers', () => {
   it('serializes loaded profile links back to editable text', () => {
     const form = profileToForm({
       id: 1,
+      user_id: 1,
+      slug: 'demo',
       username: 'demo',
       display_name: 'Demo',
       avatar_url: null,

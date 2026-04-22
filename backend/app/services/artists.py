@@ -11,9 +11,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import settings
-from app.exceptions import ArtistNotFoundError
-from app.models import Category, Track, TrackStatus, User, UserStatus
-from app.schemas import ArtistProfileResponse, ArtistProfileUpdate, PaginatedResponse
+from app.exceptions import ArtistConflictError, ArtistNotFoundError
+from app.models import Artist, Category, Track, TrackStatus, User, UserStatus
+from app.schemas import ArtistProfileCreate, ArtistProfileResponse, ArtistProfileUpdate, PaginatedResponse
 from app.services.catalog import serialize_track
 from app.services.storage import (
     build_profile_image_object_key,
@@ -28,47 +28,51 @@ from app.services.upload_validation import validate_cover_upload, write_upload_t
 PROFILE_IMAGE_KINDS = {"avatar", "banner"}
 
 
-def _profile_genres(user: Any) -> list[str]:
-    genres = getattr(user, "profile_genres", None)
+def _profile_genres(artist: Any) -> list[str]:
+    genres = getattr(artist, "profile_genres", None)
     return genres if isinstance(genres, list) else []
 
 
-def _profile_links(user: Any, field: str) -> dict[str, str]:
-    links = getattr(user, field, None)
+def _profile_links(artist: Any, field: str) -> dict[str, str]:
+    links = getattr(artist, field, None)
     return links if isinstance(links, dict) else {}
 
 
 def _artist_stats_query(db: Session):
     return (
         db.query(
-            User,
+            Artist,
             func.count(Track.id).label("track_count"),
             func.coalesce(func.sum(Track.play_count), 0).label("play_count"),
             func.coalesce(func.sum(Track.like_count), 0).label("like_count"),
         )
-        .outerjoin(Track, (Track.user_id == User.id) & (Track.status == TrackStatus.approved))
-        .filter(User.status == UserStatus.active)
-        .group_by(User.id)
+        .join(User, User.id == Artist.user_id)
+        .outerjoin(Track, (Track.artist_id == Artist.id) & (Track.status == TrackStatus.approved))
+        .filter(User.status == UserStatus.active, Artist.is_public.is_(True))
+        .group_by(Artist.id, User.id)
     )
 
 
-def serialize_artist_profile(user: Any, track_count: int = 0, play_count: int = 0, like_count: int = 0) -> ArtistProfileResponse:
+def serialize_artist_profile(artist: Any, track_count: int = 0, play_count: int = 0, like_count: int = 0) -> ArtistProfileResponse:
+    user = getattr(artist, "user", None)
     return ArtistProfileResponse.model_validate(
         {
-            "id": user.id,
-            "username": user.username,
-            "display_name": user.display_name,
-            "avatar_url": user.avatar_url,
-            "banner_image_url": user.banner_image_url,
-            "bio": user.bio,
-            "location": user.location,
-            "profile_genres": _profile_genres(user),
-            "social_links": _profile_links(user, "social_links"),
-            "streaming_links": _profile_links(user, "streaming_links"),
+            "id": artist.id,
+            "user_id": artist.user_id,
+            "slug": artist.slug,
+            "username": user.username if user is not None else artist.slug,
+            "display_name": artist.display_name,
+            "avatar_url": artist.avatar_url,
+            "banner_image_url": artist.banner_image_url,
+            "bio": artist.bio,
+            "location": artist.location,
+            "profile_genres": _profile_genres(artist),
+            "social_links": _profile_links(artist, "social_links"),
+            "streaming_links": _profile_links(artist, "streaming_links"),
             "track_count": track_count,
             "play_count": play_count,
             "like_count": like_count,
-            "created_at": user.created_at,
+            "created_at": artist.created_at,
         }
     )
 
@@ -79,9 +83,9 @@ def list_public_artists(db: Session, page: int, size: int, search: str | None = 
         pattern = f"%{search.strip()}%"
         query = query.filter(
             or_(
-                User.username.ilike(pattern),
-                User.display_name.ilike(pattern),
-                User.bio.ilike(pattern),
+                Artist.slug.ilike(pattern),
+                Artist.display_name.ilike(pattern),
+                Artist.bio.ilike(pattern),
             )
         )
 
@@ -90,8 +94,8 @@ def list_public_artists(db: Session, page: int, size: int, search: str | None = 
         query.order_by(
             func.count(Track.id).desc(),
             func.coalesce(func.sum(Track.play_count), 0).desc(),
-            User.created_at.desc(),
-            User.id.desc(),
+            Artist.created_at.desc(),
+            Artist.id.desc(),
         )
         .offset((page - 1) * size)
         .limit(size)
@@ -101,12 +105,12 @@ def list_public_artists(db: Session, page: int, size: int, search: str | None = 
     return PaginatedResponse(
         items=[
             serialize_artist_profile(
-                user=user,
+                artist=artist,
                 track_count=track_count or 0,
                 play_count=play_count or 0,
                 like_count=like_count or 0,
             ).model_dump()
-            for user, track_count, play_count, like_count in rows
+            for artist, track_count, play_count, like_count in rows
         ],
         total=total,
         page=page,
@@ -118,15 +122,15 @@ def list_public_artists(db: Session, page: int, size: int, search: str | None = 
 def get_public_artist(db: Session, username: str) -> ArtistProfileResponse:
     row = (
         _artist_stats_query(db)
-        .filter(func.lower(User.username) == username.strip().lower())
+        .filter(func.lower(Artist.slug) == username.strip().lower())
         .first()
     )
     if row is None:
         raise ArtistNotFoundError()
 
-    user, track_count, play_count, like_count = row
+    artist, track_count, play_count, like_count = row
     return serialize_artist_profile(
-        user=user,
+        artist=artist,
         track_count=track_count or 0,
         play_count=play_count or 0,
         like_count=like_count or 0,
@@ -135,8 +139,9 @@ def get_public_artist(db: Session, username: str) -> ArtistProfileResponse:
 
 def list_artist_tracks(db: Session, username: str, page: int, size: int, sort: str = "newest") -> PaginatedResponse:
     artist = (
-        db.query(User)
-        .filter(func.lower(User.username) == username.strip().lower(), User.status == UserStatus.active)
+        db.query(Artist)
+        .join(User, User.id == Artist.user_id)
+        .filter(func.lower(Artist.slug) == username.strip().lower(), Artist.is_public.is_(True), User.status == UserStatus.active)
         .first()
     )
     if artist is None:
@@ -145,9 +150,9 @@ def list_artist_tracks(db: Session, username: str, page: int, size: int, sort: s
     query = (
         db.query(Track)
         .outerjoin(Category, Track.category_id == Category.id)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(
-            Track.user_id == artist.id,
+            Track.artist_id == artist.id,
             Track.status == TrackStatus.approved,
             or_(Track.category_id.is_(None), Category.is_active.is_(True)),
         )
@@ -172,15 +177,61 @@ def list_artist_tracks(db: Session, username: str, page: int, size: int, sort: s
     )
 
 
+def get_own_artist(db: Session, current_user: User) -> ArtistProfileResponse | None:
+    artist = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if artist is None:
+        return None
+    artist.user = current_user
+    return serialize_artist_profile(artist)
+
+
+def get_required_own_artist_model(db: Session, current_user: User) -> Artist:
+    artist = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if artist is None:
+        raise ArtistConflictError("Create an artist profile before uploading tracks")
+    return artist
+
+
+def create_own_artist_profile(db: Session, current_user: User, payload: ArtistProfileCreate) -> ArtistProfileResponse:
+    existing = db.query(Artist).filter(Artist.user_id == current_user.id).first()
+    if existing is not None:
+        raise ArtistConflictError("User already has an artist profile")
+
+    slug_exists = db.query(Artist.id).filter(func.lower(Artist.slug) == payload.slug.lower()).first()
+    if slug_exists is not None:
+        raise ArtistConflictError("Artist slug is already taken")
+
+    artist = Artist(
+        user_id=current_user.id,
+        slug=payload.slug,
+        display_name=payload.display_name,
+        bio=payload.bio,
+        location=payload.location,
+        profile_genres=payload.profile_genres,
+        social_links=payload.social_links,
+        streaming_links=payload.streaming_links,
+        is_public=True,
+    )
+    db.add(artist)
+    db.commit()
+    db.refresh(artist)
+    artist.user = current_user
+    return serialize_artist_profile(artist)
+
+
 def update_own_artist_profile(db: Session, current_user: User, payload: ArtistProfileUpdate) -> ArtistProfileResponse:
+    artist = get_required_own_artist_model(db, current_user)
     updates = payload.model_dump(exclude_unset=True)
     for field, value in updates.items():
-        setattr(current_user, field, value)
+        if field == "slug":
+            continue
+        setattr(artist, field, value)
 
-    db.add(current_user)
+    db.add(artist)
     db.commit()
-    db.refresh(current_user)
-    return get_public_artist(db, current_user.username)
+    db.refresh(artist)
+    artist.user = current_user
+    return serialize_artist_profile(artist)
 
 
 def upload_own_profile_image(
@@ -193,10 +244,11 @@ def upload_own_profile_image(
         raise ArtistNotFoundError("Profile image kind not found")
 
     safe_filename, content_type = validate_cover_upload(upload_file_object)
+    artist = get_required_own_artist_model(db, current_user)
     storage_field = f"{image_kind}_storage_key"
     content_type_field = f"{image_kind}_content_type"
     url_field = "avatar_url" if image_kind == "avatar" else "banner_image_url"
-    previous_key = getattr(current_user, storage_field)
+    previous_key = getattr(artist, storage_field)
     temp_file_path = ""
     new_key = ""
 
@@ -206,20 +258,21 @@ def upload_own_profile_image(
             suffix=Path(safe_filename).suffix.lower(),
             max_file_size=int(settings.MAX_COVER_IMAGE_SIZE),
         )
-        new_key = build_profile_image_object_key(current_user.id, image_kind, safe_filename)
+        new_key = build_profile_image_object_key(artist.id, image_kind, safe_filename)
         upload_file(temp_file_path, new_key, content_type=content_type)
 
-        setattr(current_user, storage_field, new_key)
-        setattr(current_user, content_type_field, content_type)
-        setattr(current_user, url_field, f"{settings.API_PREFIX}/artists/{current_user.username}/{image_kind}")
-        db.add(current_user)
+        setattr(artist, storage_field, new_key)
+        setattr(artist, content_type_field, content_type)
+        setattr(artist, url_field, f"{settings.API_PREFIX}/artists/{artist.slug}/{image_kind}")
+        db.add(artist)
         db.commit()
-        db.refresh(current_user)
+        db.refresh(artist)
 
         if previous_key and previous_key != new_key:
             delete_objects([previous_key])
 
-        return get_public_artist(db, current_user.username)
+        artist.user = current_user
+        return serialize_artist_profile(artist)
     finally:
         try:
             upload_file_object.file.close()
@@ -233,20 +286,21 @@ def build_public_profile_image_response(db: Session, username: str, image_kind: 
     if image_kind not in PROFILE_IMAGE_KINDS:
         raise ArtistNotFoundError()
 
-    user = (
-        db.query(User)
-        .filter(func.lower(User.username) == username.strip().lower(), User.status == UserStatus.active)
+    artist = (
+        db.query(Artist)
+        .join(User, User.id == Artist.user_id)
+        .filter(func.lower(Artist.slug) == username.strip().lower(), Artist.is_public.is_(True), User.status == UserStatus.active)
         .first()
     )
-    if user is None:
+    if artist is None:
         raise ArtistNotFoundError()
 
-    storage_key = getattr(user, f"{image_kind}_storage_key")
+    storage_key = getattr(artist, f"{image_kind}_storage_key")
     if not storage_key:
         raise ArtistNotFoundError("Artist image not found")
 
     object_info = stat_object(storage_key)
-    content_type = object_info.content_type or getattr(user, f"{image_kind}_content_type") or "image/jpeg"
+    content_type = object_info.content_type or getattr(artist, f"{image_kind}_content_type") or "image/jpeg"
     stream = get_object_stream(storage_key)
     return StreamingResponse(
         stream.stream(32 * 1024),

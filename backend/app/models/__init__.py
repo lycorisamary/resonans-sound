@@ -1,4 +1,5 @@
 from app.models.admin import AdminLog
+from app.models.artist import Artist
 from app.models.category import Category
 from app.models.collection import Collection, CollectionTrack
 from app.models.interaction import Interaction, InteractionType
@@ -11,6 +12,7 @@ from app.models.user import User, UserRole, UserStatus
 __all__ = [
     "AdminLog",
     "APIToken",
+    "Artist",
     "Category",
     "Collection",
     "CollectionTrack",

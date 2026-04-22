@@ -1,4 +1,4 @@
-from app.exceptions.artist import ArtistNotFoundError
+from app.exceptions.artist import ArtistConflictError, ArtistNotFoundError
 from app.exceptions.auth import RefreshTokenInvalidError
 from app.exceptions.base import DomainError
 from app.exceptions.collection import CollectionConflictError, CollectionNotFoundError, CollectionTrackNotFoundError
@@ -17,6 +17,7 @@ from app.exceptions.track import (
 __all__ = [
     "DomainError",
     "ArtistNotFoundError",
+    "ArtistConflictError",
     "CollectionConflictError",
     "CollectionNotFoundError",
     "CollectionTrackNotFoundError",

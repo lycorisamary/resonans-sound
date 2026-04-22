@@ -34,7 +34,7 @@ def _log_admin_action(
 def _get_track_for_moderation(db: Session, track_id: int) -> Track:
     track = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.id == track_id)
         .first()
     )
@@ -105,7 +105,7 @@ def get_moderation_queue(
     requested_status = _coerce_track_status(status_filter)
     query = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
     )
     if requested_status is None:
         query = query.filter(Track.status != TrackStatus.deleted)

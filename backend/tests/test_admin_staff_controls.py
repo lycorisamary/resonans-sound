@@ -26,6 +26,7 @@ def make_track(status: TrackStatus = TrackStatus.approved):
     return SimpleNamespace(
         id=12,
         user_id=7,
+        artist_id=4,
         title="Demo",
         description=None,
         genre=None,
@@ -52,6 +53,7 @@ def make_track(status: TrackStatus = TrackStatus.approved):
         key_signature=None,
         rejection_reason=None,
         user=None,
+        artist=None,
         category=None,
     )
 

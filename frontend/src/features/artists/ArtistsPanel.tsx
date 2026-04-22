@@ -75,7 +75,7 @@ export function ArtistsPanel() {
           {artists.map((artist) => (
             <Grid item xs={12} md={6} xl={4} key={artist.id}>
               <Card variant="outlined" sx={{ height: '100%', borderRadius: 4, overflow: 'hidden' }}>
-                <CardActionArea component={RouterLink} to={`/artists/${artist.username}`} sx={{ height: '100%' }}>
+                <CardActionArea component={RouterLink} to={`/artists/${artist.slug}`} sx={{ height: '100%' }}>
                   <Box
                     sx={{
                       height: 112,
@@ -90,14 +90,14 @@ export function ArtistsPanel() {
                     <Stack spacing={1.5}>
                       <Stack direction="row" spacing={1.5} alignItems="center">
                         <Avatar src={artist.avatar_url ?? undefined} sx={{ bgcolor: '#0f766e' }}>
-                          {(artist.display_name ?? artist.username).slice(0, 1).toUpperCase()}
+                          {artist.display_name.slice(0, 1).toUpperCase()}
                         </Avatar>
                         <Box minWidth={0}>
                           <Typography variant="h6" noWrap>
-                            {artist.display_name || artist.username}
+                            {artist.display_name}
                           </Typography>
                           <Typography color="text.secondary" noWrap>
-                            @{artist.username}
+                            /artists/{artist.slug}
                           </Typography>
                         </Box>
                       </Stack>

@@ -5,8 +5,8 @@ from app.core.config import settings
 from app.core.security import get_current_user
 from app.db.session import get_db
 from app.models import User
-from app.schemas import ArtistProfileResponse, ArtistProfileUpdate, UserResponse
-from app.services.artists import update_own_artist_profile, upload_own_profile_image
+from app.schemas import ArtistProfileCreate, ArtistProfileResponse, ArtistProfileUpdate, UserResponse
+from app.services.artists import create_own_artist_profile, get_own_artist, update_own_artist_profile, upload_own_profile_image
 from app.services.rate_limit import RateLimit, enforce_rate_limit, user_subject
 
 
@@ -40,6 +40,25 @@ def update_me_profile(
 ) -> ArtistProfileResponse:
     """Update the authenticated user's public artist profile."""
     return update_own_artist_profile(db=db, current_user=current_user, payload=payload)
+
+
+@router.get("/me/artist", response_model=ArtistProfileResponse | None)
+def get_me_artist(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ArtistProfileResponse | None:
+    """Return the authenticated user's artist profile when registered."""
+    return get_own_artist(db=db, current_user=current_user)
+
+
+@router.post("/me/artist", response_model=ArtistProfileResponse, status_code=201)
+def create_me_artist(
+    payload: ArtistProfileCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> ArtistProfileResponse:
+    """Register the authenticated user as an artist."""
+    return create_own_artist_profile(db=db, current_user=current_user, payload=payload)
 
 
 @router.post("/me/avatar", response_model=ArtistProfileResponse, status_code=202)

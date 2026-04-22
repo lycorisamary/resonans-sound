@@ -205,7 +205,9 @@
 ## 2026-04-22 Artist profile update
 
 - Public artist profiles are active through `/artists` and
-  `/artists/{username}`.
+  `/artists/{slug}`.
+- User accounts and artist profiles are separate: a registered user must create
+  an artist profile before creating or uploading tracks.
 - Artist pages expose only approved tracks for active users; hidden/deleted and
   non-approved tracks stay out of public artist surfaces.
 - Authenticated users can edit display name, location, genres, bio, social

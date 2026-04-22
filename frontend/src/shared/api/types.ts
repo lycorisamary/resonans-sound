@@ -40,6 +40,8 @@ export interface UserPublic {
 
 export interface ArtistProfile {
   id: number;
+  user_id: number;
+  slug: string;
   username: string;
   display_name?: string | null;
   avatar_url?: string | null;
@@ -55,6 +57,14 @@ export interface ArtistProfile {
   created_at: string;
 }
 
+export interface ArtistPublic {
+  id: number;
+  slug: string;
+  display_name: string;
+  avatar_url?: string | null;
+  bio?: string | null;
+}
+
 export interface ArtistProfilePayload {
   display_name?: string | null;
   bio?: string | null;
@@ -62,6 +72,11 @@ export interface ArtistProfilePayload {
   profile_genres?: string[] | null;
   social_links?: Record<string, string> | null;
   streaming_links?: Record<string, string> | null;
+}
+
+export interface ArtistProfileCreatePayload extends ArtistProfilePayload {
+  slug: string;
+  display_name: string;
 }
 
 export interface ArtistListParams {
@@ -100,6 +115,7 @@ export interface TrackMetadata {
 export interface Track {
   id: number;
   user_id: number;
+  artist_id: number;
   title: string;
   description?: string | null;
   genre?: string | null;
@@ -121,6 +137,7 @@ export interface Track {
   waveform_data_json?: WaveformData | null;
   metadata?: TrackMetadata | null;
   user?: UserPublic | null;
+  artist?: ArtistPublic | null;
   category?: Category | null;
   original_url?: string | null;
   mp3_128_url?: string | null;

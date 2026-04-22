@@ -126,6 +126,7 @@ def serialize_collection(
 def _collection_query(db: Session):
     return db.query(Collection).options(
         joinedload(Collection.track_links).joinedload(CollectionTrack.track).joinedload(Track.user),
+        joinedload(Collection.track_links).joinedload(CollectionTrack.track).joinedload(Track.artist),
         joinedload(Collection.track_links).joinedload(CollectionTrack.track).joinedload(Track.category),
     )
 
@@ -149,7 +150,7 @@ def _get_collection_for_staff(db: Session, collection_id: int) -> Collection:
 def _get_track_for_collection(db: Session, track_id: int) -> Track:
     track = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.id == track_id)
         .first()
     )

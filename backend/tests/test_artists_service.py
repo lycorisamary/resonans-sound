@@ -8,11 +8,14 @@ from app.schemas import ArtistProfileUpdate
 from app.services import artists as artists_service
 
 
-def make_user():
+def make_artist():
     now = datetime.now(timezone.utc)
+    user = SimpleNamespace(id=7, username="user_account")
     return SimpleNamespace(
-        id=7,
-        username="artist",
+        id=3,
+        user_id=user.id,
+        slug="artist",
+        user=user,
         display_name="Artist Name",
         avatar_url="/api/v1/artists/artist/avatar",
         banner_image_url="/api/v1/artists/artist/banner",
@@ -27,13 +30,14 @@ def make_user():
 
 def test_artist_profile_serialization_includes_public_stats_and_links():
     response = artists_service.serialize_artist_profile(
-        user=make_user(),
+        artist=make_artist(),
         track_count=3,
         play_count=40,
         like_count=5,
     )
 
-    assert response.username == "artist"
+    assert response.slug == "artist"
+    assert response.username == "user_account"
     assert response.display_name == "Artist Name"
     assert response.track_count == 3
     assert response.play_count == 40

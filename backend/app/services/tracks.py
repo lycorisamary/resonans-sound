@@ -18,6 +18,7 @@ from app.models import AdminLog, Category, Track, TrackStatus, User
 from app.policies import TrackDeletionPolicy, TrackUploadPolicy
 from app.policies._roles import is_staff
 from app.schemas import PaginatedResponse, TrackCreate, TrackResponse, TrackUpdate, TrackUploadResponse
+from app.services.artists import get_required_own_artist_model
 from app.services.catalog import serialize_track
 from app.services.storage import (
     build_cover_object_key,
@@ -300,7 +301,7 @@ def _assert_cover_uploadable_track(track: Track, current_user: User) -> None:
 def _hydrate_track(db: Session, track_id: int) -> Track | None:
     return (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.id == track_id)
         .first()
     )
@@ -308,9 +309,11 @@ def _hydrate_track(db: Session, track_id: int) -> Track | None:
 
 def create_track_metadata(db: Session, current_user: User, payload: TrackCreate) -> TrackResponse:
     _get_active_category(db, payload.category_id)
+    artist = get_required_own_artist_model(db, current_user)
 
     track = Track(
         user_id=current_user.id,
+        artist_id=artist.id,
         title=payload.title,
         description=payload.description,
         genre=payload.genre,
@@ -334,7 +337,7 @@ def create_track_metadata(db: Session, current_user: User, payload: TrackCreate)
 def list_user_tracks(db: Session, current_user: User, page: int, size: int) -> PaginatedResponse:
     query = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.user_id == current_user.id)
     )
     total = query.order_by(None).count()
@@ -357,7 +360,7 @@ def list_user_tracks(db: Session, current_user: User, page: int, size: int) -> P
 def _get_owned_track(db: Session, current_user: User, track_id: int) -> Track:
     track = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.id == track_id, Track.user_id == current_user.id)
         .first()
     )
@@ -400,7 +403,7 @@ def update_track_metadata(
 def delete_track_metadata(db: Session, current_user: User, track_id: int) -> None:
     track = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(Track.id == track_id)
         .first()
     )

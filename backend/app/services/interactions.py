@@ -137,7 +137,7 @@ def get_liked_tracks_page(db: Session, current_user: User, page: int, size: int)
 
     tracks = (
         db.query(Track)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(
             Track.id.in_(page_track_ids),
             Track.status == TrackStatus.approved,

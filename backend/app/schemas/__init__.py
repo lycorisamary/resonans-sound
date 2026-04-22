@@ -3,6 +3,7 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from enum import Enum
 from urllib.parse import urlparse
+import re
 
 
 # Enums for schemas
@@ -106,6 +107,7 @@ class UserPublic(BaseModel):
 
 SOCIAL_LINK_KEYS = {"instagram", "telegram", "vk", "youtube", "tiktok", "x", "website"}
 STREAMING_LINK_KEYS = {"soundcloud", "spotify", "apple_music", "youtube_music", "bandcamp", "yandex_music", "vk_music"}
+ARTIST_SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9_-]{2,49}$")
 
 
 def _clean_optional_text(value: Optional[str]) -> Optional[str]:
@@ -174,10 +176,33 @@ class ArtistProfileUpdate(BaseModel):
         return _validate_profile_links(value, STREAMING_LINK_KEYS, "streaming_links")
 
 
+class ArtistProfileCreate(ArtistProfileUpdate):
+    slug: str = Field(..., min_length=3, max_length=50)
+    display_name: str = Field(..., min_length=1, max_length=120)
+
+    @field_validator("slug")
+    @classmethod
+    def validate_artist_slug(cls, value):
+        slug = value.strip().lower()
+        if not ARTIST_SLUG_PATTERN.match(slug):
+            raise ValueError("Artist slug must contain lowercase letters, numbers, underscores, or hyphens")
+        return slug
+
+    @field_validator("display_name")
+    @classmethod
+    def validate_artist_display_name(cls, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Artist display name must not be blank")
+        return cleaned
+
+
 class ArtistProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    user_id: int
+    slug: str
     username: str
     display_name: Optional[str] = None
     avatar_url: Optional[str] = None
@@ -191,6 +216,16 @@ class ArtistProfileResponse(BaseModel):
     play_count: int = 0
     like_count: int = 0
     created_at: datetime
+
+
+class ArtistPublic(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    slug: str
+    display_name: str
+    avatar_url: Optional[str] = None
+    bio: Optional[str] = None
 
 
 # Active category schemas
@@ -254,6 +289,7 @@ class TrackResponse(TrackBase):
 
     id: int
     user_id: int
+    artist_id: int
     status: TrackStatusEnum
     created_at: datetime
     updated_at: datetime
@@ -265,6 +301,7 @@ class TrackResponse(TrackBase):
     waveform_data_json: Optional[dict] = None
     metadata: Optional[TrackMetadata] = None
     user: Optional[UserPublic] = None
+    artist: Optional[ArtistPublic] = None
     category: Optional[CategoryResponse] = None
 
 

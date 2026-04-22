@@ -8,6 +8,7 @@ The application must not create or alter tables during startup.
 The current implementation still centers the MVP around a few core tables:
 
 - `users`
+- `artists`
 - `categories`
 - `tracks`
 - `track_play_events`
@@ -17,9 +18,9 @@ The current implementation still centers the MVP around a few core tables:
 - `admin_logs`
 - `api_tokens`
 
-Artist profile data lives on `users` for the current MVP. This keeps artist
-identity aligned with auth identity while the product does not yet have
-separate band/team accounts.
+Artist profiles are separate from `users`. A user account owns at most one
+artist profile in the current MVP, and tracks point to both the owning user and
+the public artist persona.
 
 The existing physical `playlists` and `playlist_tracks` tables are now active as
 staff-managed collections. They are not user playlists: only staff roles manage
@@ -233,6 +234,8 @@ This is enough for the current moderation history block in the frontend.
 - owner/private playback must not depend on exposing MinIO object keys
 - artist avatar/banner delivery must use backend URLs and must not expose MinIO
   object keys
+- creating or uploading tracks requires an artist profile; authenticated users
+  without an artist profile can still listen and like but cannot publish music
 - listen-threshold play counters must not store raw guest IP/user-agent values
 - `hidden` and non-approved tracks must not increment `tracks.play_count`
 - public collections must not expose non-approved tracks

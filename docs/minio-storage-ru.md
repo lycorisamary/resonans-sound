@@ -112,8 +112,8 @@ Artist profile avatar and banner images are active runtime media.
 - Object keys use `profiles/{user_id}/avatar/{uuid}.{ext}` and
   `profiles/{user_id}/banner/{uuid}.{ext}`.
 - Public clients receive only backend URLs:
-  `/api/v1/artists/{username}/avatar` and
-  `/api/v1/artists/{username}/banner`.
+  `/api/v1/artists/{slug}/avatar` and
+  `/api/v1/artists/{slug}/banner`.
 - Upload validation reuses the same server-side image signature checks as track
   and collection covers.
 - MinIO object keys stay internal and must not be exposed to the frontend.

@@ -1,4 +1,4 @@
-import { ArtistProfile, ArtistProfilePayload } from '@/shared/api/types';
+import { ArtistProfile, ArtistProfileCreatePayload, ArtistProfilePayload } from '@/shared/api/types';
 
 const SOCIAL_KEYS = ['instagram', 'telegram', 'vk', 'youtube', 'tiktok', 'x', 'website'];
 const STREAMING_KEYS = ['soundcloud', 'spotify', 'apple_music', 'youtube_music', 'bandcamp', 'yandex_music', 'vk_music'];
@@ -51,7 +51,17 @@ export function buildProfilePayload(form: ArtistProfileFormState): ArtistProfile
   };
 }
 
+export function buildCreateProfilePayload(form: ArtistProfileFormState): ArtistProfileCreatePayload {
+  const displayName = form.displayName.trim();
+  return {
+    ...buildProfilePayload(form),
+    slug: form.slug.trim().toLowerCase(),
+    display_name: displayName,
+  };
+}
+
 export interface ArtistProfileFormState {
+  slug: string;
   displayName: string;
   bio: string;
   location: string;
@@ -62,6 +72,7 @@ export interface ArtistProfileFormState {
 
 export function profileToForm(profile: ArtistProfile | null): ArtistProfileFormState {
   return {
+    slug: profile?.slug ?? '',
     displayName: profile?.display_name ?? '',
     bio: profile?.bio ?? '',
     location: profile?.location ?? '',

@@ -21,7 +21,9 @@ Implemented in `main` right now:
 - play counters after a real listen threshold with guest/auth dedupe
 - basic discovery: text search, category filter, sort
 - likes plus a dedicated liked-tracks view
-- public artist profiles with `/artists`, `/artists/:username`, approved-track
+- separate user accounts and artist profiles: users can listen/like after auth,
+  while track upload requires creating an artist profile
+- public artist profiles with `/artists`, `/artists/:slug`, approved-track
   lists, editable profile metadata, and MinIO-backed avatar/banner uploads
 - public staff-curated collections with approved-track filtering and ordered playback
 - staff collection management for drafts, publishing, searchable track membership, ordering, and collection covers
@@ -70,10 +72,12 @@ Currently active routes in `main`:
 - `GET /api/v1/categories`
 - `GET /api/v1/categories/{slug}`
 - `GET /api/v1/artists`
-- `GET /api/v1/artists/{username}`
-- `GET /api/v1/artists/{username}/tracks`
-- `GET /api/v1/artists/{username}/avatar`
-- `GET /api/v1/artists/{username}/banner`
+- `GET /api/v1/artists/{slug}`
+- `GET /api/v1/artists/{slug}/tracks`
+- `GET /api/v1/artists/{slug}/avatar`
+- `GET /api/v1/artists/{slug}/banner`
+- `GET /api/v1/users/me/artist`
+- `POST /api/v1/users/me/artist`
 - `PUT /api/v1/users/me/profile`
 - `POST /api/v1/users/me/avatar`
 - `POST /api/v1/users/me/banner`

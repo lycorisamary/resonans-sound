@@ -29,6 +29,7 @@ def make_track(track_id: int, status: TrackStatus = TrackStatus.approved):
     return SimpleNamespace(
         id=track_id,
         user_id=7,
+        artist_id=4,
         title=f"Track {track_id}",
         description=None,
         genre=None,
@@ -55,6 +56,7 @@ def make_track(track_id: int, status: TrackStatus = TrackStatus.approved):
         key_signature=None,
         rejection_reason=None,
         user=None,
+        artist=None,
         category=None,
     )
 

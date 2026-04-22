@@ -57,10 +57,15 @@ explicitly changes direction.
 - Upload validation checks extension, server-side file signatures, size, and
   track state before writing to MinIO
 - Users have a separate liked-tracks view
-- Public artist profiles are active runtime: guests can browse `/artists`, open
-  `/artists/:username`, and see only approved tracks for active users
-- Authenticated users can edit their own artist profile text fields and upload
-  profile avatar/banner images through backend-owned MinIO delivery URLs
+- User accounts and artist profiles are separate runtime concepts: a registered
+  user can listen/like, but must create an artist profile before creating or
+  uploading tracks
+- Public artist profiles are active runtime through `artists`: guests can browse
+  `/artists`, open `/artists/:slug`, and see only approved tracks for active
+  artists owned by active users
+- Authenticated users can create and edit their own artist profile text fields
+  and upload profile avatar/banner images through backend-owned MinIO delivery
+  URLs
 - Staff-managed collections are active runtime: guests can view public
   collections, while only `admin` and `moderator` can create, publish,
   unpublish, delete, add approved tracks, remove tracks, reorder them, and
@@ -78,8 +83,8 @@ explicitly changes direction.
 - Collection covers are stored in MinIO with explicit `playlists`
   storage metadata and served through `/api/v1/collections/{id}/cover`
 - Artist avatar/banner objects are stored in MinIO under `profiles/...`; public
-  clients receive `/api/v1/artists/{username}/avatar` and
-  `/api/v1/artists/{username}/banner`, never object keys
+  clients receive `/api/v1/artists/{slug}/avatar` and
+  `/api/v1/artists/{slug}/banner`, never object keys
 - Active ORM models are split by context under `backend/app/models/`
 - Existing physical `playlists` / `playlist_tracks` tables are now active as
   staff-managed `Collection` / `CollectionTrack` runtime models; they are not

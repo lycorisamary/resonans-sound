@@ -1,4 +1,4 @@
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 
 import { Alert, Box, Chip, FormControlLabel, MenuItem, Stack, Switch, Typography } from '@mui/material';
 
@@ -7,6 +7,7 @@ import { UseAuthResult } from '@/hooks/useAuth';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import { UseCatalogResult } from '@/hooks/useCatalog';
 import { UseTrackActionsResult } from '@/hooks/useTrackActions';
+import api from '@/shared/api/client';
 import { ActionButton, AppTextField, SectionCard } from '@/shared/ui';
 import { AutoAwesomeRoundedIcon } from '@/shared/ui/icons';
 
@@ -20,7 +21,24 @@ interface StudioFormProps {
 export function StudioForm({ auth, catalog, player, trackActions }: StudioFormProps) {
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
-  const formDisabled = !auth.user || trackActions.studioBusy;
+  const [hasArtistProfile, setHasArtistProfile] = useState(false);
+  const formDisabled = !auth.user || !hasArtistProfile || trackActions.studioBusy;
+  useEffect(() => {
+    if (!auth.user) {
+      setHasArtistProfile(false);
+      return;
+    }
+
+    const loadArtistProfile = async () => {
+      try {
+        setHasArtistProfile(Boolean(await api.getMyArtistProfile()));
+      } catch {
+        setHasArtistProfile(false);
+      }
+    };
+
+    void loadArtistProfile();
+  }, [auth.user?.id]);
   const clearSelectedFiles = () => {
     setAudioFile(null);
     setCoverFile(null);
@@ -52,6 +70,7 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
           </Stack>
 
           {!auth.user ? <Alert severity="warning">Форма видна, но для создания и загрузки треков сначала откройте сессию.</Alert> : null}
+          {auth.user && !hasArtistProfile ? <Alert severity="info">Сначала создайте профиль артиста в `/me`, после этого загрузка треков станет доступна.</Alert> : null}
 
           <Box component="form" onSubmit={(event) => void submitStudioForm(event)}>
             <Stack spacing={2}>
@@ -161,6 +180,8 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
                   <ActionButton type="submit" variant="contained" disabled={formDisabled}>
                     {!auth.user
                       ? 'Войдите, чтобы создать трек'
+                      : !hasArtistProfile
+                        ? 'Сначала создайте профиль артиста'
                       : trackActions.studioBusy
                         ? 'Сохраняем...'
                         : trackActions.editingTrackId

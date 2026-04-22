@@ -73,6 +73,8 @@ export function TrackCard({
 }: TrackCardProps) {
   const ownerState = getOwnerTrackState(track);
   const playable = hasPlayableMedia(track);
+  const artistSlug = track.artist?.slug ?? track.user?.username;
+  const artistName = track.artist?.display_name ?? track.user?.display_name ?? track.user?.username;
 
   return (
     <Card
@@ -98,14 +100,14 @@ export function TrackCard({
                     {track.title}
                   </Typography>
                   <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
-                    {track.user?.username ? (
+                    {artistSlug ? (
                       <Typography
                         component={RouterLink}
-                        to={`/artists/${track.user.username}`}
+                        to={`/artists/${artistSlug}`}
                         color="text.secondary"
                         sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
                       >
-                        {track.user.display_name || track.user.username}
+                        {artistName}
                       </Typography>
                     ) : (
                       <Typography color="text.secondary">Unknown artist</Typography>

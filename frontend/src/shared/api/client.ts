@@ -5,6 +5,7 @@ import {
   AdminTrackListParams,
   ArtistListParams,
   ArtistProfile,
+  ArtistProfileCreatePayload,
   ArtistProfilePayload,
   AuthTokens,
   Category,
@@ -152,6 +153,19 @@ class ApiClient {
   async updateMyArtistProfile(data: ArtistProfilePayload): Promise<ArtistProfile> {
     const response = await this.client.put<ArtistProfile, { data: ArtistProfile }, ArtistProfilePayload>(
       '/users/me/profile',
+      data
+    );
+    return response.data;
+  }
+
+  async getMyArtistProfile(): Promise<ArtistProfile | null> {
+    const response = await this.client.get<ArtistProfile | null>('/users/me/artist');
+    return response.data;
+  }
+
+  async createMyArtistProfile(data: ArtistProfileCreatePayload): Promise<ArtistProfile> {
+    const response = await this.client.post<ArtistProfile, { data: ArtistProfile }, ArtistProfileCreatePayload>(
+      '/users/me/artist',
       data
     );
     return response.data;

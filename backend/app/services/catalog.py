@@ -5,7 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import Category, Track, TrackStatus
-from app.schemas import CategoryResponse, PaginatedResponse, TrackMetadata, TrackResponse, TrackUploadResponse, UserPublic
+from app.schemas import ArtistPublic, CategoryResponse, PaginatedResponse, TrackMetadata, TrackResponse, TrackUploadResponse, UserPublic
 
 
 def serialize_user_public(user: Any | None) -> UserPublic | None:
@@ -45,6 +45,21 @@ def serialize_category(category: Any | None, track_count: int = 0) -> CategoryRe
     )
 
 
+def serialize_artist_public(artist: Any | None) -> ArtistPublic | None:
+    if artist is None:
+        return None
+
+    return ArtistPublic.model_validate(
+        {
+            "id": artist.id,
+            "slug": artist.slug,
+            "display_name": artist.display_name,
+            "avatar_url": artist.avatar_url,
+            "bio": artist.bio,
+        }
+    )
+
+
 def serialize_track(track: Any, include_private_media: bool = False) -> TrackResponse | TrackUploadResponse:
     metadata = None
     if isinstance(track.metadata_json, dict):
@@ -58,6 +73,7 @@ def serialize_track(track: Any, include_private_media: bool = False) -> TrackRes
     payload = {
         "id": track.id,
         "user_id": track.user_id,
+        "artist_id": track.artist_id,
         "title": track.title,
         "description": track.description,
         "genre": track.genre,
@@ -79,6 +95,7 @@ def serialize_track(track: Any, include_private_media: bool = False) -> TrackRes
         "waveform_data_json": waveform_data,
         "metadata": metadata,
         "user": serialize_user_public(getattr(track, "user", None)),
+        "artist": serialize_artist_public(getattr(track, "artist", None)),
         "category": category,
     }
 
@@ -143,7 +160,7 @@ def build_public_tracks_page(
     query = (
         db.query(Track)
         .outerjoin(Category, Track.category_id == Category.id)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(
             Track.status == TrackStatus.approved,
             or_(Track.category_id.is_(None), Category.is_active.is_(True)),
@@ -195,7 +212,7 @@ def get_public_track(db: Session, track_id: int) -> TrackResponse | None:
     track = (
         db.query(Track)
         .outerjoin(Category, Track.category_id == Category.id)
-        .options(joinedload(Track.user), joinedload(Track.category))
+        .options(joinedload(Track.user), joinedload(Track.artist), joinedload(Track.category))
         .filter(
             Track.id == track_id,
             Track.status == TrackStatus.approved,

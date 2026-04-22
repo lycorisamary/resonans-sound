@@ -92,10 +92,11 @@ Additional staff-control checks:
 ## 6.1 Artist profile smoke
 
 - Open `/artists` as a guest and verify active artists load.
-- Open `/artists/<username>` and verify the page shows profile data and only approved tracks.
-- From a public track card, click the artist link and verify it opens `/artists/<username>`.
-- Log in, open `/me`, edit display name, location, genres, bio, social links, and streaming links.
-- Upload avatar and banner images; verify public `/artists/<username>/avatar` and `/artists/<username>/banner` return images.
+- Open `/artists/<slug>` and verify the page shows profile data and only approved tracks.
+- From a public track card, click the artist link and verify it opens `/artists/<slug>`.
+- Register a new user and verify Studio upload is blocked until an artist profile is created.
+- Log in, open `/me`, create an artist profile, then edit display name, location, genres, bio, social links, and streaming links.
+- Upload avatar and banner images; verify public `/artists/<slug>/avatar` and `/artists/<slug>/banner` return images.
 - Hide one of the artist's tracks as staff and verify it disappears from the public artist page.
 
 ## 7. Operations hardening smoke

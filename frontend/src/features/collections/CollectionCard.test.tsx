@@ -19,6 +19,7 @@ const collection: Collection = {
     {
       id: 7,
       user_id: 2,
+      artist_id: 2,
       title: 'Public Track',
       description: null,
       genre: 'ambient',

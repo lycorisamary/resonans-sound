@@ -6,7 +6,7 @@ import { ArtistProfile } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
 import { ActionButton, SectionCard } from '@/shared/ui';
 import { PhotoCameraRoundedIcon } from '@/shared/ui/icons';
-import { buildProfilePayload, profileToForm, ArtistProfileFormState } from './profileForm';
+import { buildCreateProfilePayload, buildProfilePayload, profileToForm, ArtistProfileFormState } from './profileForm';
 
 interface ArtistProfileEditorProps {
   username: string | null;
@@ -28,9 +28,9 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
     const loadProfile = async () => {
       try {
         setError(null);
-        const loadedProfile = await api.getArtist(username);
+        const loadedProfile = await api.getMyArtistProfile();
         setProfile(loadedProfile);
-        setForm(profileToForm(loadedProfile));
+        setForm(loadedProfile ? profileToForm(loadedProfile) : { ...profileToForm(null), slug: username });
       } catch (err) {
         setError(getErrorMessage(err, 'Could not load artist profile.'));
       }
@@ -49,7 +49,9 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
       setBusy(true);
       setError(null);
       setBanner(null);
-      const updatedProfile = await api.updateMyArtistProfile(buildProfilePayload(form));
+      const updatedProfile = profile
+        ? await api.updateMyArtistProfile(buildProfilePayload(form))
+        : await api.createMyArtistProfile(buildCreateProfilePayload(form));
       setProfile(updatedProfile);
       setForm(profileToForm(updatedProfile));
       setBanner('Artist profile updated.');
@@ -87,8 +89,10 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
     <SectionCard tone="neutral">
       <Stack spacing={3}>
         <Box>
-          <Typography variant="h4">Artist profile</Typography>
-          <Typography color="text.secondary">This public profile is used by artist pages and track cards.</Typography>
+          <Typography variant="h4">{profile ? 'Artist profile' : 'Become an artist'}</Typography>
+          <Typography color="text.secondary">
+            A user account can listen and like tracks. Create an artist profile to upload music and appear publicly.
+          </Typography>
         </Box>
 
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -111,6 +115,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
           />
         </Stack>
 
+        {profile ? (
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <ActionButton component="label" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={uploadBusy !== null}>
             {uploadBusy === 'avatar' ? 'Uploading avatar...' : 'Upload avatar'}
@@ -137,8 +142,18 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
             />
           </ActionButton>
         </Stack>
+        ) : null}
 
         <Stack component="form" spacing={2} onSubmit={(event) => void submitProfile(event)}>
+          <TextField
+            label="Artist URL slug"
+            value={form.slug}
+            onChange={updateField('slug')}
+            disabled={Boolean(profile)}
+            inputProps={{ maxLength: 50 }}
+            helperText={profile ? `/artists/${profile.slug}` : 'Lowercase letters, numbers, underscores, or hyphens.'}
+            required
+          />
           <TextField label="Display name" value={form.displayName} onChange={updateField('displayName')} inputProps={{ maxLength: 120 }} />
           <TextField label="Location" value={form.location} onChange={updateField('location')} inputProps={{ maxLength: 120 }} />
           <TextField label="Genres" value={form.profileGenres} onChange={updateField('profileGenres')} placeholder="Ambient, Hip-hop, Pop" />
@@ -160,7 +175,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
             placeholder="soundcloud=https://..."
           />
           <ActionButton type="submit" variant="contained" disabled={busy}>
-            {busy ? 'Saving...' : 'Save artist profile'}
+            {busy ? 'Saving...' : profile ? 'Save artist profile' : 'Create artist profile'}
           </ActionButton>
         </Stack>
       </Stack>

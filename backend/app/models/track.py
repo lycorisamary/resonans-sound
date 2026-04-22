@@ -26,6 +26,7 @@ class Track(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    artist_id = Column(Integer, ForeignKey("artists.id", ondelete="RESTRICT"), nullable=False, index=True)
     title = Column(String(255), nullable=False)
     description = Column(Text)
     genre = Column(String(100))
@@ -53,5 +54,6 @@ class Track(Base):
     rejection_reason = Column(Text)
 
     user = relationship("User", back_populates="tracks")
+    artist = relationship("Artist", back_populates="tracks")
     category = relationship("Category", back_populates="tracks")
     interactions = relationship("Interaction", back_populates="track", cascade="all, delete-orphan")
