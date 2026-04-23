@@ -1,8 +1,9 @@
 import { FormEvent, useState } from 'react';
-import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material';
+
+import { Alert, Box, Chip, Grid, Stack, Typography } from '@mui/material';
 
 import { UseAuthResult } from '@/hooks/useAuth';
-import { ActionButton, AppTextField, SectionCard } from '@/shared/ui';
+import { ActionButton, AppTextField, MetricTile, PageHeader, SectionCard } from '@/shared/ui';
 import { ShieldRoundedIcon } from '@/shared/ui/icons';
 
 interface AuthPanelProps {
@@ -31,120 +32,129 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
   };
 
   return (
-    <SectionCard tone="orange" sx={{ flex: 0.85 }}>
+    <SectionCard tone="orange">
       <Stack spacing={3}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography variant="h4">Сессия и доступ</Typography>
-            <Typography color="text.secondary">Авторизация, staff-права и быстрый входной контекст.</Typography>
-          </Box>
-          <Stack direction="row" spacing={1}>
-            <Chip label="JWT auth" color="success" variant="outlined" />
-            <Chip label={auth.isStaff ? 'Staff delete enabled' : 'User mode'} variant="outlined" color={auth.isStaff ? 'secondary' : 'default'} />
-          </Stack>
-        </Stack>
+        <PageHeader
+          eyebrow="Access"
+          title="Сессия и доступ"
+          description="JWT auth уже является рабочим production-flow. Здесь пользователь входит, создаёт аккаунт и попадает в studio или кабинет без отдельного временного слоя."
+          actions={
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              <Chip label="JWT auth" color="success" variant="outlined" />
+              <Chip label={auth.isStaff ? 'Staff mode' : 'User mode'} variant="outlined" color={auth.isStaff ? 'secondary' : 'default'} />
+            </Stack>
+          }
+        />
 
         {!auth.user ? (
-          <Stack spacing={2.5}>
-            <Alert severity="info">
-              <strong>Admin:</strong> `admin@audioplatform.com` / `admin123`.
-              <br />
-              <strong>Moderator:</strong> создайте обычный аккаунт, затем смените ему роль в БД на `moderator`.
-            </Alert>
-
-            <Alert severity="warning">
-              Сейчас сервис работает по упрощённому flow: после успешного processing треки публикуются автоматически, а роли
-              `admin/moderator` нужны для staff-контроля: скрытия, восстановления и удаления треков.
-            </Alert>
-
-            <Stack direction="row" spacing={1}>
-              <ActionButton variant={auth.authMode === 'login' ? 'contained' : 'outlined'} onClick={() => auth.setAuthMode('login')}>
-                Вход
-              </ActionButton>
-              <ActionButton variant={auth.authMode === 'register' ? 'contained' : 'outlined'} onClick={() => auth.setAuthMode('register')}>
-                Регистрация
-              </ActionButton>
-            </Stack>
-
-            {auth.authMode === 'login' ? (
-              <Box component="form" onSubmit={handleLogin}>
-                <Stack spacing={2}>
-                  <AppTextField label="Email" type="email" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
-                  <AppTextField
-                    label="Пароль"
-                    type="password"
-                    value={loginPassword}
-                    onChange={(event) => setLoginPassword(event.target.value)}
-                    required
-                  />
-                  <ActionButton type="submit" variant="contained" disabled={auth.authBusy}>
-                    {auth.authBusy ? 'Входим...' : 'Открыть сессию'}
+          <Grid container spacing={2}>
+            <Grid item xs={12} xl={4}>
+              <Stack spacing={1.5}>
+                <Alert severity="warning">
+                  После processing треки публикуются автоматически, а `admin` и `moderator` нужны для скрытия, восстановления и удаления
+                  уже опубликованного мусора.
+                </Alert>
+                <Alert severity="info">
+                  <strong>Admin:</strong> `admin@audioplatform.com` / `admin123`
+                </Alert>
+                <Stack direction="row" spacing={1}>
+                  <ActionButton variant={auth.authMode === 'login' ? 'contained' : 'outlined'} onClick={() => auth.setAuthMode('login')}>
+                    Вход
+                  </ActionButton>
+                  <ActionButton variant={auth.authMode === 'register' ? 'contained' : 'outlined'} onClick={() => auth.setAuthMode('register')}>
+                    Регистрация
                   </ActionButton>
                 </Stack>
-              </Box>
-            ) : (
-              <Box component="form" onSubmit={handleRegister}>
-                <Stack spacing={2}>
-                  <AppTextField label="Username" value={registerUsername} onChange={(event) => setRegisterUsername(event.target.value)} required />
-                  <AppTextField
-                    label="Email"
-                    type="email"
-                    value={registerEmail}
-                    onChange={(event) => setRegisterEmail(event.target.value)}
-                    required
-                  />
-                  <AppTextField
-                    label="Пароль"
-                    helperText="Минимум 8 символов, одна заглавная буква и одна цифра."
-                    type="password"
-                    value={registerPassword}
-                    onChange={(event) => setRegisterPassword(event.target.value)}
-                    required
-                  />
-                  <ActionButton type="submit" variant="contained" disabled={auth.authBusy}>
-                    {auth.authBusy ? 'Создаём...' : 'Создать аккаунт'}
-                  </ActionButton>
-                </Stack>
-              </Box>
-            )}
-          </Stack>
+              </Stack>
+            </Grid>
+
+            <Grid item xs={12} xl={8}>
+              <SectionCard tone="neutral" sx={{ p: 2.5 }}>
+                {auth.authMode === 'login' ? (
+                  <Stack component="form" spacing={2} onSubmit={handleLogin}>
+                    <Typography variant="h5">Открыть сессию</Typography>
+                    <AppTextField label="Email" type="email" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
+                    <AppTextField
+                      label="Пароль"
+                      type="password"
+                      value={loginPassword}
+                      onChange={(event) => setLoginPassword(event.target.value)}
+                      required
+                    />
+                    <ActionButton type="submit" variant="contained" disabled={auth.authBusy}>
+                      {auth.authBusy ? 'Входим...' : 'Открыть сессию'}
+                    </ActionButton>
+                  </Stack>
+                ) : (
+                  <Stack component="form" spacing={2} onSubmit={handleRegister}>
+                    <Typography variant="h5">Создать аккаунт</Typography>
+                    <AppTextField label="Username" value={registerUsername} onChange={(event) => setRegisterUsername(event.target.value)} required />
+                    <AppTextField
+                      label="Email"
+                      type="email"
+                      value={registerEmail}
+                      onChange={(event) => setRegisterEmail(event.target.value)}
+                      required
+                    />
+                    <AppTextField
+                      label="Пароль"
+                      helperText="Минимум 8 символов, одна заглавная буква и одна цифра."
+                      type="password"
+                      value={registerPassword}
+                      onChange={(event) => setRegisterPassword(event.target.value)}
+                      required
+                    />
+                    <ActionButton type="submit" variant="contained" disabled={auth.authBusy}>
+                      {auth.authBusy ? 'Создаём...' : 'Создать аккаунт'}
+                    </ActionButton>
+                  </Stack>
+                )}
+              </SectionCard>
+            </Grid>
+          </Grid>
         ) : (
           <Stack spacing={2.5}>
-            <Paper variant="outlined" sx={{ p: 2.25, borderRadius: 5 }}>
+            <SectionCard tone="neutral" sx={{ p: 2.5 }}>
               <Stack spacing={2}>
                 <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                   <Box>
-                    <Typography variant="h6">{auth.user.username}</Typography>
+                    <Typography variant="h4">{auth.user.username}</Typography>
                     <Typography color="text.secondary">{auth.user.email}</Typography>
                   </Box>
-                  <Stack direction="row" spacing={1}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <Chip label={auth.user.role} color="success" variant="outlined" />
-                    <Chip label={auth.user.status} color="success" variant="outlined" />
+                    <Chip label={auth.user.status} color="secondary" variant="outlined" />
                   </Stack>
                 </Stack>
 
-                <Typography variant="body2" color="text.secondary">
-                  Аккаунт уже связан с live auth API. Можно создавать треки, загружать source/cover, ставить лайки и
-                  воспроизводить опубликованные записи.
+                <Typography color="text.secondary">
+                  Аккаунт уже связан с live auth API: можно создавать и редактировать треки, ставить лайки, работать с artist profile и
+                  пользоваться staff-панелью при наличии роли.
                 </Typography>
 
                 {auth.isStaff ? (
                   <Alert severity="info" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-                    У этой роли есть доступ к staff-разделу: можно скрывать, восстанавливать и удалять любые треки.
+                    У этой роли есть доступ к post-publication moderation, reports и управлению подборками.
                   </Alert>
                 ) : null}
+
+                <Grid container spacing={1.5}>
+                  <Grid item xs={12} sm={4}>
+                    <MetricTile label="Лайки" value={likedTrackIdsCount} />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <MetricTile label="Мои треки" value={myTracksCount} />
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <MetricTile label="Каталог" value={publicTracksCount} />
+                  </Grid>
+                </Grid>
 
                 <ActionButton variant="outlined" onClick={onLogout} disabled={auth.authBusy}>
                   Выйти
                 </ActionButton>
               </Stack>
-            </Paper>
-
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip label={`Лайки ${likedTrackIdsCount}`} variant="outlined" />
-              <Chip label={`Мои треки ${myTracksCount}`} variant="outlined" />
-              <Chip label={`Каталог ${publicTracksCount}`} variant="outlined" />
-            </Stack>
+            </SectionCard>
           </Stack>
         )}
       </Stack>

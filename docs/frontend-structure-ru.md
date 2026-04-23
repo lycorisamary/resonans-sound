@@ -1,112 +1,116 @@
 # Структура frontend
 
-Этот документ описывает текущую структуру `frontend/src`, чтобы правки можно
-было вносить вручную без повторного разбора всего приложения.
+Этот документ описывает текущую структуру `frontend/src`, чтобы редизайн и
+дальнейшие правки можно было делать без возврата к монолитному `App.tsx`.
 
 ## Общий принцип
 
-Frontend больше не должен расти как один большой `App.tsx`.
+Frontend остаётся разложенным по слоям:
 
-`App.tsx` отвечает только за:
+- `App.tsx` отвечает только за shell, маршруты, banner/error верхнего уровня и
+  подключение глобального `PlayerPanel`
+- page-level композиция живёт в `features/`
+- повторно используемые предметные карточки лежат в `entities/`
+- Zustand store, typed API client и hooks остаются источником состояния и
+  side effects
+- визуальные примитивы и общий layout-shell лежат в `shared/ui`
 
-- общий layout страницы
-- React Router
-- подключение крупных feature-блоков
-- общий hero/header и footer status
-
-Бизнес-логика, API, карточки, формы и shared UI лежат в отдельных папках.
+Редизайн не должен тащить бизнес-логику обратно в layout-файлы или размазывать
+API-вызовы по случайным компонентам.
 
 ## Маршруты
 
-Маршруты находятся в `frontend/src/App.tsx`.
+Маршруты собираются в `frontend/src/App.tsx`.
 
-- `/` — главная: studio form, public collections и catalog; глобальный player подключён выше маршрутов
-- `/login` — auth panel
-- `/studio` — отдельная studio-страница для metadata/upload flow
-- `/me` — профильная зона: auth context и catalog/library
-- `/tracks/:id` — страница одного трека
-- `/artists` — публичный discovery-список активных артистов
+- `/` — discovery-led главная: hero, подборки, recent/popular, spotlight по
+  артистам и встроенный общий каталог
+- `/login` — auth surface
+- `/studio` — отдельный studio flow для metadata/upload
+- `/me` — кабинет: auth context, artist profile editor и owner studio/library
+- `/tracks/:id` — detail-страница трека
+- `/artists` — public discovery по артистам
 - `/artists/:slug` — публичный профиль артиста и его approved-треки
 - `/collections` — публичные staff-curated подборки
-- `/collections/:id` — отдельная публичная подборка с approved-треками
-- `/admin` — staff-контроль треков и staff-managed подборок
+- `/collections/:id` — detail-страница одной подборки
+- `/admin` — staff control surface для треков, жалоб и подборок
 
-Если добавляется новая страница, сначала добавьте feature/page-компонент, потом
-подключайте его в `Routes` внутри `App.tsx`.
+Важно: `PlayerPanel` по-прежнему подключается вне `Routes`. Нельзя переносить
+его `<audio>` в route-local экран, иначе playback будет сбрасываться при
+навигации.
 
 ## Папки
 
 ### `app/`
 
-Глобальная настройка приложения.
+Глобальная тема и MUI overrides.
 
-- `app/theme.ts` — MUI theme, typography, базовые component overrides
-
-Править здесь стоит только внешний вид всего приложения: цвета, шрифты,
-глобальные радиусы, дефолтные стили MUI-компонентов.
+- `app/theme.ts` — dark discovery theme, typography, buttons, text fields,
+  surface defaults
 
 ### `entities/`
 
-Переиспользуемые сущности предметной области.
+Переиспользуемые предметные сущности.
 
-Сейчас активна сущность track:
+Сейчас основной активный entity-слой — `track`:
 
-- `entities/track/model/track.ts` — чистые функции по треку
-- `entities/track/ui/TrackCard.tsx` — карточка трека
+- `entities/track/model/track.ts` — статусы, playback helpers, owner-state
+- `entities/track/ui/TrackCard.tsx` — универсальная карточка каталога/owner view
 - `entities/track/ui/TrackArtwork.tsx` — cover/fallback artwork
 - `entities/track/ui/WaveformPreview.tsx` — waveform preview
 
-Важно: public catalog не отдаёт приватные media URL-поля
-`mp3_320_url/original_url`. Поэтому playback для `approved` треков не должен
-зависеть только от этих полей. Для выбора stream quality используется
-`getPlayableQualityCandidates()`.
+Если меняется доступность playback, обязательно проверьте:
+
+- `entities/track/model/track.ts`
+- `hooks/useAudioPlayer.ts`
+- `entities/track/ui/TrackCard.test.tsx`
 
 ### `features/`
 
-Крупные пользовательские блоки.
+Крупные пользовательские блоки и страницы.
 
-- `features/auth/AuthPanel.tsx` — login/register/session UI
-- `features/admin/AdminPanel.tsx` — композиция staff-only блоков для треков, жалоб и подборок
-- `features/admin/collections/AdminCollectionsPanel.tsx` — staff CRUD, publish/unpublish, add/remove/reorder tracks для подборок
-- `features/artists/ArtistsPanel.tsx` — публичный список artist profiles с search/genre/location/sort discovery
-- `features/artists/ArtistDetailPage.tsx` — профиль артиста и approved-треки
-- `features/artists/ArtistProfileEditor.tsx` — создание и редактирование собственного artist profile в `/me`
-- `features/auth/model/authData.ts` — загрузка/сброс auth-зависимого состояния
-- `features/catalog/CatalogPanel.tsx` — каталог, поиск, genre/tag-фильтры, liked tab
-- `features/catalog/model/catalogData.ts` — загрузка catalog и общий refresh UI
+- `features/home/HomePage.tsx` — новая discovery-главная
+- `features/home/model/useHomeFeed.ts` — загрузка curated блоков для главной
+- `features/catalog/CatalogPanel.tsx` — общий каталог, фильтры, liked view
+- `features/studio/StudioForm.tsx` — metadata/upload flow и owner track library
+- `features/auth/AuthPanel.tsx` — auth/login/register/session surface
+- `features/artists/ArtistsPanel.tsx` — поиск и фильтры по артистам
+- `features/artists/ArtistDetailPage.tsx` — публичный профиль артиста
+- `features/artists/ArtistProfileEditor.tsx` — создание/редактирование своего
+  artist profile в `/me`
 - `features/collections/CollectionsPanel.tsx` — публичный список подборок
-- `features/collections/CollectionDetailPage.tsx` — страница одной подборки
-- `features/player/PlayerPanel.tsx` — глобальный sticky player block, подключён в `App.tsx` вне `Routes`
-- `features/studio/StudioForm.tsx` — metadata form, выбор cover/audio, мои треки
-- `features/tracks/TrackDetailPage.tsx` — страница `/tracks/:id`
+- `features/collections/CollectionDetailPage.tsx` — detail страницы подборки
+- `features/tracks/TrackDetailPage.tsx` — detail страницы трека
+- `features/player/PlayerPanel.tsx` — глобальный фиксированный player
+- `features/admin/AdminPanel.tsx` — staff orchestration
+- `features/admin/collections/AdminCollectionsPanel.tsx` — staff CRUD по
+  подборкам
 
-Если правка касается конкретного пользовательского блока, начинайте с
-соответствующего файла в `features/`, а не с `App.tsx`.
+Правило: если правка относится к конкретному экрану, начинайте с файла внутри
+`features/`, а не с `App.tsx`.
 
 ### `hooks/`
 
-Логика, которую нельзя держать в UI-компонентах.
+Асинхронная логика и side effects, которые не должны жить внутри UI.
 
-- `useAuth.ts` — login/register/logout и переходы после auth-действий
-- `useCatalog.ts` — bootstrap, загрузка каталога, поиск, фильтры
-- `useAudioPlayer.ts` — audio element, stream-url, play/pause, player state,
-  listen-threshold play reporting
-- `useCollections.ts` — загрузка публичных staff-curated подборок
-- `useTrackActions.ts` — create/update metadata, delete, like, report, cover/audio upload
+- `useAuth.ts` — login/register/logout и навигация после auth
+- `useCatalog.ts` — bootstrap приложения, public catalog, filters/search
+- `useAudioPlayer.ts` — audio element, stream URL, quality fallback, reporting
+- `useCollections.ts` — загрузка публичных подборок
+- `useTrackActions.ts` — create/update/delete track, like/report, cover/audio
+  upload
 
-Правило: если компонент начинает содержать async API calls, побочные эффекты
-или сложные state transitions, выносите это в hook.
+Если компонент начинает держать сложные async переходы или несколько
+взаимосвязанных флагов загрузки, вынесите это в hook.
 
 ### `shared/api/`
 
-Типизированный API-клиент и backend DTO.
+Typed API-клиент и DTO.
 
-- `shared/api/client.ts` — axios client, auth refresh, методы API
-- `shared/api/types.ts` — типы `User`, `Track`, `Category`, `Collection`, `AuthTokens`,
-  `TrackMetadataPayload`, `PaginatedResponse` и другие DTO
+- `shared/api/client.ts`
+- `shared/api/types.ts`
 
-Новые API-методы добавляются сюда. Не используйте `any`: сначала добавьте тип
-request/response в `types.ts`, затем метод в `client.ts`.
+Новые методы сначала типизируются в `types.ts`, затем добавляются в `client.ts`.
+`any` не используем.
 
 ### `shared/store/`
 
@@ -114,131 +118,100 @@ request/response в `types.ts`, затем метод в `client.ts`.
 
 - `shared/store/appStore.ts`
 
-Сейчас state разделён логически:
+Сейчас store логически разделён на:
 
 - `useAppStatusStore` — health, initial loading, page error, banner
 - `useAuthStore` — user, auth mode, auth busy
-- `useCatalogStore` — categories, public tracks, liked tracks, my tracks,
-  filters/search/sort
-- `usePlayerStore` — active track, player quality, play/loading/error/progress
-- `useStudioStore` — studio form, editing track, upload busy flags
+- `useCatalogStore` — public tracks, liked tracks, my tracks, filters/search
+- `usePlayerStore` — active track, quality, loading/error/progress
+- `useStudioStore` — studio form и upload/edit flags
 
-Не добавляйте Redux Toolkit параллельно: активный state-подход сейчас Zustand.
-
-### `shared/lib/`
-
-Маленькие чистые утилиты без React.
-
-- `error.ts` — нормализация ошибок API в пользовательский текст
-- `time.ts` — форматирование времени
-- `tokens.ts` — access/refresh tokens в `localStorage`
+Redux не добавляем: активный state-подход проекта сейчас Zustand.
 
 ### `shared/ui/`
 
-Переиспользуемые UI-примитивы.
+Повторно используемые визуальные примитивы и layout-shell.
 
+- `AppShell.tsx` — общий sidebar/topbar shell
+- `PageHeader.tsx` — единый page-section header
+- `SectionCard.tsx` — базовая surface-панель
 - `ActionButton.tsx`
 - `AppTextField.tsx`
 - `MetricTile.tsx`
-- `SectionCard.tsx`
 - `icons.tsx`
 
-Иконки лежат локально в `icons.tsx`, чтобы не тащить тяжёлый
-`@mui/icons-material`. Если нужна новая иконка, добавьте маленький SVG wrapper
-туда.
-
-### `test/`
-
-Общие test helpers.
-
-- `test/render.tsx` — render с MUI theme для Vitest SSR smoke-тестов
+Иконки держим локально, чтобы не тащить `@mui/icons-material`.
 
 ## Частые ручные правки
 
-### Изменить карточку трека
+### Изменить главную
 
-Файл: `frontend/src/entities/track/ui/TrackCard.tsx`.
+UI:
 
-Если меняется правило доступности playback, также проверьте:
+- `features/home/HomePage.tsx`
 
-- `frontend/src/entities/track/model/track.ts`
-- `frontend/src/hooks/useAudioPlayer.ts`
-- `frontend/src/entities/track/ui/TrackCard.test.tsx`
+Загрузка данных витрины:
 
-### Изменить форму выкладывания трека
+- `features/home/model/useHomeFeed.ts`
 
-Файл: `frontend/src/features/studio/StudioForm.tsx`.
+Если меняется shell или верхняя навигация:
 
-Форма показывает metadata-поля всегда. Без сессии поля disabled, чтобы было
-понятно, где создаётся трек, но отправка доступна только авторизованному
-пользователю.
+- `App.tsx`
+- `shared/ui/AppShell.tsx`
 
-В форме можно выбрать audio и cover сразу при создании metadata. Если audio
-выбрано, `useTrackActions` после создания metadata сам отправит файл в upload,
-и backend запустит processing. Старый двухшаговый flow также остаётся: можно
-создать metadata, а потом загрузить audio/cover из карточки в блоке "Мои треки".
+### Изменить studio flow
 
-Логика сохранения metadata/upload лежит в:
+UI:
 
-- `frontend/src/hooks/useTrackActions.ts`
+- `features/studio/StudioForm.tsx`
 
-Тип payload для backend:
+Логика сохранения metadata/upload:
 
-- `frontend/src/shared/api/types.ts`
+- `hooks/useTrackActions.ts`
+
+Payload для backend:
+
+- `shared/api/types.ts`
 - `TrackMetadataPayload`
 
 ### Изменить каталог
 
 UI:
 
-- `frontend/src/features/catalog/CatalogPanel.tsx`
+- `features/catalog/CatalogPanel.tsx`
 
 Загрузка данных:
 
-- `frontend/src/hooks/useCatalog.ts`
-- `frontend/src/features/catalog/model/catalogData.ts`
+- `hooks/useCatalog.ts`
+- `features/catalog/model/catalogData.ts`
 
 ### Изменить player
 
 UI:
 
-- `frontend/src/features/player/PlayerPanel.tsx`
+- `features/player/PlayerPanel.tsx`
 
 Логика:
 
-- `frontend/src/hooks/useAudioPlayer.ts`
-- `frontend/src/entities/track/model/track.ts`
+- `hooks/useAudioPlayer.ts`
+- `entities/track/model/track.ts`
 
-Важно: для public approved треков frontend ставит в `<audio>` прямой backend URL
-`GET /api/v1/tracks/{id}/stream?quality=...`, чтобы запуск не терял пользовательский
-клик из-за предварительного async-запроса. Если выбранное качество недоступно,
-hook должен пробовать fallback-качества.
-
-Важно: `PlayerPanel` должен оставаться вне `Routes`, иначе при переходе между
-страницами React размонтирует `<audio>`, и воспроизведение прервётся.
-
-### Добавить поле в track metadata
-
-1. Проверьте backend schema/API.
-2. Добавьте поле в `Track`, `TrackFormState` и `TrackMetadataPayload` в
-   `shared/api/types.ts`.
-3. Добавьте поле в `initialTrackForm` в `shared/store/appStore.ts`.
-4. Добавьте input в `features/studio/StudioForm.tsx`.
-5. Добавьте сериализацию в `buildTrackPayload()` внутри `hooks/useTrackActions.ts`.
-6. При необходимости обновите `TrackCard.tsx`.
+Важно: public approved track по-прежнему должен играть от прямого backend stream
+`GET /api/v1/tracks/{id}/stream?quality=...`, чтобы пользовательский клик не
+ломался из-за промежуточного async-запроса.
 
 ## Проверки перед коммитом
 
 Локально из `frontend/`:
 
 ```bash
-npm install
 npm run test
 npm run build
 ```
 
-В текущей Windows-среде может не быть системного `npm`; тогда проверяйте через
-Docker или на сервере, но коммитить frontend-изменения без `test/build` нельзя.
+В текущей Windows-среде `npm` может отсутствовать в `PATH`. Тогда запускайте
+те же команды через bundled Node runtime или проверяйте внутри контейнера, но
+не коммитьте frontend-изменения без `test/build`.
 
 Production deploy frontend:
 
@@ -254,16 +227,10 @@ curl https://resonance-sound.ru/api/v1/health
 После деплоя проверить:
 
 - `/`
-- `/login`
+- `/collections`
+- `/artists`
+- `/tracks/:id`
 - `/studio`
 - `/me`
-- playback из catalog
-- наличие studio form на главной и на `/studio`
-## 2026-04-22 Collection UX note
-
-- Collection play uses `useAudioPlayer.playTrackQueue()` so a public collection
-  plays approved tracks in order and advances automatically.
-- `PlayerPanel` is a compact fixed bottom player, still mounted outside
-  `Routes`.
-- Admin collection management uses searchable approved-track lookup and
-  supports collection cover upload through the typed API client.
+- `/admin`
+- playback из каталога, страницы трека и подборки

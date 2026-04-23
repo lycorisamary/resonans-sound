@@ -1,21 +1,8 @@
-import {
-  Alert,
-  Box,
-  Card,
-  CardContent,
-  Chip,
-  Stack,
-  Typography,
-} from '@mui/material';
+import { Alert, Box, Card, CardContent, Chip, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 
-import {
-  canUploadTrackMedia,
-  getOwnerTrackState,
-  getTrackStatusColor,
-  hasPlayableMedia,
-} from '@/entities/track/model/track';
+import { canUploadTrackMedia, getOwnerTrackState, getTrackStatusColor, hasPlayableMedia } from '@/entities/track/model/track';
 import { Track } from '@/shared/api/types';
 import { formatTime } from '@/shared/lib/time';
 import { ActionButton } from '@/shared/ui';
@@ -76,52 +63,60 @@ export function TrackCard({
   const ownerState = getOwnerTrackState(track);
   const playable = hasPlayableMedia(track);
   const artistSlug = track.artist?.slug ?? track.user?.username;
-  const artistName = track.artist?.display_name ?? track.user?.display_name ?? track.user?.username;
+  const artistName = track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist';
 
   return (
     <Card
       data-track-card={track.id}
       variant="outlined"
       sx={{
-        borderRadius: 6,
-        borderColor: active ? alpha('#0f766e', 0.35) : 'rgba(15,23,42,0.08)',
-        boxShadow: active ? '0 22px 44px rgba(15,118,110,0.12)' : 'none',
+        background: active
+          ? 'linear-gradient(180deg, rgba(255,95,122,0.12), rgba(20,20,29,0.96))'
+          : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
+        borderColor: active ? alpha('#ff5f7a', 0.42) : 'rgba(255,255,255,0.08)',
+        borderRadius: 5,
+        boxShadow: active ? '0 20px 44px rgba(192,22,47,0.16)' : 'none',
         overflow: 'hidden',
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.98) 0%, rgba(248,250,252,0.98) 100%)',
       }}
     >
       <CardContent sx={{ p: { xs: 2, md: 2.5 } }}>
         <Stack spacing={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ xs: 'stretch', md: 'center' }}>
-            <TrackArtwork track={track} size={variant === 'mine' ? 112 : 96} radius={variant === 'mine' ? 28 : 24} />
+          <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.25} alignItems={{ xs: 'stretch', lg: 'center' }}>
+            <TrackArtwork track={track} size={variant === 'mine' ? 124 : 104} radius={variant === 'mine' ? 26 : 22} />
 
-            <Stack spacing={1.25} flex={1} minWidth={0}>
-              <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
-                <Box sx={{ minWidth: 0 }}>
-                  <Typography variant="h6" sx={{ lineHeight: 1.05 }}>
+            <Stack spacing={1.4} flex={1} minWidth={0}>
+              <Stack direction={{ xs: 'column', xl: 'row' }} justifyContent="space-between" spacing={1.25}>
+                <Box minWidth={0}>
+                  <Typography
+                    component={RouterLink}
+                    to={`/tracks/${track.id}`}
+                    variant="h5"
+                    sx={{ color: 'inherit', textDecoration: 'none', display: 'inline-block' }}
+                  >
                     {track.title}
                   </Typography>
-                  <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap>
+                  <Stack direction="row" spacing={0.75} alignItems="center" flexWrap="wrap" useFlexGap sx={{ mt: 0.75 }}>
                     {artistSlug ? (
                       <Typography
                         component={RouterLink}
                         to={`/artists/${artistSlug}`}
                         color="text.secondary"
-                        sx={{ textDecoration: 'none', '&:hover': { textDecoration: 'underline' } }}
+                        sx={{ textDecoration: 'none', '&:hover': { color: 'text.primary' } }}
                       >
                         {artistName}
                       </Typography>
                     ) : (
-                      <Typography color="text.secondary">Unknown artist</Typography>
+                      <Typography color="text.secondary">{artistName}</Typography>
                     )}
                     <Typography color="text.secondary">•</Typography>
-                    <Typography color="text.secondary">{track.category?.name ?? 'Без категории'}</Typography>
+                    <Typography color="text.secondary">{track.genre || track.category?.name || 'No genre'}</Typography>
                   </Stack>
                 </Box>
-                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
+
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', xl: 'flex-end' }}>
                   <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
-                  <Chip label={`Likes ${track.like_count}`} variant="outlined" size="small" />
-                  <Chip label={`Plays ${track.play_count}`} variant="outlined" size="small" />
+                  <Chip label={`${track.play_count} plays`} variant="outlined" size="small" />
+                  <Chip label={`${track.like_count} likes`} variant="outlined" size="small" />
                 </Stack>
               </Stack>
 
@@ -131,37 +126,17 @@ export function TrackCard({
                 </Alert>
               ) : null}
 
-              {track.description ? (
-                <Typography sx={{ color: 'text.secondary' }}>{track.description}</Typography>
-              ) : (
-                <Typography sx={{ color: 'text.secondary' }}>
-                  {track.genre ? `${track.genre}. ` : ''}Трек уже подключён к live API и доступен для воспроизведения.
-                </Typography>
-              )}
+              <Typography color="text.secondary">
+                {track.description || (track.tags?.length ? `Tags: ${track.tags.join(', ')}` : 'Трек уже подключён к live playback и каталогу.')}
+              </Typography>
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip label={`Duration ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
-                <Chip label={`Теги ${track.tags?.join(', ') || '-'}`} size="small" variant="outlined" />
-                <Chip
-                  label={track.cover_image_url ? 'Cover ready' : 'Cover missing'}
-                  size="small"
-                  variant="outlined"
-                  color={track.cover_image_url ? 'success' : 'default'}
-                />
+                <Chip label={track.cover_image_url ? 'Cover ready' : 'Cover missing'} size="small" variant="outlined" />
                 {variant === 'mine' ? (
                   <>
-                    <Chip
-                      label={track.original_url ? 'Source uploaded' : 'Source missing'}
-                      size="small"
-                      variant="outlined"
-                      color={track.original_url ? 'success' : 'default'}
-                    />
-                    <Chip
-                      label={track.mp3_320_url ? '320 ready' : '320 pending'}
-                      size="small"
-                      variant="outlined"
-                      color={track.mp3_320_url ? 'success' : 'default'}
-                    />
+                    <Chip label={track.original_url ? 'Source uploaded' : 'Source missing'} size="small" variant="outlined" />
+                    <Chip label={track.mp3_320_url ? '320 ready' : '320 pending'} size="small" variant="outlined" />
                   </>
                 ) : null}
               </Stack>
@@ -172,7 +147,7 @@ export function TrackCard({
 
           {variant === 'mine' && track.rejection_reason ? <Alert severity="error">{track.rejection_reason}</Alert> : null}
 
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between">
+          <Stack direction={{ xs: 'column', xl: 'row' }} spacing={1} justifyContent="space-between">
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <ActionButton
                 variant="contained"
@@ -196,9 +171,10 @@ export function TrackCard({
                   {track.like_count}
                 </ActionButton>
               ) : null}
+
               {variant === 'catalog' && onReportTrack ? (
                 <ActionButton variant="outlined" color="warning" size="small" onClick={() => onReportTrack(track)}>
-                  Report
+                  Пожаловаться
                 </ActionButton>
               ) : null}
 
@@ -207,13 +183,7 @@ export function TrackCard({
                   <ActionButton variant="outlined" size="small" onClick={() => onEditTrack(track)}>
                     Редактировать
                   </ActionButton>
-                  <ActionButton
-                    variant="outlined"
-                    size="small"
-                    component="label"
-                    startIcon={<PhotoCameraRoundedIcon />}
-                    disabled={studioBusy}
-                  >
+                  <ActionButton variant="outlined" size="small" component="label" startIcon={<PhotoCameraRoundedIcon />} disabled={studioBusy}>
                     {uploadingCoverTrackId === track.id ? 'Загружаем cover...' : track.cover_image_url ? 'Заменить cover' : 'Загрузить cover'}
                     <input
                       hidden
@@ -236,7 +206,7 @@ export function TrackCard({
                     <input
                       hidden
                       type="file"
-                      accept=".mp3,.wav,audio/mpeg,audio/wav"
+                      accept=".mp3,.wav,.flac,.m4a,audio/mpeg,audio/wav,audio/flac,audio/mp4"
                       onChange={(event) => {
                         onUploadTrack(track, event.target.files?.[0] ?? null);
                         event.target.value = '';
@@ -248,13 +218,7 @@ export function TrackCard({
             </Stack>
 
             {deleteAllowed ? (
-              <ActionButton
-                variant="outlined"
-                color="error"
-                size="small"
-                startIcon={<DeleteOutlineRoundedIcon />}
-                onClick={() => onDeleteTrack(track)}
-              >
+              <ActionButton variant="outlined" color="error" size="small" startIcon={<DeleteOutlineRoundedIcon />} onClick={() => onDeleteTrack(track)}>
                 Удалить
               </ActionButton>
             ) : null}

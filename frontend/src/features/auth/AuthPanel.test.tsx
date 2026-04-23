@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
-import { AuthPanel } from './AuthPanel';
 import { UseAuthResult } from '@/hooks/useAuth';
 import { renderWithTheme } from '@/test/render';
+import { AuthPanel } from './AuthPanel';
 
 const baseAuth: UseAuthResult = {
   authBusy: false,
@@ -49,6 +49,7 @@ describe('AuthPanel', () => {
     );
 
     expect(markup).toContain('admin@example.com');
-    expect(markup).toContain('Лайки 3');
+    expect(markup).toContain('Лайки');
+    expect(markup).toContain('>3<');
   });
 });

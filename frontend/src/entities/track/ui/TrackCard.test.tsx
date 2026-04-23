@@ -1,3 +1,4 @@
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import { getPlayableQualityCandidates } from '@/entities/track/model/track';
@@ -38,25 +39,27 @@ const publicCatalogTrack: Track = {
 describe('TrackCard', () => {
   it('renders track metadata and catalog actions', () => {
     const markup = renderWithTheme(
-      <TrackCard
-        track={track}
-        variant="catalog"
-        active={false}
-        isPlaying={false}
-        playerLoading={false}
-        liked={false}
-        likeDisabled={false}
-        deleteAllowed={false}
-        studioBusy={false}
-        uploadingTrackId={null}
-        uploadingCoverTrackId={null}
-        onPlayTrack={() => undefined}
-        onToggleLike={() => undefined}
-        onEditTrack={() => undefined}
-        onDeleteTrack={() => undefined}
-        onUploadTrack={() => undefined}
-        onUploadCover={() => undefined}
-      />
+      <MemoryRouter>
+        <TrackCard
+          track={track}
+          variant="catalog"
+          active={false}
+          isPlaying={false}
+          playerLoading={false}
+          liked={false}
+          likeDisabled={false}
+          deleteAllowed={false}
+          studioBusy={false}
+          uploadingTrackId={null}
+          uploadingCoverTrackId={null}
+          onPlayTrack={() => undefined}
+          onToggleLike={() => undefined}
+          onEditTrack={() => undefined}
+          onDeleteTrack={() => undefined}
+          onUploadTrack={() => undefined}
+          onUploadCover={() => undefined}
+        />
+      </MemoryRouter>
     );
 
     expect(markup).toContain('Morning Resonance');
@@ -66,25 +69,27 @@ describe('TrackCard', () => {
 
   it('enables playback for approved public tracks without private media urls', () => {
     const markup = renderWithTheme(
-      <TrackCard
-        track={publicCatalogTrack}
-        variant="catalog"
-        active={false}
-        isPlaying={false}
-        playerLoading={false}
-        liked={false}
-        likeDisabled={false}
-        deleteAllowed={false}
-        studioBusy={false}
-        uploadingTrackId={null}
-        uploadingCoverTrackId={null}
-        onPlayTrack={() => undefined}
-        onToggleLike={() => undefined}
-        onEditTrack={() => undefined}
-        onDeleteTrack={() => undefined}
-        onUploadTrack={() => undefined}
-        onUploadCover={() => undefined}
-      />
+      <MemoryRouter>
+        <TrackCard
+          track={publicCatalogTrack}
+          variant="catalog"
+          active={false}
+          isPlaying={false}
+          playerLoading={false}
+          liked={false}
+          likeDisabled={false}
+          deleteAllowed={false}
+          studioBusy={false}
+          uploadingTrackId={null}
+          uploadingCoverTrackId={null}
+          onPlayTrack={() => undefined}
+          onToggleLike={() => undefined}
+          onEditTrack={() => undefined}
+          onDeleteTrack={() => undefined}
+          onUploadTrack={() => undefined}
+          onUploadCover={() => undefined}
+        />
+      </MemoryRouter>
     );
 
     expect(markup).toContain('Public Catalog Track');

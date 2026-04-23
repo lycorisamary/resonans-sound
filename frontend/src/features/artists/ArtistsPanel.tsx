@@ -1,12 +1,13 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Alert, Avatar, Box, Card, CardActionArea, CardContent, Chip, CircularProgress, Grid, MenuItem, Stack, TextField, Typography } from '@mui/material';
+
+import { Alert, Avatar, Box, Chip, CircularProgress, Grid, MenuItem, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
 import api from '@/shared/api/client';
 import { ArtistDiscoverySort, ArtistProfile } from '@/shared/api/types';
 import { SUPPORTED_TRACK_GENRES } from '@/shared/constants/genres';
 import { getErrorMessage } from '@/shared/lib/error';
-import { ActionButton, SectionCard } from '@/shared/ui';
+import { ActionButton, AppTextField, PageHeader, SectionCard } from '@/shared/ui';
 import { RefreshRoundedIcon, SearchRoundedIcon } from '@/shared/ui/icons';
 
 export function ArtistsPanel() {
@@ -61,43 +62,40 @@ export function ArtistsPanel() {
   return (
     <SectionCard tone="green">
       <Stack spacing={3}>
-        <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
-          <Box>
-            <Typography variant="h4">Artists</Typography>
-            <Typography color="text.secondary">Public artist profiles, ordered by approved tracks and real listens.</Typography>
-          </Box>
-          <ActionButton variant="outlined" onClick={() => void loadArtists()} startIcon={<RefreshRoundedIcon />}>
-            Refresh
-          </ActionButton>
-        </Stack>
+        <PageHeader
+          eyebrow="Artists"
+          title="Публичные профили артистов"
+          description="Discovery по артистам строится поверх уже активного runtime surface: search, genre, location и sort без псевдо-социальных фич, которых пока нет в продукте."
+          actions={
+            <ActionButton variant="outlined" onClick={() => void loadArtists()} startIcon={<RefreshRoundedIcon />}>
+              Refresh
+            </ActionButton>
+          }
+        />
 
-        <Stack component="form" direction={{ xs: 'column', md: 'row' }} spacing={1.5} onSubmit={submitSearch}>
-          <TextField
-            fullWidth
-            label="Search artists"
-            value={searchInput}
-            onChange={(event) => setSearchInput(event.target.value)}
-          />
-          <TextField select label="Genre" value={genre} onChange={(event) => setGenre(event.target.value)} sx={{ minWidth: 210 }}>
+        <Stack component="form" direction={{ xs: 'column', xl: 'row' }} spacing={1.25} onSubmit={submitSearch}>
+          <AppTextField fullWidth label="Search artists" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          <AppTextField select label="Genre" value={genre} onChange={(event) => setGenre(event.target.value)} sx={{ minWidth: 210 }}>
             <MenuItem value="">All genres</MenuItem>
             {SUPPORTED_TRACK_GENRES.map((item) => (
               <MenuItem key={item} value={item}>
                 {item}
               </MenuItem>
             ))}
-          </TextField>
-          <TextField
-            label="Location"
-            value={locationInput}
-            onChange={(event) => setLocationInput(event.target.value)}
-            sx={{ minWidth: 170 }}
-          />
-          <TextField select label="Sort" value={sort} onChange={(event) => setSort(event.target.value as ArtistDiscoverySort)} sx={{ minWidth: 170 }}>
+          </AppTextField>
+          <AppTextField label="Location" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} sx={{ minWidth: 180 }} />
+          <AppTextField
+            select
+            label="Sort"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as ArtistDiscoverySort)}
+            sx={{ minWidth: 180 }}
+          >
             <MenuItem value="recommended">Recommended</MenuItem>
             <MenuItem value="popular">Popular</MenuItem>
             <MenuItem value="newest">Newest</MenuItem>
             <MenuItem value="name">Name</MenuItem>
-          </TextField>
+          </AppTextField>
           <ActionButton type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
             Search
           </ActionButton>
@@ -125,51 +123,58 @@ export function ArtistsPanel() {
         <Grid container spacing={2}>
           {artists.map((artist) => (
             <Grid item xs={12} md={6} xl={4} key={artist.id}>
-              <Card variant="outlined" sx={{ height: '100%', borderRadius: 4, overflow: 'hidden' }}>
-                <CardActionArea component={RouterLink} to={`/artists/${artist.slug}`} sx={{ height: '100%' }}>
+              <SectionCard tone="neutral" sx={{ height: '100%', p: 2.25 }}>
+                <Stack spacing={1.5}>
                   <Box
+                    component={RouterLink}
+                    to={`/artists/${artist.slug}`}
                     sx={{
-                      height: 112,
+                      aspectRatio: '1.8 / 1',
                       backgroundImage: artist.banner_image_url
-                        ? `url(${artist.banner_image_url})`
+                        ? `linear-gradient(180deg, rgba(11,11,16,0.18), rgba(11,11,16,0.58)), url(${artist.banner_image_url})`
                         : 'linear-gradient(135deg, #d7f5ef, #fff7ed)',
-                      backgroundSize: 'cover',
                       backgroundPosition: 'center',
+                      backgroundSize: 'cover',
+                      borderRadius: 4,
+                      display: 'block',
                     }}
                   />
-                  <CardContent>
-                    <Stack spacing={1.5}>
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar src={artist.avatar_url ?? undefined} sx={{ bgcolor: '#0f766e' }}>
-                          {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
-                        </Avatar>
-                        <Box minWidth={0}>
-                          <Typography variant="h6" noWrap>
-                            {artist.display_name || artist.slug}
-                          </Typography>
-                          <Typography color="text.secondary" noWrap>
-                            /artists/{artist.slug}
-                          </Typography>
-                        </Box>
-                      </Stack>
-                      {artist.bio ? (
-                        <Typography color="text.secondary" sx={{ minHeight: 48 }}>
-                          {artist.bio}
-                        </Typography>
-                      ) : null}
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Chip label={`Tracks ${artist.track_count}`} size="small" />
-                        <Chip label={`Plays ${artist.play_count}`} size="small" variant="outlined" />
-                        <Chip label={`Likes ${artist.like_count}`} size="small" variant="outlined" />
-                        {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
-                        {artist.profile_genres.slice(0, 2).map((item) => (
-                          <Chip key={item} label={item} size="small" variant="outlined" />
-                        ))}
-                      </Stack>
-                    </Stack>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
+
+                  <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Avatar src={artist.avatar_url ?? undefined} sx={{ bgcolor: 'primary.main', width: 52, height: 52 }}>
+                      {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
+                    </Avatar>
+                    <Box minWidth={0}>
+                      <Typography
+                        component={RouterLink}
+                        to={`/artists/${artist.slug}`}
+                        variant="h5"
+                        sx={{ color: 'inherit', textDecoration: 'none' }}
+                        noWrap
+                      >
+                        {artist.display_name || artist.slug}
+                      </Typography>
+                      <Typography color="text.secondary" noWrap>
+                        /artists/{artist.slug}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Typography color="text.secondary" sx={{ minHeight: 72 }}>
+                    {artist.bio || 'Публичный профиль артиста с approved-треками, статистикой и витринным позиционированием.'}
+                  </Typography>
+
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Chip label={`Tracks ${artist.track_count}`} size="small" />
+                    <Chip label={`Plays ${artist.play_count}`} size="small" variant="outlined" />
+                    <Chip label={`Likes ${artist.like_count}`} size="small" variant="outlined" />
+                    {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
+                    {artist.profile_genres.slice(0, 2).map((item) => (
+                      <Chip key={item} label={item} size="small" variant="outlined" />
+                    ))}
+                  </Stack>
+                </Stack>
+              </SectionCard>
             </Grid>
           ))}
         </Grid>

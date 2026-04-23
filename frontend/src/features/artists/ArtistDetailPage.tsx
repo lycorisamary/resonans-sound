@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+
 import { Alert, Avatar, Box, Chip, CircularProgress, Link, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 
@@ -9,7 +10,7 @@ import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import api from '@/shared/api/client';
 import { ArtistProfile, Track } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
-import { SectionCard } from '@/shared/ui';
+import { PageHeader, SectionCard } from '@/shared/ui';
 
 interface ArtistDetailPageProps {
   auth: UseAuthResult;
@@ -52,20 +53,18 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
   }, [username]);
 
   return (
-    <Stack spacing={3}>
+    <Stack spacing={2.5}>
       <SectionCard tone="green" sx={{ overflow: 'hidden', p: 0 }}>
-        {artist?.banner_image_url ? (
-          <Box
-            sx={{
-              minHeight: { xs: 150, md: 220 },
-              backgroundImage: `url(${artist.banner_image_url})`,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-          />
-        ) : (
-          <Box sx={{ minHeight: { xs: 150, md: 220 }, background: 'linear-gradient(135deg, #d7f5ef, #fff7ed)' }} />
-        )}
+        <Box
+          sx={{
+            backgroundImage: artist?.banner_image_url
+              ? `linear-gradient(180deg, rgba(11,11,16,0.2), rgba(11,11,16,0.72)), url(${artist.banner_image_url})`
+              : 'linear-gradient(135deg, rgba(255,95,122,0.28), rgba(255,255,255,0.03))',
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+            minHeight: { xs: 180, md: 260 },
+          }}
+        />
         <Stack spacing={2.5} sx={{ p: { xs: 2.5, md: 3.5 } }}>
           {loading ? (
             <Stack direction="row" spacing={2} alignItems="center">
@@ -76,18 +75,20 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
           {error ? <Alert severity="error">{error}</Alert> : null}
           {artist ? (
             <>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={2.5} alignItems={{ xs: 'flex-start', md: 'center' }}>
-                <Avatar src={artist.avatar_url ?? undefined} sx={{ width: 96, height: 96, bgcolor: '#0f766e', fontSize: 36 }}>
+              <Stack direction={{ xs: 'column', lg: 'row' }} spacing={2.5} alignItems={{ xs: 'flex-start', lg: 'center' }}>
+                <Avatar src={artist.avatar_url ?? undefined} sx={{ width: 104, height: 104, bgcolor: 'primary.main', fontSize: 38 }}>
                   {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
                 </Avatar>
                 <Box>
-                  <Typography variant="h3">{artist.display_name || artist.slug}</Typography>
+                  <Typography variant="h2" sx={{ fontSize: { xs: '2rem', md: '3.2rem' } }}>
+                    {artist.display_name || artist.slug}
+                  </Typography>
                   <Typography color="text.secondary">/artists/{artist.slug}</Typography>
                   {artist.location ? <Typography color="text.secondary">{artist.location}</Typography> : null}
                 </Box>
               </Stack>
 
-              {artist.bio ? <Typography sx={{ maxWidth: 880 }}>{artist.bio}</Typography> : null}
+              {artist.bio ? <Typography sx={{ maxWidth: 920 }}>{artist.bio}</Typography> : null}
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip label={`Tracks ${artist.track_count}`} />
@@ -100,7 +101,7 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
 
               <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
                 {Object.entries({ ...artist.social_links, ...artist.streaming_links }).map(([key, url]) => (
-                  <Link key={`${key}-${url}`} href={url} target="_blank" rel="noreferrer" underline="hover">
+                  <Link key={`${key}-${url}`} href={url} target="_blank" rel="noreferrer" underline="hover" color="secondary.light">
                     {key}
                   </Link>
                 ))}
@@ -112,7 +113,11 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
 
       <SectionCard tone="neutral">
         <Stack spacing={2.5}>
-          <Typography variant="h4">Tracks</Typography>
+          <PageHeader
+            eyebrow="Discography"
+            title="Треки артиста"
+            description="Здесь остаются только approved публичные релизы активного artist profile. Плеер запускает очередь треков по порядку списка."
+          />
           {!loading && tracks.length === 0 ? <Alert severity="info">This artist has no public approved tracks yet.</Alert> : null}
           {tracks.map((track) => (
             <TrackCard

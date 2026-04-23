@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-import { Alert, Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 
 import { TrackCard } from '@/entities/track/ui';
@@ -10,7 +10,7 @@ import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import api from '@/shared/api/client';
 import { Collection } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
-import { SectionCard } from '@/shared/ui';
+import { ActionButton, PageHeader, SectionCard } from '@/shared/ui';
 import { PlayArrowRoundedIcon } from '@/shared/ui/icons';
 
 interface CollectionDetailPageProps {
@@ -50,65 +50,79 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
   }, [id]);
 
   return (
-    <SectionCard tone="orange">
-      <Stack spacing={3}>
-        {loading ? (
-          <Stack direction="row" spacing={2} alignItems="center">
-            <CircularProgress size={20} />
-            <Typography>Loading collection...</Typography>
-          </Stack>
-        ) : null}
-
-        {error ? <Alert severity="error">{error}</Alert> : null}
-
-        {collection ? (
-          <>
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between">
-              <Box>
-                <Typography variant="h4">{collection.name}</Typography>
-                <Typography color="text.secondary">
-                  {collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
-                </Typography>
-              </Box>
-              <Button
-                variant="contained"
-                startIcon={<PlayArrowRoundedIcon />}
-                disabled={collection.tracks.length === 0}
-                onClick={() => void player.playTrackQueue(collection.tracks)}
-              >
-                Play collection
-              </Button>
+    <Stack spacing={2.5}>
+      <SectionCard tone="orange" sx={{ overflow: 'hidden', p: 0 }}>
+        <Box
+          sx={{
+            aspectRatio: { xs: '1.8 / 1', md: '3.2 / 1' },
+            background: collection?.cover_image_url
+              ? `linear-gradient(180deg, rgba(11,11,16,0.2), rgba(11,11,16,0.72)), url(${collection.cover_image_url}) center / cover`
+              : 'linear-gradient(135deg, #2d174e, #8f1023, #ff5f7a)',
+          }}
+        />
+        <Stack spacing={2.5} sx={{ p: { xs: 2.5, md: 3.5 } }}>
+          {loading ? (
+            <Stack direction="row" spacing={2} alignItems="center">
+              <CircularProgress size={20} />
+              <Typography>Loading collection...</Typography>
             </Stack>
+          ) : null}
 
-            {collection.tracks.length === 0 ? <Alert severity="info">This collection has no public tracks.</Alert> : null}
+          {error ? <Alert severity="error">{error}</Alert> : null}
 
-            <Stack spacing={2}>
-              {collection.tracks.map((track) => (
-                <TrackCard
-                  key={`collection-${collection.id}-${track.id}`}
-                  track={track}
-                  variant="catalog"
-                  active={player.activeTrackId === track.id && (player.isPlaying || player.playerLoading)}
-                  isPlaying={player.isPlaying}
-                  playerLoading={player.playerLoading}
-                  liked={trackActions.isTrackLiked(track.id)}
-                  likeDisabled={!auth.user}
-                  deleteAllowed={trackActions.canDeleteTrack(track)}
-                  studioBusy={trackActions.studioBusy}
-                  uploadingTrackId={trackActions.uploadingTrackId}
-                  uploadingCoverTrackId={trackActions.uploadingCoverTrackId}
-                  onPlayTrack={(selectedTrack) => void player.playTrackQueue(collection.tracks, collection.tracks.findIndex((item) => item.id === selectedTrack.id))}
-                  onToggleLike={(selectedTrack) => void trackActions.toggleLike(selectedTrack)}
-                  onEditTrack={trackActions.startEditingTrack}
-                  onDeleteTrack={(selectedTrack) => void trackActions.deleteTrack(selectedTrack)}
-                  onUploadTrack={(selectedTrack, file) => void trackActions.uploadTrack(selectedTrack, file)}
-                  onUploadCover={(selectedTrack, file) => void trackActions.uploadCover(selectedTrack, file)}
-                />
-              ))}
-            </Stack>
-          </>
-        ) : null}
-      </Stack>
-    </SectionCard>
+          {collection ? (
+            <PageHeader
+              eyebrow="Collection"
+              title={collection.name}
+              description={collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
+              actions={
+                <ActionButton
+                  variant="contained"
+                  startIcon={<PlayArrowRoundedIcon />}
+                  disabled={collection.tracks.length === 0}
+                  onClick={() => void player.playTrackQueue(collection.tracks)}
+                >
+                  Play collection
+                </ActionButton>
+              }
+            />
+          ) : null}
+        </Stack>
+      </SectionCard>
+
+      <SectionCard tone="neutral">
+        <Stack spacing={2.5}>
+          <PageHeader
+            eyebrow="Tracklist"
+            title="Треки подборки"
+            description="Публичная подборка воспроизводится очередью и продвигает approved-треки в заданном staff-порядке."
+          />
+          {collection && collection.tracks.length === 0 ? <Alert severity="info">This collection has no public tracks.</Alert> : null}
+
+          {collection?.tracks.map((track) => (
+            <TrackCard
+              key={`collection-${collection.id}-${track.id}`}
+              track={track}
+              variant="catalog"
+              active={player.activeTrackId === track.id && (player.isPlaying || player.playerLoading)}
+              isPlaying={player.isPlaying}
+              playerLoading={player.playerLoading}
+              liked={trackActions.isTrackLiked(track.id)}
+              likeDisabled={!auth.user}
+              deleteAllowed={trackActions.canDeleteTrack(track)}
+              studioBusy={trackActions.studioBusy}
+              uploadingTrackId={trackActions.uploadingTrackId}
+              uploadingCoverTrackId={trackActions.uploadingCoverTrackId}
+              onPlayTrack={(selectedTrack) => void player.playTrackQueue(collection.tracks, collection.tracks.findIndex((item) => item.id === selectedTrack.id))}
+              onToggleLike={(selectedTrack) => void trackActions.toggleLike(selectedTrack)}
+              onEditTrack={trackActions.startEditingTrack}
+              onDeleteTrack={(selectedTrack) => void trackActions.deleteTrack(selectedTrack)}
+              onUploadTrack={(selectedTrack, file) => void trackActions.uploadTrack(selectedTrack, file)}
+              onUploadCover={(selectedTrack, file) => void trackActions.uploadCover(selectedTrack, file)}
+            />
+          ))}
+        </Stack>
+      </SectionCard>
+    </Stack>
   );
 }

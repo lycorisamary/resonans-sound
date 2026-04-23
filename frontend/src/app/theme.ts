@@ -3,31 +3,40 @@ import { alpha } from '@mui/material/styles';
 
 export const theme = createTheme({
   palette: {
-    mode: 'light',
+    mode: 'dark',
     primary: {
-      main: '#0f766e',
-      light: '#2dd4bf',
-      dark: '#115e59',
+      main: '#ff5f7a',
+      light: '#ff8ea1',
+      dark: '#c0162f',
     },
     secondary: {
-      main: '#ea580c',
-      light: '#fb923c',
-      dark: '#c2410c',
+      main: '#d4b38f',
+      light: '#f0d8bb',
+      dark: '#a98762',
     },
     background: {
-      default: '#f6efe5',
-      paper: '#fffdf8',
+      default: '#09090d',
+      paper: '#12121a',
     },
     text: {
-      primary: '#171717',
-      secondary: '#57534e',
+      primary: '#f5f5f7',
+      secondary: '#a1a1ad',
+    },
+    success: {
+      main: '#77d28c',
+    },
+    warning: {
+      main: '#ffcf66',
+    },
+    error: {
+      main: '#ff7a90',
     },
   },
   shape: {
-    borderRadius: 22,
+    borderRadius: 18,
   },
   typography: {
-    fontFamily: '"Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif',
+    fontFamily: '"Space Grotesk", "Avenir Next", "Trebuchet MS", sans-serif',
     h1: {
       fontWeight: 900,
       letterSpacing: '-0.05em',
@@ -63,6 +72,7 @@ export const theme = createTheme({
       styleOverrides: {
         body: {
           minWidth: 360,
+          color: '#f5f5f7',
         },
         '#root': {
           minHeight: '100vh',
@@ -72,18 +82,20 @@ export const theme = createTheme({
     MuiPaper: {
       styleOverrides: {
         root: {
-          boxShadow: '0 20px 48px rgba(15, 23, 42, 0.06)',
+          boxShadow: '0 18px 48px rgba(0, 0, 0, 0.28)',
         },
       },
     },
     MuiButton: {
       styleOverrides: {
         root: {
-          borderRadius: 999,
+          borderRadius: 14,
           paddingInline: 18,
+          paddingBlock: 10,
         },
         contained: {
-          boxShadow: 'none',
+          background: 'linear-gradient(135deg, #c0162f, #ff5f7a)',
+          boxShadow: '0 14px 30px rgba(192,22,47,0.26)',
         },
       },
     },
@@ -98,14 +110,28 @@ export const theme = createTheme({
     MuiCard: {
       styleOverrides: {
         root: {
-          borderRadius: 28,
-          borderColor: alpha('#0f172a', 0.08),
+          borderRadius: 22,
+          borderColor: alpha('#ffffff', 0.08),
         },
       },
     },
     MuiTextField: {
       defaultProps: {
         size: 'medium',
+      },
+      styleOverrides: {
+        root: {
+          '& .MuiOutlinedInput-root': {
+            background: 'rgba(255,255,255,0.04)',
+            borderRadius: 16,
+          },
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: 'rgba(255,255,255,0.08)',
+          },
+          '& .MuiInputLabel-root': {
+            color: '#a1a1ad',
+          },
+        },
       },
     },
   },

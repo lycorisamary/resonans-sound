@@ -40,6 +40,10 @@ explicitly changes direction.
 - Track metadata can be created and edited by the owner
 - Frontend Studio shows the metadata form directly and can upload selected
   audio/cover files immediately after metadata creation
+- Frontend home route `/` is a discovery-led landing with curated sections,
+  artist spotlight, recent/popular blocks, and the shared catalog embedded
+  below the hero surface; Studio lives on `/studio` and inside `/me`, not as
+  the first block on the home route
 - The frontend player is a single global compact bottom `PlayerPanel` mounted
   outside `Routes`; do not move its `<audio>` element back into route-local
   screens or playback will stop on navigation
