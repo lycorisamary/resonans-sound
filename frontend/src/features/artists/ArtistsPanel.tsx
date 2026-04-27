@@ -63,62 +63,62 @@ export function ArtistsPanel() {
     <SectionCard tone="green">
       <Stack spacing={3}>
         <PageHeader
-          eyebrow="Artists"
+          eyebrow="Артисты"
           title="Публичные профили артистов"
-          description="Discovery по артистам строится поверх уже активного runtime surface: search, genre, location и sort без псевдо-социальных фич, которых пока нет в продукте."
+          description="Ищите новых авторов по имени, жанру и городу. Здесь видны только профили с опубликованной музыкой."
           actions={
             <ActionButton variant="outlined" onClick={() => void loadArtists()} startIcon={<RefreshRoundedIcon />}>
-              Refresh
+              Обновить
             </ActionButton>
           }
         />
 
         <Stack component="form" direction={{ xs: 'column', xl: 'row' }} spacing={1.25} onSubmit={submitSearch}>
-          <AppTextField fullWidth label="Search artists" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
-          <AppTextField select label="Genre" value={genre} onChange={(event) => setGenre(event.target.value)} sx={{ minWidth: 210 }}>
-            <MenuItem value="">All genres</MenuItem>
+          <AppTextField fullWidth label="Поиск артистов" value={searchInput} onChange={(event) => setSearchInput(event.target.value)} />
+          <AppTextField select label="Жанр" value={genre} onChange={(event) => setGenre(event.target.value)} sx={{ minWidth: 210 }}>
+            <MenuItem value="">Все жанры</MenuItem>
             {SUPPORTED_TRACK_GENRES.map((item) => (
               <MenuItem key={item} value={item}>
                 {item}
               </MenuItem>
             ))}
           </AppTextField>
-          <AppTextField label="Location" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} sx={{ minWidth: 180 }} />
+          <AppTextField label="Город" value={locationInput} onChange={(event) => setLocationInput(event.target.value)} sx={{ minWidth: 180 }} />
           <AppTextField
             select
-            label="Sort"
+            label="Сортировка"
             value={sort}
             onChange={(event) => setSort(event.target.value as ArtistDiscoverySort)}
             sx={{ minWidth: 180 }}
           >
-            <MenuItem value="recommended">Recommended</MenuItem>
-            <MenuItem value="popular">Popular</MenuItem>
-            <MenuItem value="newest">Newest</MenuItem>
-            <MenuItem value="name">Name</MenuItem>
+            <MenuItem value="recommended">Рекомендованные</MenuItem>
+            <MenuItem value="popular">Популярные</MenuItem>
+            <MenuItem value="newest">Новые</MenuItem>
+            <MenuItem value="name">По имени</MenuItem>
           </AppTextField>
           <ActionButton type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-            Search
+            Найти
           </ActionButton>
           <ActionButton variant="outlined" onClick={clearFilters}>
-            Reset
+            Сбросить
           </ActionButton>
         </Stack>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {search ? <Chip label={`Search: ${search}`} color="secondary" variant="outlined" /> : null}
-          {genre ? <Chip label={`Genre: ${genre}`} color="secondary" variant="outlined" /> : null}
-          {location ? <Chip label={`Location: ${location}`} color="secondary" variant="outlined" /> : null}
-          {sort !== 'recommended' ? <Chip label={`Sort: ${sort}`} color="secondary" variant="outlined" /> : null}
+          {search ? <Chip label={`Поиск: ${search}`} color="secondary" variant="outlined" /> : null}
+          {genre ? <Chip label={`Жанр: ${genre}`} color="secondary" variant="outlined" /> : null}
+          {location ? <Chip label={`Город: ${location}`} color="secondary" variant="outlined" /> : null}
+          {sort !== 'recommended' ? <Chip label="Сортировка изменена" color="secondary" variant="outlined" /> : null}
         </Stack>
 
         {error ? <Alert severity="error">{error}</Alert> : null}
         {loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Loading artists...</Typography>
+            <Typography>Загружаем артистов...</Typography>
           </Stack>
         ) : null}
-        {!loading && artists.length === 0 ? <Alert severity="info">No public artists found.</Alert> : null}
+        {!loading && artists.length === 0 ? <Alert severity="info">Артисты не найдены.</Alert> : null}
 
         <Grid container spacing={2}>
           {artists.map((artist) => (
@@ -161,13 +161,13 @@ export function ArtistsPanel() {
                   </Stack>
 
                   <Typography color="text.secondary" sx={{ minHeight: 72 }}>
-                    {artist.bio || 'Публичный профиль артиста с approved-треками, статистикой и витринным позиционированием.'}
+                    {artist.bio || 'Публичный профиль артиста с релизами, статистикой и витринным позиционированием.'}
                   </Typography>
 
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip label={`Tracks ${artist.track_count}`} size="small" />
-                    <Chip label={`Plays ${artist.play_count}`} size="small" variant="outlined" />
-                    <Chip label={`Likes ${artist.like_count}`} size="small" variant="outlined" />
+                    <Chip label={`${artist.track_count} треков`} size="small" />
+                    <Chip label={`${artist.play_count} прослушиваний`} size="small" variant="outlined" />
+                    <Chip label={`${artist.like_count} лайков`} size="small" variant="outlined" />
                     {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
                     {artist.profile_genres.slice(0, 2).map((item) => (
                       <Chip key={item} label={item} size="small" variant="outlined" />

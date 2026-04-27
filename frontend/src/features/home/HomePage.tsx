@@ -35,9 +35,9 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
             <Box sx={{ p: { xs: 2.5, md: 4 } }}>
               <Stack spacing={2.5}>
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                  <Chip label="Main selection" color="secondary" variant="outlined" />
-                  <Chip label="Open uploads" variant="outlined" />
-                  <Chip label="Curated spotlight" variant="outlined" />
+                  <Chip label="Главный отбор" color="secondary" variant="outlined" />
+                  <Chip label="Свободная публикация" variant="outlined" />
+                  <Chip label="Витрина артистов" variant="outlined" />
                 </Stack>
 
                 <Typography variant="h1" sx={{ fontSize: { xs: '3rem', md: '5.8rem' }, lineHeight: 0.9, maxWidth: 760 }}>
@@ -64,9 +64,9 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                 </Stack>
 
                 <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
-                  <MetricTile label="Published tracks" value={catalog.publicTracks.length} />
-                  <MetricTile label="Curated collections" value={homeFeed.collections.length} />
-                  <MetricTile label="New artists" value={homeFeed.artists.length} />
+                  <MetricTile label="Треков" value={catalog.publicTracks.length} />
+                  <MetricTile label="Подборок" value={homeFeed.collections.length} />
+                  <MetricTile label="Артистов" value={homeFeed.artists.length} />
                 </Stack>
               </Stack>
             </Box>
@@ -78,8 +78,8 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                 alignItems: 'center',
                 background:
                   featuredCollection?.cover_image_url
-                    ? `linear-gradient(180deg, rgba(11,11,16,0.3), rgba(11,11,16,0.55)), url(${featuredCollection.cover_image_url}) center / cover`
-                    : 'linear-gradient(135deg, #5110a4 0%, #7a39dd 42%, #8f1023 72%, #c0162f 100%)',
+                    ? `linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.62)), url(${featuredCollection.cover_image_url}) center / cover`
+                    : 'radial-gradient(circle at 50% 48%, rgba(255,23,23,0.22), transparent 28%), linear-gradient(135deg, #050506 0%, #180306 72%, #3b0207 100%)',
                 display: 'flex',
                 height: '100%',
                 minHeight: 340,
@@ -90,10 +90,10 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
             >
               <Box
                 sx={{
-                  border: '1px solid rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,35,35,0.2)',
                   borderRadius: 5,
-                  boxShadow: '16px 16px 0 rgba(0,0,0,0.3)',
-                  maxWidth: 380,
+                  boxShadow: '0 0 42px rgba(255,23,23,0.18)',
+                  maxWidth: 420,
                   overflow: 'hidden',
                   width: '100%',
                 }}
@@ -104,12 +104,12 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                     background:
                       featuredCollection?.cover_image_url
                         ? `url(${featuredCollection.cover_image_url}) center / cover`
-                        : 'linear-gradient(135deg, #6d1b2f, #a34b61 38%, #d9b5a9 100%)',
+                        : 'url(/favicon.png) center / 78% no-repeat, #000',
                   }}
                 />
                 <Stack spacing={1} sx={{ p: 2.25, background: 'rgba(10,10,14,0.88)' }}>
                   <Typography variant="overline" sx={{ color: 'secondary.light' }}>
-                    Featured selection
+                    Отбор недели
                   </Typography>
                   <Typography variant="h4">{featuredCollection?.name ?? 'Weekly spotlight'}</Typography>
                   <Typography color="text.secondary">
@@ -127,7 +127,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
             <Chip label="Треки публикуются без премодерации" color="secondary" variant="outlined" />
             <Chip label="Лучшие работы попадают в ручные подборки" variant="outlined" />
-            <Chip label="Спам и мусор чистятся staff-инструментами" variant="outlined" />
+            <Chip label="Мусор и спам быстро убираются модерацией" variant="outlined" />
           </Stack>
           <ActionButton variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => void homeFeed.reload()}>
             Обновить витрину
@@ -174,12 +174,12 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                       }}
                     />
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip label={collection.is_public ? 'Public' : 'Draft'} color={collection.is_public ? 'success' : 'default'} size="small" />
-                      <Chip label={`${collection.track_count} tracks`} size="small" variant="outlined" />
+                      <Chip label={collection.is_public ? 'Открыта' : 'Черновик'} color={collection.is_public ? 'success' : 'default'} size="small" />
+                      <Chip label={`${collection.track_count} треков`} size="small" variant="outlined" />
                     </Stack>
                     <Typography variant="h5">{collection.name}</Typography>
                     <Typography color="text.secondary">
-                      {collection.description ?? 'Ручная подборка staff-команды с уже опубликованными и approved-треками.'}
+                      {collection.description ?? 'Ручная подборка с уже опубликованными треками.'}
                     </Typography>
                     <Stack direction="row" spacing={1}>
                       <ActionButton component={RouterLink} to={`/collections/${collection.id}`} variant="outlined" size="small">
@@ -192,7 +192,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                         onClick={() => void player.playTrackQueue(collection.tracks)}
                         disabled={collection.tracks.length === 0}
                       >
-                        Play
+                        Слушать
                       </ActionButton>
                     </Stack>
                   </Stack>
@@ -208,7 +208,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
           <SectionCard tone="neutral" sx={{ height: '100%' }}>
             <Stack spacing={2.25}>
               <PageHeader
-                eyebrow="Live feed"
+                eyebrow="Свежие релизы"
                 title="Недавно добавленные"
                 description="Свежие релизы появляются здесь сразу после публикации и показывают артисту, что платформа действительно живая."
               />
@@ -243,16 +243,16 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                         {track.title}
                       </Typography>
                       <Typography color="text.secondary">
-                        {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist'}
+                        {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Неизвестный артист'}
                       </Typography>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
                         {track.genre ? <Chip label={track.genre} size="small" variant="outlined" /> : null}
-                        <Chip label={`${track.play_count} plays`} size="small" variant="outlined" />
-                        <Chip label={`${track.like_count} likes`} size="small" variant="outlined" />
+                        <Chip label={`${track.play_count} прослушиваний`} size="small" variant="outlined" />
+                        <Chip label={`${track.like_count} лайков`} size="small" variant="outlined" />
                       </Stack>
                     </Box>
                     <ActionButton variant="outlined" size="small" onClick={() => void player.playTrack(track)}>
-                      Play
+                      Слушать
                     </ActionButton>
                   </Box>
                 ))}
@@ -265,7 +265,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
           <SectionCard tone="green" sx={{ height: '100%' }}>
             <Stack spacing={2.25}>
               <PageHeader
-                eyebrow="Artist spotlight"
+                eyebrow="Артисты"
                 title="Новые артисты"
                 description="Витрина профилей, а не только треков: проект должен подсвечивать людей, а не превращаться в безличную свалку файлов."
               />
@@ -299,11 +299,11 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                         <Box>
                           <Typography variant="h6">{artist.display_name || artist.slug}</Typography>
                           <Typography color="text.secondary" sx={{ minHeight: 44 }}>
-                            {artist.bio || 'Публичный профиль артиста с approved-релизами и ручным шансом попасть в spotlight.'}
+                            {artist.bio || 'Публичный профиль артиста с релизами и шансом попасть в подборки.'}
                           </Typography>
                         </Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip label={`${artist.track_count} tracks`} size="small" variant="outlined" />
+                          <Chip label={`${artist.track_count} треков`} size="small" variant="outlined" />
                           {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
                         </Stack>
                       </Stack>
@@ -319,7 +319,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
       <SectionCard tone="orange">
         <Stack spacing={2.25}>
           <PageHeader
-            eyebrow="Signal"
+                eyebrow="Сейчас слушают"
             title="Популярное сейчас"
             description="Этот блок нужен не как социальная механика, а как честный сигнал, где уже есть прослушивания и отклик."
           />
@@ -342,14 +342,14 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                       {track.title}
                     </Typography>
                     <Typography color="text.secondary">
-                      {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist'}
+                      {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Неизвестный артист'}
                     </Typography>
                     <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                      <Chip label={`${track.play_count} plays`} size="small" color="secondary" variant="outlined" />
-                      <Chip label={`${track.like_count} likes`} size="small" variant="outlined" />
+                      <Chip label={`${track.play_count} прослушиваний`} size="small" color="secondary" variant="outlined" />
+                      <Chip label={`${track.like_count} лайков`} size="small" variant="outlined" />
                     </Stack>
                     <ActionButton variant="contained" size="small" onClick={() => void player.playTrack(track)}>
-                      Play now
+                      Слушать
                     </ActionButton>
                   </Stack>
                 </SectionCard>
@@ -362,13 +362,13 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
       <SectionCard tone="neutral">
         <Stack spacing={2}>
           <PageHeader
-            eyebrow="Why it matters"
+            eyebrow="Идея"
             title="Не просто загрузка, а шанс быть замеченным"
-            description="Платформа уже умеет автопубликацию, честный play-count, жалобы, скрытие и ручные подборки. Discovery-слой теперь подчёркивает это визуально и продуктово."
+            description="Платформа помогает быстро показать релиз слушателям, попасть в ручной отбор и собрать первые честные реакции."
             actions={
               <Chip
                 icon={<AutoAwesomeRoundedIcon />}
-                label={auth.user ? `Сессия: ${auth.user.username}` : 'Гостевой режим'}
+                label={auth.user ? auth.user.username : 'Гость'}
                 color={auth.user ? 'success' : 'default'}
                 variant="outlined"
               />

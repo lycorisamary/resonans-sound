@@ -24,11 +24,11 @@ interface StudioUploadSelection {
 }
 
 const reportReasons: { value: TrackReportReason; label: string }[] = [
-  { value: 'spam', label: 'Spam' },
-  { value: 'copyright', label: 'Copyright violation' },
-  { value: 'offensive', label: 'Offensive content' },
-  { value: 'not_music', label: 'Not music' },
-  { value: 'other', label: 'Other' },
+  { value: 'spam', label: 'Спам' },
+  { value: 'copyright', label: 'Нарушение авторских прав' },
+  { value: 'offensive', label: 'Оскорбительный контент' },
+  { value: 'not_music', label: 'Не относится к музыке' },
+  { value: 'other', label: 'Другое' },
 ];
 
 function buildTrackPayload(trackForm: typeof initialTrackForm): TrackMetadataPayload {
@@ -95,31 +95,31 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
 
       if (editingTrackId) {
         savedTrack = await api.updateTrack(editingTrackId, payload);
-        completedSteps.push('metadata обновлено');
+        completedSteps.push('карточка обновлена');
       } else {
         savedTrack = await api.createTrackMetadata(payload);
-        completedSteps.push('metadata создано');
+        completedSteps.push('карточка создана');
       }
 
       if (files.coverFile) {
         setUploadingCoverTrackId(savedTrack.id);
         savedTrack = await api.uploadTrackCover(savedTrack.id, files.coverFile);
-        completedSteps.push('cover загружен');
+        completedSteps.push('обложка загружена');
         setUploadingCoverTrackId(null);
       }
 
       if (files.audioFile) {
         setUploadingTrackId(savedTrack.id);
         savedTrack = await api.uploadTrack(savedTrack.id, files.audioFile);
-        completedSteps.push('audio принято в processing');
+        completedSteps.push('аудио принято');
         setUploadingTrackId(null);
       }
 
       resetTrackForm();
       setBanner(
         files.audioFile
-          ? `${completedSteps.join(', ')}. После processing трек опубликуется автоматически.`
-          : `${completedSteps.join(', ')}. Audio можно загрузить здесь же в блоке "Мои треки".`
+          ? `${completedSteps.join(', ')}. После обработки трек опубликуется автоматически.`
+          : `${completedSteps.join(', ')}. Аудио можно загрузить здесь же в блоке "Мои треки".`
       );
       await refreshWholeUiIntoStore();
       return true;
@@ -173,8 +173,8 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
 
       setBanner(
         isDeletingOtherUsersTrack
-          ? `Трек "${track.title}" удалён по staff-праву.`
-          : `Трек "${track.title}" переведён в deleted и снят с витрины.`
+          ? `Трек "${track.title}" удалён командой проекта.`
+          : `Трек "${track.title}" удалён и снят с витрины.`
       );
       await refreshWholeUiIntoStore();
     } catch (err) {
@@ -196,7 +196,7 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
 
     try {
       await api.uploadTrack(track.id, file);
-      setBanner(`Source для "${track.title}" принят. Сейчас начнётся processing, после которого трек опубликуется автоматически.`);
+      setBanner(`Аудио для "${track.title}" принято. После обработки трек опубликуется автоматически.`);
       await refreshWholeUiIntoStore();
     } catch (err) {
       setPageError(getErrorMessage(err, 'Не удалось загрузить аудиофайл'));
@@ -271,7 +271,7 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
     }
 
     const selected = window.prompt(
-      `Report "${track.title}"\n${reportReasons.map((reason, index) => `${index + 1}. ${reason.label}`).join('\n')}`,
+      `Пожаловаться на "${track.title}"\n${reportReasons.map((reason, index) => `${index + 1}. ${reason.label}`).join('\n')}`,
       '1'
     );
     if (selected === null) {
@@ -284,11 +284,11 @@ export function useTrackActions({ stopAndResetAudio }: UseTrackActionsOptions) {
       return;
     }
 
-    const description = window.prompt('Additional note for staff', '')?.trim() || null;
+    const description = window.prompt('Комментарий для команды проекта', '')?.trim() || null;
 
     try {
       await api.reportTrack({ track_id: track.id, reason: reason.value, description });
-      setBanner(`Жалоба на "${track.title}" отправлена staff-команде.`);
+      setBanner(`Жалоба на "${track.title}" отправлена команде проекта.`);
     } catch (err) {
       setPageError(getErrorMessage(err, 'Не удалось отправить жалобу'));
     }

@@ -83,11 +83,11 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
               {track ? (
                 <>
                   <PageHeader
-                    eyebrow="Track page"
+                    eyebrow="Трек"
                     title={track.title}
-                    description={`${track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist'} • ${
-                      track.genre ?? 'No genre'
-                    } • ${track.play_count} plays • ${track.like_count} likes`}
+                    description={`${track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Неизвестный артист'} • ${
+                      track.genre ?? 'Без жанра'
+                    } • ${track.play_count} прослушиваний • ${track.like_count} лайков`}
                   />
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     {track.tags?.map((tag) => (
@@ -106,11 +106,11 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
                     ))}
                   </Stack>
                   <Typography color="text.secondary">
-                    {track.description || 'Страница трека остаётся точкой входа в релиз, playback, лайки и post-publication report flow.'}
+                    {track.description || 'Страница релиза: прослушивание, лайки, описание и другие треки артиста.'}
                   </Typography>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                     <ActionButton variant="contained" onClick={() => void player.playTrack(track)}>
-                      Play
+                      Слушать
                     </ActionButton>
                     <ActionButton
                       variant={trackActions.isTrackLiked(track.id) ? 'contained' : 'outlined'}
@@ -118,7 +118,7 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
                       onClick={() => void trackActions.toggleLike(track)}
                       disabled={!auth.user}
                     >
-                      {trackActions.isTrackLiked(track.id) ? 'Liked' : 'Like'}
+                      {trackActions.isTrackLiked(track.id) ? 'Нравится' : 'Лайк'}
                     </ActionButton>
                     <ActionButton variant="outlined" color="warning" onClick={() => void trackActions.reportTrack(track)}>
                       Пожаловаться
@@ -159,9 +159,9 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
       <SectionCard tone="blue">
         <Stack spacing={2.5}>
           <PageHeader
-            eyebrow="More"
+            eyebrow="Ещё"
             title="Другие треки артиста"
-            description="Related section не имитирует отсутствующую social-рекомендательную систему: здесь показываются только реальные публичные треки того же артиста."
+            description="Больше релизов этого артиста, доступных для прослушивания."
           />
           {artistTracks.length === 0 ? <Alert severity="info">Других публичных треков этого артиста пока нет.</Alert> : null}
           {artistTracks.map((relatedTrack) => (

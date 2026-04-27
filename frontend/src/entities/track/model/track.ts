@@ -16,6 +16,19 @@ export function getTrackStatusColor(status: Track['status']): 'default' | 'warni
   return 'default';
 }
 
+export function getTrackStatusLabel(status: Track['status']): string {
+  const labels: Record<Track['status'], string> = {
+    pending: 'Ждёт аудио',
+    processing: 'Обрабатывается',
+    approved: 'Опубликован',
+    rejected: 'Нужно исправить',
+    hidden: 'Скрыт',
+    deleted: 'Удалён',
+  };
+
+  return labels[status];
+}
+
 export function getOwnerTrackState(track: Track): {
   tone: OwnerTrackStateTone;
   title: string;
@@ -27,23 +40,23 @@ export function getOwnerTrackState(track: Track): {
     return {
       tone: 'error',
       title: 'Трек снят с публикации',
-      description: 'Этот трек переведён в deleted и больше не отображается в живом каталоге.',
+      description: 'Этот трек больше не отображается в каталоге и недоступен слушателям.',
     };
   }
 
   if (track.status === 'hidden') {
     return {
       tone: 'error',
-      title: 'Трек скрыт staff-командой',
-      description: 'Запись не видна в публичном каталоге. Заменить audio или cover можно только после восстановления staff-ролью.',
+      title: 'Трек скрыт командой проекта',
+      description: 'Запись не видна в публичном каталоге. Заменить аудио или обложку можно после восстановления.',
     };
   }
 
   if (track.status === 'processing') {
     return {
       tone: 'warning',
-      title: 'Идёт media processing',
-      description: 'Сервис принял исходник и сейчас готовит MP3-версии и waveform для плеера.',
+      title: 'Аудио обрабатывается',
+      description: 'Файл принят. Плеер и публикация станут доступны после завершения обработки.',
     };
   }
 
@@ -51,7 +64,7 @@ export function getOwnerTrackState(track: Track): {
     return {
       tone: 'error',
       title: 'Обработка завершилась с ошибкой',
-      description: 'Исправьте файл или загрузите новый source, чтобы снова запустить processing.',
+      description: 'Исправьте файл или загрузите новое аудио, чтобы снова отправить трек на обработку.',
     };
   }
 
@@ -67,14 +80,14 @@ export function getOwnerTrackState(track: Track): {
     return {
       tone: 'info',
       title: 'Ждёт исходный файл',
-      description: 'Metadata уже сохранено. Следующий шаг: загрузить MP3 или WAV, чтобы трек дошёл до публикации.',
+      description: 'Карточка сохранена. Следующий шаг: загрузить MP3 или WAV, чтобы трек дошёл до публикации.',
     };
   }
 
   return {
     tone: 'warning',
-    title: 'Переходное состояние',
-    description: 'Трек выглядит как legacy pending-запись. Загрузите новый source, чтобы привести его к актуальному flow.',
+    title: 'Трек ждёт обновления',
+    description: 'Загрузите аудио заново, чтобы трек прошёл актуальную обработку и появился в каталоге.',
   };
 }
 

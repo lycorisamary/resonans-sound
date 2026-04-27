@@ -66,13 +66,13 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
           <PageHeader
             eyebrow="Studio"
             title="Загрузка и управление релизом"
-            description="Studio остаётся отдельным модулем production-flow: сначала metadata, затем audio и cover, после processing трек публикуется автоматически."
-            actions={trackActions.editingTrackId ? <Chip label={`Редактирование #${trackActions.editingTrackId}`} color="secondary" /> : null}
+            description="Создайте карточку трека, добавьте аудио и обложку. После обработки релиз появится на сайте автоматически."
+            actions={trackActions.editingTrackId ? <Chip label="Редактирование релиза" color="secondary" /> : null}
           />
 
-          {!auth.user ? <Alert severity="warning">Чтобы создавать и загружать треки, сначала откройте сессию.</Alert> : null}
+          {!auth.user ? <Alert severity="warning">Чтобы загружать треки, сначала войдите в аккаунт.</Alert> : null}
           {auth.user && !hasArtistProfile ? (
-            <Alert severity="info">Сначала создайте профиль артиста в `/me`, после этого studio flow станет доступен полностью.</Alert>
+            <Alert severity="info">Сначала создайте профиль артиста в кабинете, после этого загрузка станет доступна.</Alert>
           ) : null}
 
           <Box component="form" onSubmit={(event) => void submitStudioForm(event)}>
@@ -175,7 +175,7 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
               </Grid>
               <Grid item xs={12} md={6}>
                 <ActionButton fullWidth variant={audioFile ? 'contained' : 'outlined'} component="label" disabled={formDisabled}>
-                  {audioFile ? `Audio: ${audioFile.name}` : 'Выбрать аудиофайл'}
+                  {audioFile ? audioFile.name : 'Выбрать аудиофайл'}
                   <input
                     hidden
                     type="file"
@@ -186,7 +186,7 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
               </Grid>
               <Grid item xs={12} md={6}>
                 <ActionButton fullWidth variant={coverFile ? 'contained' : 'outlined'} component="label" disabled={formDisabled}>
-                  {coverFile ? `Cover: ${coverFile.name}` : 'Выбрать обложку'}
+                  {coverFile ? coverFile.name : 'Выбрать обложку'}
                   <input
                     hidden
                     type="file"
@@ -198,8 +198,7 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
             </Grid>
 
             <Alert severity="info" icon={<AutoAwesomeRoundedIcon fontSize="inherit" />} sx={{ mt: 2 }}>
-              Можно сохранить только metadata, а можно сразу приложить audio и cover. После успешного processing публикация произойдёт
-              автоматически без премодерации.
+              Можно сохранить карточку релиза отдельно или сразу приложить аудио и обложку. После успешной обработки трек появится в каталоге.
             </Alert>
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} sx={{ mt: 2.5 }}>
@@ -213,8 +212,8 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
                       : trackActions.editingTrackId
                         ? 'Обновить релиз'
                         : audioFile
-                          ? 'Создать и отправить в processing'
-                          : 'Создать metadata'}
+                          ? 'Создать и загрузить'
+                          : 'Создать карточку'}
               </ActionButton>
               <ActionButton variant="outlined" disabled={trackActions.studioBusy} onClick={resetForm}>
                 Сбросить форму
@@ -229,7 +228,7 @@ export function StudioForm({ auth, catalog, player, trackActions }: StudioFormPr
           <PageHeader
             eyebrow="Library"
             title="Мои треки"
-            description="Owner-flow остаётся прозрачным: видно статус, availability media, actions по cover/audio и всё, что нужно для повторной загрузки или редактирования."
+            description="Ваши релизы, статусы публикации, обложки, аудио и быстрые действия для редактирования."
             actions={
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                 <Chip label={`Всего ${catalog.myTracks.length}`} variant="outlined" />

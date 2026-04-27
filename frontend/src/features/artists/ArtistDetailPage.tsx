@@ -27,7 +27,7 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
 
   useEffect(() => {
     if (!username) {
-      setError('Artist username is missing.');
+      setError('Не указан артист.');
       setLoading(false);
       return;
     }
@@ -43,7 +43,7 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
         setArtist(loadedArtist);
         setTracks(loadedTracks.items);
       } catch (err) {
-        setError(getErrorMessage(err, 'Could not load artist.'));
+        setError(getErrorMessage(err, 'Не удалось загрузить артиста.'));
       } finally {
         setLoading(false);
       }
@@ -69,7 +69,7 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
           {loading ? (
             <Stack direction="row" spacing={2} alignItems="center">
               <CircularProgress size={20} />
-              <Typography>Loading artist...</Typography>
+              <Typography>Загружаем артиста...</Typography>
             </Stack>
           ) : null}
           {error ? <Alert severity="error">{error}</Alert> : null}
@@ -91,9 +91,9 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
               {artist.bio ? <Typography sx={{ maxWidth: 920 }}>{artist.bio}</Typography> : null}
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip label={`Tracks ${artist.track_count}`} />
-                <Chip label={`Plays ${artist.play_count}`} variant="outlined" />
-                <Chip label={`Likes ${artist.like_count}`} variant="outlined" />
+                <Chip label={`${artist.track_count} треков`} />
+                <Chip label={`${artist.play_count} прослушиваний`} variant="outlined" />
+                <Chip label={`${artist.like_count} лайков`} variant="outlined" />
                 {artist.profile_genres.map((genre) => (
                   <Chip key={genre} label={genre} variant="outlined" />
                 ))}
@@ -114,11 +114,11 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
       <SectionCard tone="neutral">
         <Stack spacing={2.5}>
           <PageHeader
-            eyebrow="Discography"
+            eyebrow="Дискография"
             title="Треки артиста"
-            description="Здесь остаются только approved публичные релизы активного artist profile. Плеер запускает очередь треков по порядку списка."
+            description="Публичные релизы артиста. Можно слушать по одному треку или запустить очередь по списку."
           />
-          {!loading && tracks.length === 0 ? <Alert severity="info">This artist has no public approved tracks yet.</Alert> : null}
+          {!loading && tracks.length === 0 ? <Alert severity="info">У артиста пока нет публичных треков.</Alert> : null}
           {tracks.map((track) => (
             <TrackCard
               key={track.id}

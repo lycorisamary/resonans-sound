@@ -2,7 +2,7 @@ import { Alert, Box, Card, CardContent, Chip, Stack, Typography } from '@mui/mat
 import { alpha } from '@mui/material/styles';
 import { Link as RouterLink } from 'react-router-dom';
 
-import { canUploadTrackMedia, getOwnerTrackState, getTrackStatusColor, hasPlayableMedia } from '@/entities/track/model/track';
+import { canUploadTrackMedia, getOwnerTrackState, getTrackStatusColor, getTrackStatusLabel, hasPlayableMedia } from '@/entities/track/model/track';
 import { Track } from '@/shared/api/types';
 import { formatTime } from '@/shared/lib/time';
 import { ActionButton } from '@/shared/ui';
@@ -63,7 +63,7 @@ export function TrackCard({
   const ownerState = getOwnerTrackState(track);
   const playable = hasPlayableMedia(track);
   const artistSlug = track.artist?.slug ?? track.user?.username;
-  const artistName = track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist';
+  const artistName = track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Неизвестный артист';
 
   return (
     <Card
@@ -71,11 +71,11 @@ export function TrackCard({
       variant="outlined"
       sx={{
         background: active
-          ? 'linear-gradient(180deg, rgba(255,95,122,0.12), rgba(20,20,29,0.96))'
-          : 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))',
-        borderColor: active ? alpha('#ff5f7a', 0.42) : 'rgba(255,255,255,0.08)',
+          ? 'linear-gradient(180deg, rgba(255,23,23,0.13), rgba(10,10,12,0.96))'
+          : 'linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.012))',
+        borderColor: active ? alpha('#ff1717', 0.46) : 'rgba(255,38,38,0.12)',
         borderRadius: 5,
-        boxShadow: active ? '0 20px 44px rgba(192,22,47,0.16)' : 'none',
+        boxShadow: active ? '0 0 32px rgba(255,23,23,0.16)' : 'none',
         overflow: 'hidden',
       }}
     >
@@ -109,14 +109,14 @@ export function TrackCard({
                       <Typography color="text.secondary">{artistName}</Typography>
                     )}
                     <Typography color="text.secondary">•</Typography>
-                    <Typography color="text.secondary">{track.genre || track.category?.name || 'No genre'}</Typography>
+                    <Typography color="text.secondary">{track.genre || track.category?.name || 'Без жанра'}</Typography>
                   </Stack>
                 </Box>
 
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', xl: 'flex-end' }}>
-                  <Chip label={track.status} color={getTrackStatusColor(track.status)} size="small" />
-                  <Chip label={`${track.play_count} plays`} variant="outlined" size="small" />
-                  <Chip label={`${track.like_count} likes`} variant="outlined" size="small" />
+                  <Chip label={getTrackStatusLabel(track.status)} color={getTrackStatusColor(track.status)} size="small" />
+                  <Chip label={`Прослушивания ${track.play_count}`} variant="outlined" size="small" />
+                  <Chip label={`Лайки ${track.like_count}`} variant="outlined" size="small" />
                 </Stack>
               </Stack>
 
@@ -127,16 +127,16 @@ export function TrackCard({
               ) : null}
 
               <Typography color="text.secondary">
-                {track.description || (track.tags?.length ? `Tags: ${track.tags.join(', ')}` : 'Трек уже подключён к live playback и каталогу.')}
+                {track.description || (track.tags?.length ? `Теги: ${track.tags.join(', ')}` : 'Трек уже доступен в каталоге.')}
               </Typography>
 
               <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                <Chip label={`Duration ${formatTime(track.duration_seconds ?? 0)}`} size="small" variant="outlined" />
-                <Chip label={track.cover_image_url ? 'Cover ready' : 'Cover missing'} size="small" variant="outlined" />
+                <Chip label={formatTime(track.duration_seconds ?? 0)} size="small" variant="outlined" />
+                <Chip label={track.cover_image_url ? 'Обложка есть' : 'Без обложки'} size="small" variant="outlined" />
                 {variant === 'mine' ? (
                   <>
-                    <Chip label={track.original_url ? 'Source uploaded' : 'Source missing'} size="small" variant="outlined" />
-                    <Chip label={track.mp3_320_url ? '320 ready' : '320 pending'} size="small" variant="outlined" />
+                    <Chip label={track.original_url ? 'Аудио загружено' : 'Нет аудио'} size="small" variant="outlined" />
+                    <Chip label={track.mp3_320_url ? 'Готов к прослушиванию' : 'Обрабатывается'} size="small" variant="outlined" />
                   </>
                 ) : null}
               </Stack>
@@ -156,7 +156,7 @@ export function TrackCard({
                 onClick={() => onPlayTrack(track)}
                 disabled={!playable}
               >
-                {active && isPlaying ? 'Пауза' : variant === 'mine' ? 'Проверить playback' : 'Слушать'}
+                {active && isPlaying ? 'Пауза' : variant === 'mine' ? 'Проверить' : 'Слушать'}
               </ActionButton>
 
               {variant === 'catalog' ? (
@@ -184,7 +184,7 @@ export function TrackCard({
                     Редактировать
                   </ActionButton>
                   <ActionButton variant="outlined" size="small" component="label" startIcon={<PhotoCameraRoundedIcon />} disabled={studioBusy}>
-                    {uploadingCoverTrackId === track.id ? 'Загружаем cover...' : track.cover_image_url ? 'Заменить cover' : 'Загрузить cover'}
+                    {uploadingCoverTrackId === track.id ? 'Загружаем обложку...' : track.cover_image_url ? 'Заменить обложку' : 'Загрузить обложку'}
                     <input
                       hidden
                       type="file"
@@ -202,7 +202,7 @@ export function TrackCard({
                     startIcon={<CloudUploadRoundedIcon />}
                     disabled={studioBusy || !canUploadTrackMedia(track)}
                   >
-                    {uploadingTrackId === track.id ? 'Загружаем audio...' : track.original_url ? 'Replace audio' : 'Upload audio'}
+                    {uploadingTrackId === track.id ? 'Загружаем аудио...' : track.original_url ? 'Заменить аудио' : 'Загрузить аудио'}
                     <input
                       hidden
                       type="file"

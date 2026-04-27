@@ -1,4 +1,4 @@
-import { Alert, CircularProgress, Divider, Stack, Typography } from '@mui/material';
+import { Alert, CircularProgress, Stack, Typography } from '@mui/material';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { AdminPanel } from '@/features/admin/AdminPanel';
@@ -59,8 +59,6 @@ function AppRoutes() {
   return (
     <>
       <AppShell
-        authLabel={auth.user ? `Session: ${auth.user.username}` : 'Guest mode'}
-        healthLabel={catalog.health ? `API ${catalog.health.status}` : null}
         navItems={navItems}
         onSearch={handleShellSearch}
       >
@@ -69,7 +67,7 @@ function AppRoutes() {
             <SectionCard tone="neutral">
               <Stack direction="row" spacing={2} alignItems="center">
                 <CircularProgress size={22} />
-                <Typography>Поднимаем runtime-состояние приложения...</Typography>
+                <Typography>Готовим витрину...</Typography>
               </Stack>
             </SectionCard>
           ) : null}
@@ -119,12 +117,6 @@ function AppRoutes() {
             <Route path="/admin" element={<AdminPanel auth={auth} player={player} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
-
-          <Divider />
-          <Typography color="text.secondary" sx={{ px: 0.5 }}>
-            Frontend редизайн остаётся в пределах текущего runtime-контракта: player глобальный, studio отдельно, discovery строится на
-            уже активных сущностях tracks, artists, collections, likes и reports.
-          </Typography>
         </Stack>
       </AppShell>
 

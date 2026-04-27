@@ -22,7 +22,7 @@ describe('AuthPanel', () => {
     );
 
     expect(markup).toContain('Сессия и доступ');
-    expect(markup).toContain('Открыть сессию');
+    expect(markup).toContain('Войти');
   });
 
   it('renders account metrics for an authenticated user', () => {

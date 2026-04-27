@@ -24,8 +24,8 @@ describe('PlayerPanel', () => {
   it('renders idle compact player state', () => {
     const markup = renderWithTheme(<PlayerPanel player={player} />);
 
-    expect(markup).toContain('Choose a track');
-    expect(markup).toContain('Idle');
+    expect(markup).toContain('Выберите трек');
+    expect(markup).toContain('Ожидание');
   });
 
   it('uses the earlier listen-threshold between thirty seconds and half duration', () => {

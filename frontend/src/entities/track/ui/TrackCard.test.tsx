@@ -63,7 +63,7 @@ describe('TrackCard', () => {
     );
 
     expect(markup).toContain('Morning Resonance');
-    expect(markup).toContain('Duration 2:05');
+    expect(markup).toContain('2:05');
     expect(markup).toContain('Слушать');
   });
 

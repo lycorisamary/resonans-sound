@@ -33,7 +33,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
         setProfile(loadedProfile);
         setForm(loadedProfile ? profileToForm(loadedProfile) : { ...profileToForm(null), slug: username });
       } catch (err) {
-        setError(getErrorMessage(err, 'Could not load artist profile.'));
+        setError(getErrorMessage(err, 'Не удалось загрузить профиль артиста.'));
       }
     };
 
@@ -55,9 +55,9 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
         : await api.createMyArtistProfile(buildCreateProfilePayload(form));
       setProfile(updatedProfile);
       setForm(profileToForm(updatedProfile));
-      setBanner('Artist profile updated.');
+      setBanner('Профиль артиста обновлён.');
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not update artist profile.'));
+      setError(getErrorMessage(err, 'Не удалось обновить профиль артиста.'));
     } finally {
       setBusy(false);
     }
@@ -74,9 +74,9 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
       const updatedProfile = kind === 'avatar' ? await api.uploadMyArtistAvatar(file) : await api.uploadMyArtistBanner(file);
       setProfile(updatedProfile);
       setForm(profileToForm(updatedProfile));
-      setBanner(`${kind === 'avatar' ? 'Avatar' : 'Banner'} uploaded.`);
+      setBanner(kind === 'avatar' ? 'Аватар загружен.' : 'Баннер загружен.');
     } catch (err) {
-      setError(getErrorMessage(err, `Could not upload ${kind}.`));
+      setError(getErrorMessage(err, kind === 'avatar' ? 'Не удалось загрузить аватар.' : 'Не удалось загрузить баннер.'));
     } finally {
       setUploadBusy(null);
     }
@@ -90,9 +90,9 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
     <SectionCard tone="neutral">
       <Stack spacing={3}>
         <PageHeader
-          eyebrow="Artist profile"
+          eyebrow="Профиль артиста"
           title={profile ? 'Управление публичным профилем артиста' : 'Стать артистом'}
-          description="User-account и artist-profile разделены. Только после создания профиля пользователь получает публичную страницу артиста и может загружать музыку."
+          description="Оформите публичную страницу артиста: имя, описание, жанры, город, аватар и баннер."
         />
 
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -106,7 +106,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
               </Avatar>
               {profile ? (
                 <ActionButton component="label" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={uploadBusy !== null}>
-                  {uploadBusy === 'avatar' ? 'Uploading avatar...' : 'Upload avatar'}
+                  {uploadBusy === 'avatar' ? 'Загружаем аватар...' : 'Загрузить аватар'}
                   <input
                     hidden
                     type="file"
@@ -137,11 +137,11 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
               <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                 <Box>
                   <Typography variant="h5">{profile?.display_name ?? username}</Typography>
-                  <Typography color="text.secondary">{profile ? `/artists/${profile.slug}` : 'Slug will become the public artist URL.'}</Typography>
+                  <Typography color="text.secondary">{profile ? `/artists/${profile.slug}` : 'Адрес будущей страницы артиста.'}</Typography>
                 </Box>
                 {profile ? (
                   <ActionButton component="label" variant="outlined" startIcon={<PhotoCameraRoundedIcon />} disabled={uploadBusy !== null}>
-                    {uploadBusy === 'banner' ? 'Uploading banner...' : 'Upload banner'}
+                    {uploadBusy === 'banner' ? 'Загружаем баннер...' : 'Загрузить баннер'}
                     <input
                       hidden
                       type="file"
@@ -162,19 +162,19 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
           <Grid container spacing={1.5}>
             <Grid item xs={12} md={6}>
               <AppTextField
-                label="Artist URL slug"
+                label="Адрес профиля"
                 value={form.slug}
                 onChange={updateField('slug')}
                 disabled={Boolean(profile)}
                 inputProps={{ maxLength: 50 }}
-                helperText={profile ? `/artists/${profile.slug}` : 'Lowercase letters, numbers, underscores, or hyphens.'}
+                helperText={profile ? `/artists/${profile.slug}` : 'Латиница, цифры, подчёркивание или дефис.'}
                 required
                 fullWidth
               />
             </Grid>
             <Grid item xs={12} md={6}>
               <AppTextField
-                label="Display name"
+                label="Имя артиста"
                 value={form.displayName}
                 onChange={updateField('displayName')}
                 inputProps={{ maxLength: 120 }}
@@ -182,14 +182,14 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
               />
             </Grid>
             <Grid item xs={12} md={6}>
-              <AppTextField label="Location" value={form.location} onChange={updateField('location')} inputProps={{ maxLength: 120 }} fullWidth />
+              <AppTextField label="Город" value={form.location} onChange={updateField('location')} inputProps={{ maxLength: 120 }} fullWidth />
             </Grid>
             <Grid item xs={12} md={6}>
-              <AppTextField label="Genres" value={form.profileGenres} onChange={updateField('profileGenres')} placeholder="Ambient, Hip-hop, Pop" fullWidth />
+              <AppTextField label="Жанры" value={form.profileGenres} onChange={updateField('profileGenres')} placeholder="Ambient, Hip-hop, Pop" fullWidth />
             </Grid>
             <Grid item xs={12}>
               <AppTextField
-                label="Bio"
+                label="Описание"
                 value={form.bio}
                 onChange={updateField('bio')}
                 multiline
@@ -200,7 +200,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
             </Grid>
             <Grid item xs={12} md={6}>
               <AppTextField
-                label="Social links"
+                label="Соцсети"
                 value={form.socialLinks}
                 onChange={updateField('socialLinks')}
                 multiline
@@ -211,7 +211,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
             </Grid>
             <Grid item xs={12} md={6}>
               <AppTextField
-                label="Streaming links"
+                label="Стриминги"
                 value={form.streamingLinks}
                 onChange={updateField('streamingLinks')}
                 multiline
@@ -223,7 +223,7 @@ export function ArtistProfileEditor({ username }: ArtistProfileEditorProps) {
           </Grid>
 
           <ActionButton type="submit" variant="contained" disabled={busy}>
-            {busy ? 'Saving...' : profile ? 'Save artist profile' : 'Create artist profile'}
+            {busy ? 'Сохраняем...' : profile ? 'Сохранить профиль' : 'Создать профиль'}
           </ActionButton>
         </Stack>
       </Stack>

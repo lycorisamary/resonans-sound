@@ -25,7 +25,7 @@ export function WaveformPreview({ track, active }: WaveformPreviewProps) {
           bgcolor: 'rgba(255,255,255,0.5)',
         }}
       >
-        Waveform появится после media processing.
+        Визуализация появится после обработки аудио.
       </Box>
     );
   }
@@ -43,8 +43,8 @@ export function WaveformPreview({ track, active }: WaveformPreviewProps) {
         px: 1.25,
         py: 0.75,
         borderRadius: 999,
-        bgcolor: active ? 'rgba(15,118,110,0.12)' : 'rgba(15,23,42,0.04)',
-        border: '1px solid rgba(15,118,110,0.12)',
+        bgcolor: active ? 'rgba(255,23,23,0.12)' : 'rgba(255,23,23,0.04)',
+        border: '1px solid rgba(255,55,55,0.14)',
       }}
     >
       {downsampled.map((value, index) => (
@@ -55,7 +55,7 @@ export function WaveformPreview({ track, active }: WaveformPreviewProps) {
             minHeight: 6,
             height: `${Math.max(10, Math.round(Number(value || 0) * 100))}%`,
             borderRadius: 999,
-            bgcolor: active ? '#0f766e' : 'rgba(15,118,110,0.38)',
+            bgcolor: active ? '#ff1717' : 'rgba(255,55,55,0.42)',
             flexShrink: 0,
           }}
         />

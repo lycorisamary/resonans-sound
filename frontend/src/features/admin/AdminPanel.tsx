@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Box, Card, CardContent, Chip, CircularProgress, MenuItem, Stack, Typography } from '@mui/material';
 
 import { TrackArtwork } from '@/entities/track/ui';
+import { getTrackStatusLabel } from '@/entities/track/model/track';
 import { AdminCollectionsPanel } from '@/features/admin/collections/AdminCollectionsPanel';
 import { UseAuthResult } from '@/hooks/useAuth';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
@@ -26,14 +27,20 @@ interface AdminPanelProps {
 
 type StatusFilter = 'all' | TrackStatus;
 
+const roleLabels: Record<string, string> = {
+  admin: 'Администратор',
+  moderator: 'Модератор',
+  user: 'Пользователь',
+};
+
 const statusFilters: { value: StatusFilter; label: string }[] = [
-  { value: 'all', label: 'All active' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'processing', label: 'Processing' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'hidden', label: 'Hidden' },
-  { value: 'deleted', label: 'Deleted' },
+  { value: 'all', label: 'Все активные' },
+  { value: 'pending', label: 'Ожидают' },
+  { value: 'processing', label: 'Обработка' },
+  { value: 'approved', label: 'Опубликованы' },
+  { value: 'rejected', label: 'Отклонены' },
+  { value: 'hidden', label: 'Скрыты' },
+  { value: 'deleted', label: 'Удалены' },
 ];
 
 function canPlayInStaffPanel(track: Track): boolean {
@@ -44,7 +51,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
   if (!auth.user) {
     return (
       <SectionCard tone="orange">
-        <Alert severity="warning">Sign in as admin or moderator to open staff controls.</Alert>
+        <Alert severity="warning">Войдите в аккаунт с правами управления.</Alert>
       </SectionCard>
     );
   }
@@ -53,7 +60,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
     return (
       <SectionCard tone="orange">
         <Alert severity="warning" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-          This section is available only to admin and moderator roles.
+          Этот раздел доступен только команде управления.
         </Alert>
       </SectionCard>
     );
@@ -82,7 +89,7 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
       const response = await api.getAdminReports({ status: 'open', size: 25 });
       setReports(response.items);
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to load track reports'));
+      setPanelError(getErrorMessage(err, 'Не удалось загрузить жалобы'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +100,7 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
   }, [loadReports]);
 
   const resolveReport = async (report: TrackReport, hideTrack: boolean) => {
-    const notes = window.prompt(hideTrack ? 'Hide reason' : 'Resolution note', report.description ?? '');
+    const notes = window.prompt(hideTrack ? 'Причина скрытия' : 'Комментарий', report.description ?? '');
     if (notes === null) {
       return;
     }
@@ -111,10 +118,10 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
       if (hideTrack && report.track_id && player.activeTrackId === report.track_id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(hideTrack ? 'Report resolved and track hidden.' : 'Report dismissed.');
+      setPanelMessage(hideTrack ? 'Жалоба обработана, трек скрыт.' : 'Жалоба отклонена.');
       await loadReports();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to resolve report'));
+      setPanelError(getErrorMessage(err, 'Не удалось обработать жалобу'));
     } finally {
       setActionReportId(null);
     }
@@ -125,11 +132,11 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
       <Stack spacing={2}>
         <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={1}>
           <Box>
-            <Typography variant="h4">Track reports</Typography>
-            <Typography color="text.secondary">Open listener reports for post-publication safety review.</Typography>
+            <Typography variant="h4">Жалобы на треки</Typography>
+            <Typography color="text.secondary">Новые обращения слушателей по уже опубликованным релизам.</Typography>
           </Box>
           <ActionButton variant="outlined" onClick={() => void loadReports()} startIcon={<RefreshRoundedIcon />}>
-            Refresh
+            Обновить
           </ActionButton>
         </Stack>
 
@@ -138,10 +145,10 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
         {loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Loading reports...</Typography>
+            <Typography>Загружаем жалобы...</Typography>
           </Stack>
         ) : null}
-        {!loading && reports.length === 0 ? <Alert severity="info">No open reports.</Alert> : null}
+        {!loading && reports.length === 0 ? <Alert severity="info">Открытых жалоб нет.</Alert> : null}
 
         <Stack spacing={1.5}>
           {reports.map((report) => {
@@ -156,11 +163,11 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                         <Chip label={report.reason} color="warning" size="small" />
-                        <Chip label={`report #${report.id}`} variant="outlined" size="small" />
-                        {track ? <Chip label={track.status} variant="outlined" size="small" /> : null}
+                        <Chip label={`жалоба #${report.id}`} variant="outlined" size="small" />
+                        {track ? <Chip label={getTrackStatusLabel(track.status)} variant="outlined" size="small" /> : null}
                       </Stack>
                       <Typography variant="h6" sx={{ mt: 1 }}>
-                        {track?.title ?? `Track ${report.track_id ?? 'removed'}`}
+                        {track?.title ?? `Трек ${report.track_id ?? 'удалён'}`}
                       </Typography>
                       {report.description ? <Typography color="text.secondary">{report.description}</Typography> : null}
                     </Box>
@@ -173,14 +180,14 @@ function AdminReportsPanel({ player }: { player: UseAudioPlayerResult }) {
                           onClick={() => void player.playTrack(track)}
                           disabled={!canPlayInStaffPanel(track) || busy}
                         >
-                          Playback
+                          Слушать
                         </ActionButton>
                       ) : null}
                       <ActionButton color="warning" variant="contained" size="small" disabled={busy || !track} onClick={() => void resolveReport(report, true)}>
-                        Hide track
+                        Скрыть трек
                       </ActionButton>
                       <ActionButton variant="outlined" size="small" disabled={busy} onClick={() => void resolveReport(report, false)}>
-                        Dismiss
+                        Отклонить
                       </ActionButton>
                     </Stack>
                   </Stack>
@@ -225,7 +232,7 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
       setStats(nextStats);
       setTracks(trackPage.items);
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to load staff track controls'));
+      setPanelError(getErrorMessage(err, 'Не удалось загрузить список треков'));
     } finally {
       setLoading(false);
     }
@@ -246,9 +253,9 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
     const defaultReason = track.rejection_reason ?? '';
     const reason =
       nextStatus === 'hidden'
-        ? window.prompt(`Hide reason for "${track.title}"`, defaultReason)
+        ? window.prompt(`Причина скрытия "${track.title}"`, defaultReason)
         : nextStatus === 'rejected'
-          ? window.prompt(`Reject reason for "${track.title}"`, defaultReason)
+          ? window.prompt(`Причина отклонения "${track.title}"`, defaultReason)
           : null;
 
     if ((nextStatus === 'hidden' || nextStatus === 'rejected') && reason === null) {
@@ -267,17 +274,17 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
       if (nextStatus === 'hidden' && player.activeTrackId === track.id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(`Track "${track.title}" moved to ${nextStatus}.`);
+      setPanelMessage(`Статус трека "${track.title}" обновлён.`);
       await loadAdminData();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to change track status'));
+      setPanelError(getErrorMessage(err, 'Не удалось изменить статус трека'));
     } finally {
       setActionTrackId(null);
     }
   };
 
   const deleteTrack = async (track: Track) => {
-    if (!window.confirm(`Delete track "${track.title}"?`)) {
+    if (!window.confirm(`Удалить трек "${track.title}"?`)) {
       return;
     }
 
@@ -290,10 +297,10 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
       if (player.activeTrackId === track.id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(`Track "${track.title}" deleted.`);
+      setPanelMessage(`Трек "${track.title}" удалён.`);
       await loadAdminData();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to delete track'));
+      setPanelError(getErrorMessage(err, 'Не удалось удалить трек'));
     } finally {
       setActionTrackId(null);
     }
@@ -304,24 +311,24 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h4">Staff track controls</Typography>
+            <Typography variant="h4">Управление треками</Typography>
             <Typography color="text.secondary">
-              Recent uploads without premoderation. Hiding, restoring, rejecting, and deleting stay staff actions with audit logs.
+              Последние загрузки, скрытие, восстановление, отклонение и удаление треков.
             </Typography>
           </Box>
 
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip icon={<ShieldRoundedIcon />} label={auth.user?.role ?? 'staff'} color="secondary" variant="outlined" />
-            <Chip label={`Visible in page ${totalVisible}`} variant="outlined" />
+            <Chip icon={<ShieldRoundedIcon />} label={roleLabels[auth.user?.role ?? ''] ?? 'Команда проекта'} color="secondary" variant="outlined" />
+            <Chip label={`Видимых ${totalVisible}`} variant="outlined" />
           </Stack>
         </Stack>
 
         {stats ? (
           <Stack direction="row" spacing={1.25} flexWrap="wrap" useFlexGap>
-            <MetricTile label="Users" value={stats.total_users} />
-            <MetricTile label="Tracks" value={stats.total_tracks} />
-            <MetricTile label="Hidden" value={stats.tracks_hidden} />
-            <MetricTile label="Likes" value={stats.total_likes} />
+            <MetricTile label="Пользователей" value={stats.total_users} />
+            <MetricTile label="Треков" value={stats.total_tracks} />
+            <MetricTile label="Скрыто" value={stats.tracks_hidden} />
+            <MetricTile label="Лайков" value={stats.total_likes} />
           </Stack>
         ) : null}
 
@@ -329,7 +336,7 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
             <AppTextField
               select
-              label="Status"
+              label="Статус"
               value={statusFilter}
               onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
               sx={{ minWidth: 190 }}
@@ -342,15 +349,15 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
             </AppTextField>
             <AppTextField
               fullWidth
-              label="Search by track or artist"
+              label="Поиск по треку или артисту"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
             <ActionButton type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-              Search
+              Найти
             </ActionButton>
             <ActionButton variant="outlined" onClick={() => void loadAdminData()} startIcon={<RefreshRoundedIcon />}>
-              Refresh
+              Обновить
             </ActionButton>
           </Stack>
         </Box>
@@ -361,11 +368,11 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
         {loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Loading staff track queue...</Typography>
+            <Typography>Загружаем треки...</Typography>
           </Stack>
         ) : null}
 
-        {!loading && tracks.length === 0 ? <Alert severity="info">No tracks for the current filter.</Alert> : null}
+        {!loading && tracks.length === 0 ? <Alert severity="info">По текущему фильтру треков нет.</Alert> : null}
 
         <Stack spacing={1.5}>
           {tracks.map((track) => {
@@ -380,7 +387,7 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
                     <TrackArtwork track={artworkTrack} size={84} radius={18} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                        <Chip label={track.status} color={track.status === 'approved' ? 'success' : track.status === 'hidden' ? 'error' : 'warning'} size="small" />
+                        <Chip label={getTrackStatusLabel(track.status)} color={track.status === 'approved' ? 'success' : track.status === 'hidden' ? 'error' : 'warning'} size="small" />
                         <Chip label={`#${track.id}`} variant="outlined" size="small" />
                         <Chip label={formatTime(track.duration_seconds ?? 0)} variant="outlined" size="small" />
                       </Stack>
@@ -388,7 +395,7 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
                         {track.title}
                       </Typography>
                       <Typography color="text.secondary">
-                        {track.user?.username ?? `user ${track.user_id}`} · {track.category?.name ?? 'Uncategorized'} · Likes {track.like_count} · Plays {track.play_count}
+                        {track.user?.username ?? `Пользователь ${track.user_id}`} · {track.category?.name ?? 'Без категории'} · Лайки {track.like_count} · Прослушивания {track.play_count}
                       </Typography>
                       {track.rejection_reason ? <Typography color="error.main">{track.rejection_reason}</Typography> : null}
                     </Box>
@@ -400,20 +407,20 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
                         onClick={() => void player.playTrack(track)}
                         disabled={!playable || busy}
                       >
-                        Playback
+                        Слушать
                       </ActionButton>
                       {track.status !== 'hidden' && track.status !== 'deleted' ? (
                         <ActionButton color="warning" variant="outlined" size="small" disabled={busy} onClick={() => void moderateTrack(track, 'hidden')}>
-                          Hide
+                          Скрыть
                         </ActionButton>
                       ) : track.status === 'hidden' ? (
                         <ActionButton color="success" variant="contained" size="small" disabled={busy} onClick={() => void moderateTrack(track, 'approved')}>
-                          Restore
+                          Восстановить
                         </ActionButton>
                       ) : null}
                       {track.status !== 'rejected' && track.status !== 'hidden' && track.status !== 'deleted' ? (
                         <ActionButton color="error" variant="outlined" size="small" disabled={busy} onClick={() => void moderateTrack(track, 'rejected')}>
-                          Reject
+                          Отклонить
                         </ActionButton>
                       ) : null}
                       {track.status !== 'deleted' ? (
@@ -425,7 +432,7 @@ function AdminTrackControl({ auth, player }: AdminPanelProps) {
                           disabled={busy}
                           onClick={() => void deleteTrack(track)}
                         >
-                          Delete
+                          Удалить
                         </ActionButton>
                       ) : null}
                     </Stack>

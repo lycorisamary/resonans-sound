@@ -14,6 +14,18 @@ interface AuthPanelProps {
   onLogout: () => void;
 }
 
+const roleLabels: Record<string, string> = {
+  admin: 'Администратор',
+  moderator: 'Модератор',
+  user: 'Слушатель',
+};
+
+const statusLabels: Record<string, string> = {
+  active: 'Аккаунт активен',
+  inactive: 'Аккаунт не активирован',
+  banned: 'Доступ ограничен',
+};
+
 export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTracksCount, onLogout }: AuthPanelProps) {
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
@@ -35,13 +47,12 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
     <SectionCard tone="orange">
       <Stack spacing={3}>
         <PageHeader
-          eyebrow="Access"
+          eyebrow="Аккаунт"
           title="Сессия и доступ"
-          description="JWT auth уже является рабочим production-flow. Здесь пользователь входит, создаёт аккаунт и попадает в studio или кабинет без отдельного временного слоя."
+          description="Войдите или создайте аккаунт, чтобы загрузить трек, оформить профиль артиста и управлять своими релизами."
           actions={
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip label="JWT auth" color="success" variant="outlined" />
-              <Chip label={auth.isStaff ? 'Staff mode' : 'User mode'} variant="outlined" color={auth.isStaff ? 'secondary' : 'default'} />
+              <Chip label={auth.isStaff ? 'Панель управления доступна' : 'Личный кабинет'} variant="outlined" color={auth.isStaff ? 'secondary' : 'default'} />
             </Stack>
           }
         />
@@ -51,11 +62,7 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
             <Grid item xs={12} xl={4}>
               <Stack spacing={1.5}>
                 <Alert severity="warning">
-                  После processing треки публикуются автоматически, а `admin` и `moderator` нужны для скрытия, восстановления и удаления
-                  уже опубликованного мусора.
-                </Alert>
-                <Alert severity="info">
-                  <strong>Admin:</strong> `admin@audioplatform.com` / `admin123`
+                  После обработки трек появится на сайте автоматически. Если что-то пойдёт не так, его можно будет отредактировать или удалить.
                 </Alert>
                 <Stack direction="row" spacing={1}>
                   <ActionButton variant={auth.authMode === 'login' ? 'contained' : 'outlined'} onClick={() => auth.setAuthMode('login')}>
@@ -72,7 +79,7 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
               <SectionCard tone="neutral" sx={{ p: 2.5 }}>
                 {auth.authMode === 'login' ? (
                   <Stack component="form" spacing={2} onSubmit={handleLogin}>
-                    <Typography variant="h5">Открыть сессию</Typography>
+                    <Typography variant="h5">Войти</Typography>
                     <AppTextField label="Email" type="email" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
                     <AppTextField
                       label="Пароль"
@@ -82,7 +89,7 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
                       required
                     />
                     <ActionButton type="submit" variant="contained" disabled={auth.authBusy}>
-                      {auth.authBusy ? 'Входим...' : 'Открыть сессию'}
+                      {auth.authBusy ? 'Входим...' : 'Войти'}
                     </ActionButton>
                   </Stack>
                 ) : (
@@ -122,19 +129,18 @@ export function AuthPanel({ auth, likedTrackIdsCount, myTracksCount, publicTrack
                     <Typography color="text.secondary">{auth.user.email}</Typography>
                   </Box>
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip label={auth.user.role} color="success" variant="outlined" />
-                    <Chip label={auth.user.status} color="secondary" variant="outlined" />
+                    <Chip label={roleLabels[auth.user.role] ?? 'Аккаунт'} color="success" variant="outlined" />
+                    <Chip label={statusLabels[auth.user.status] ?? 'Статус аккаунта'} color="secondary" variant="outlined" />
                   </Stack>
                 </Stack>
 
                 <Typography color="text.secondary">
-                  Аккаунт уже связан с live auth API: можно создавать и редактировать треки, ставить лайки, работать с artist profile и
-                  пользоваться staff-панелью при наличии роли.
+                  Здесь собраны ваши треки, лайки, профиль артиста и быстрый переход к публикации новых релизов.
                 </Typography>
 
                 {auth.isStaff ? (
                   <Alert severity="info" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-                    У этой роли есть доступ к post-publication moderation, reports и управлению подборками.
+                    Для этого аккаунта доступна модерация и управление подборками.
                   </Alert>
                 ) : null}
 

@@ -28,7 +28,7 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
   useEffect(() => {
     const collectionId = Number(id);
     if (!Number.isFinite(collectionId) || collectionId <= 0) {
-      setError('Collection not found');
+      setError('Подборка не найдена');
       setLoading(false);
       return;
     }
@@ -40,7 +40,7 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
       try {
         setCollection(await api.getCollection(collectionId));
       } catch (err) {
-        setError(getErrorMessage(err, 'Failed to load collection'));
+        setError(getErrorMessage(err, 'Не удалось загрузить подборку'));
       } finally {
         setLoading(false);
       }
@@ -64,7 +64,7 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
           {loading ? (
             <Stack direction="row" spacing={2} alignItems="center">
               <CircularProgress size={20} />
-              <Typography>Loading collection...</Typography>
+              <Typography>Загружаем подборку...</Typography>
             </Stack>
           ) : null}
 
@@ -72,9 +72,9 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
 
           {collection ? (
             <PageHeader
-              eyebrow="Collection"
+              eyebrow="Подборка"
               title={collection.name}
-              description={collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
+              description={collection.description || 'Треки, отобранные редакцией Resonance Sound.'}
               actions={
                 <ActionButton
                   variant="contained"
@@ -82,7 +82,7 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
                   disabled={collection.tracks.length === 0}
                   onClick={() => void player.playTrackQueue(collection.tracks)}
                 >
-                  Play collection
+                  Слушать подборку
                 </ActionButton>
               }
             />
@@ -93,11 +93,11 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
       <SectionCard tone="neutral">
         <Stack spacing={2.5}>
           <PageHeader
-            eyebrow="Tracklist"
+            eyebrow="Треки"
             title="Треки подборки"
-            description="Публичная подборка воспроизводится очередью и продвигает approved-треки в заданном staff-порядке."
+            description="Подборка воспроизводится очередью в заданном порядке."
           />
-          {collection && collection.tracks.length === 0 ? <Alert severity="info">This collection has no public tracks.</Alert> : null}
+          {collection && collection.tracks.length === 0 ? <Alert severity="info">В подборке пока нет публичных треков.</Alert> : null}
 
           {collection?.tracks.map((track) => (
             <TrackCard

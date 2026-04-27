@@ -44,7 +44,7 @@ describe('AdminCollectionsPanel', () => {
   it('renders staff collection controls', () => {
     const markup = renderWithTheme(<AdminCollectionsPanel auth={auth} player={player} />);
 
-    expect(markup).toContain('Staff collections');
-    expect(markup).toContain('Create draft');
+    expect(markup).toContain('Управление подборками');
+    expect(markup).toContain('Создать');
   });
 });

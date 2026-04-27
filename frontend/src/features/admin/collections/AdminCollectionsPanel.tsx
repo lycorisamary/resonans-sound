@@ -59,7 +59,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
       setCollections(collectionPage.items);
       setApprovedTracks(trackPage.items);
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to load staff collections'));
+      setPanelError(getErrorMessage(err, 'Не удалось загрузить подборки'));
     } finally {
       setLoading(false);
     }
@@ -92,7 +92,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setPanelError('Collection name is required');
+      setPanelError('Укажите название подборки');
       return;
     }
 
@@ -108,10 +108,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
       });
       setName('');
       setDescription('');
-      setPanelMessage(`Collection "${trimmedName}" created as draft.`);
+      setPanelMessage(`Подборка "${trimmedName}" создана.`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to create collection'));
+      setPanelError(getErrorMessage(err, 'Не удалось создать подборку'));
     } finally {
       setActionKey(null);
     }
@@ -124,26 +124,26 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
 
     try {
       await api.updateCollection(collection.id, patch);
-      setPanelMessage(`Collection "${collection.name}" updated.`);
+      setPanelMessage(`Подборка "${collection.name}" обновлена.`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to update collection'));
+      setPanelError(getErrorMessage(err, 'Не удалось обновить подборку'));
     } finally {
       setActionKey(null);
     }
   };
 
   const editCollectionText = async (collection: Collection) => {
-    const nextName = window.prompt('Collection name', collection.name);
+    const nextName = window.prompt('Название подборки', collection.name);
     if (nextName === null) {
       return;
     }
-    const nextDescription = window.prompt('Collection description', collection.description ?? '');
+    const nextDescription = window.prompt('Описание подборки', collection.description ?? '');
     if (nextDescription === null) {
       return;
     }
     if (!nextName.trim()) {
-      setPanelError('Collection name is required');
+      setPanelError('Укажите название подборки');
       return;
     }
     await updateCollection(collection, {
@@ -153,7 +153,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
   };
 
   const deleteCollection = async (collection: Collection) => {
-    if (!window.confirm(`Delete collection "${collection.name}"?`)) {
+    if (!window.confirm(`Удалить подборку "${collection.name}"?`)) {
       return;
     }
 
@@ -163,10 +163,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
 
     try {
       await api.deleteCollection(collection.id);
-      setPanelMessage(`Collection "${collection.name}" deleted.`);
+      setPanelMessage(`Подборка "${collection.name}" удалена.`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to delete collection'));
+      setPanelError(getErrorMessage(err, 'Не удалось удалить подборку'));
     } finally {
       setActionKey(null);
     }
@@ -175,7 +175,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
   const addTrack = async (collection: Collection) => {
     const selectedTrack = selectedTracks[collection.id];
     if (!selectedTrack) {
-      setPanelError('Select an approved track first');
+      setPanelError('Сначала выберите трек');
       return;
     }
 
@@ -186,10 +186,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
     try {
       await api.addCollectionTrack(collection.id, selectedTrack.id);
       setSelectedTracks((current) => ({ ...current, [collection.id]: null }));
-      setPanelMessage(`Track added to "${collection.name}".`);
+      setPanelMessage(`Трек добавлен в "${collection.name}".`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to add track'));
+      setPanelError(getErrorMessage(err, 'Не удалось добавить трек'));
     } finally {
       setActionKey(null);
     }
@@ -206,10 +206,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
 
     try {
       await api.uploadCollectionCover(collection.id, file);
-      setPanelMessage(`Cover uploaded for "${collection.name}".`);
+      setPanelMessage(`Обложка для "${collection.name}" загружена.`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to upload collection cover'));
+      setPanelError(getErrorMessage(err, 'Не удалось загрузить обложку'));
     } finally {
       setActionKey(null);
     }
@@ -225,10 +225,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
       if (player.activeTrackId === track.id) {
         player.stopAndResetAudio();
       }
-      setPanelMessage(`Track removed from "${collection.name}".`);
+      setPanelMessage(`Трек удалён из "${collection.name}".`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to remove track'));
+      setPanelError(getErrorMessage(err, 'Не удалось удалить трек из подборки'));
     } finally {
       setActionKey(null);
     }
@@ -253,10 +253,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
         collection.id,
         nextTracks.map((item) => item.id)
       );
-      setPanelMessage(`Collection "${collection.name}" reordered.`);
+      setPanelMessage(`Порядок треков в "${collection.name}" обновлён.`);
       await loadCollections();
     } catch (err) {
-      setPanelError(getErrorMessage(err, 'Failed to reorder collection'));
+      setPanelError(getErrorMessage(err, 'Не удалось изменить порядок треков'));
     } finally {
       setActionKey(null);
     }
@@ -266,7 +266,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
     return (
       <SectionCard tone="orange">
         <Alert severity="warning" icon={<ShieldRoundedIcon fontSize="inherit" />}>
-          Staff collections are available only to admin and moderator roles.
+          Управление подборками доступно только команде проекта.
         </Alert>
       </SectionCard>
     );
@@ -277,28 +277,28 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
       <Stack spacing={3}>
         <Stack direction={{ xs: 'column', lg: 'row' }} justifyContent="space-between" spacing={2}>
           <Box>
-            <Typography variant="h4">Staff collections</Typography>
+            <Typography variant="h4">Управление подборками</Typography>
             <Typography color="text.secondary">
-              Curated public shelves for approved tracks. Draft collections stay hidden until staff publishes them.
+              Создание, публикация, обложки и порядок треков внутри подборок.
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip icon={<QueueMusicRoundedIcon />} label={`${collections.length} collections`} variant="outlined" />
-            <Chip label={`${totalPublic} public`} color="success" variant="outlined" />
+            <Chip icon={<QueueMusicRoundedIcon />} label={`${collections.length} подборок`} variant="outlined" />
+            <Chip label={`${totalPublic} открыто`} color="success" variant="outlined" />
           </Stack>
         </Stack>
 
         <Box component="form" onSubmit={createDraftCollection}>
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
-            <AppTextField label="Collection name" value={name} onChange={(event) => setName(event.target.value)} />
+            <AppTextField label="Название подборки" value={name} onChange={(event) => setName(event.target.value)} />
             <AppTextField
               fullWidth
-              label="Description"
+              label="Описание"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
             />
             <ActionButton type="submit" variant="contained" disabled={actionKey === 'create'}>
-              Create draft
+              Создать
             </ActionButton>
           </Stack>
         </Box>
@@ -307,15 +307,15 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
           <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25}>
             <AppTextField
               fullWidth
-              label="Search collections"
+              label="Поиск подборок"
               value={searchInput}
               onChange={(event) => setSearchInput(event.target.value)}
             />
             <ActionButton type="submit" variant="contained" startIcon={<SearchRoundedIcon />}>
-              Search
+              Найти
             </ActionButton>
             <ActionButton variant="outlined" onClick={() => void loadCollections()} startIcon={<RefreshRoundedIcon />}>
-              Refresh
+              Обновить
             </ActionButton>
           </Stack>
         </Box>
@@ -326,11 +326,11 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
         {loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Loading staff collections...</Typography>
+            <Typography>Загружаем подборки...</Typography>
           </Stack>
         ) : null}
 
-        {!loading && collections.length === 0 ? <Alert severity="info">No staff collections yet.</Alert> : null}
+        {!loading && collections.length === 0 ? <Alert severity="info">Подборок пока нет.</Alert> : null}
 
         <Stack spacing={1.5}>
           {collections.map((collection) => {
@@ -342,8 +342,8 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                     <Stack direction={{ xs: 'column', md: 'row' }} justifyContent="space-between" spacing={2}>
                       <Box>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip label={collection.is_public ? 'Public' : 'Draft'} color={collection.is_public ? 'success' : 'default'} size="small" />
-                          <Chip label={`${collection.track_count} linked`} variant="outlined" size="small" />
+                          <Chip label={collection.is_public ? 'Открыта' : 'Черновик'} color={collection.is_public ? 'success' : 'default'} size="small" />
+                          <Chip label={`${collection.track_count} треков`} variant="outlined" size="small" />
                           <Chip label={`#${collection.id}`} variant="outlined" size="small" />
                         </Stack>
                         <Typography variant="h5" sx={{ mt: 1 }}>
@@ -354,10 +354,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
 
                       <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap justifyContent={{ xs: 'flex-start', md: 'flex-end' }}>
                         <ActionButton variant="outlined" size="small" disabled={busy} onClick={() => void editCollectionText(collection)}>
-                          Edit
+                          Править
                         </ActionButton>
                         <ActionButton variant="outlined" size="small" component="label" startIcon={<PhotoCameraRoundedIcon />} disabled={busy}>
-                          Cover
+                          Обложка
                           <input
                             hidden
                             type="file"
@@ -372,7 +372,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                           disabled={busy}
                           onClick={() => void updateCollection(collection, { is_public: !collection.is_public })}
                         >
-                          {collection.is_public ? 'Unpublish' : 'Publish'}
+                          {collection.is_public ? 'Скрыть' : 'Опубликовать'}
                         </ActionButton>
                         <ActionButton
                           color="error"
@@ -382,7 +382,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                           disabled={busy}
                           onClick={() => void deleteCollection(collection)}
                         >
-                          Delete
+                          Удалить
                         </ActionButton>
                       </Stack>
                     </Stack>
@@ -395,17 +395,17 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                         inputValue={trackSearch}
                         onInputChange={(_, value) => setTrackSearch(value)}
                         onChange={(_, value) => setSelectedTracks((current) => ({ ...current, [collection.id]: value }))}
-                        getOptionLabel={(track) => `${track.title} by ${track.user?.username ?? `user ${track.user_id}`} (#${track.id})`}
+                        getOptionLabel={(track) => `${track.title} — ${track.user?.username ?? `Пользователь ${track.user_id}`} (#${track.id})`}
                         isOptionEqualToValue={(option, value) => option.id === value.id}
-                        renderInput={(params) => <AppTextField {...params} label="Search approved track" />}
+                        renderInput={(params) => <AppTextField {...params} label="Найти трек" />}
                       />
                       <ActionButton variant="contained" disabled={busy || !selectedTracks[collection.id]} onClick={() => void addTrack(collection)}>
-                        Add track
+                        Добавить
                       </ActionButton>
                     </Stack>
 
                     <Stack spacing={1}>
-                      {collection.tracks.length === 0 ? <Alert severity="info">Draft is empty. Add an approved track before publishing.</Alert> : null}
+                      {collection.tracks.length === 0 ? <Alert severity="info">В подборке пока нет треков.</Alert> : null}
                       {collection.tracks.map((track, index) => (
                         <Stack
                           key={`${collection.id}-${track.id}`}
@@ -419,7 +419,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                               {track.title}
                             </Typography>
                             <Typography color="text.secondary" noWrap>
-                              {track.user?.username ?? `user ${track.user_id}`} · {track.status}
+                              {track.user?.username ?? `Пользователь ${track.user_id}`}
                             </Typography>
                           </Box>
                           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
@@ -430,7 +430,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                               disabled={busy}
                               onClick={() => void player.playTrack(track)}
                             >
-                              Play
+                              Слушать
                             </ActionButton>
                             <ActionButton
                               variant="outlined"
@@ -438,7 +438,7 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                               disabled={busy || index === 0}
                               onClick={() => void moveTrack(collection, track, -1)}
                             >
-                              Up
+                              Выше
                             </ActionButton>
                             <ActionButton
                               variant="outlined"
@@ -446,10 +446,10 @@ export function AdminCollectionsPanel({ auth, player }: AdminCollectionsPanelPro
                               disabled={busy || index === collection.tracks.length - 1}
                               onClick={() => void moveTrack(collection, track, 1)}
                             >
-                              Down
+                              Ниже
                             </ActionButton>
                             <ActionButton color="error" variant="outlined" size="small" disabled={busy} onClick={() => void removeTrack(collection, track)}>
-                              Remove
+                              Убрать
                             </ActionButton>
                           </Stack>
                         </Stack>

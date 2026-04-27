@@ -35,12 +35,12 @@ export function CollectionCard({ collection, onPlayCollection }: CollectionCardP
 
         <Stack spacing={1}>
           <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-            <Chip label={collection.is_public ? 'Public' : 'Draft'} color={collection.is_public ? 'success' : 'default'} size="small" />
-            <Chip label={`${collection.track_count} tracks`} variant="outlined" size="small" />
+            <Chip label={collection.is_public ? 'Открыта' : 'Черновик'} color={collection.is_public ? 'success' : 'default'} size="small" />
+            <Chip label={`${collection.track_count} треков`} variant="outlined" size="small" />
           </Stack>
           <Typography variant="h5">{collection.name}</Typography>
           <Typography color="text.secondary">
-            {collection.description || 'Curated tracks selected by the Resonance Sound staff.'}
+        {collection.description || 'Треки, отобранные редакцией Resonance Sound.'}
           </Typography>
         </Stack>
 
@@ -48,7 +48,7 @@ export function CollectionCard({ collection, onPlayCollection }: CollectionCardP
           <Stack spacing={0.5}>
             {collection.tracks.slice(0, 4).map((track) => (
               <Typography key={track.id} variant="body2" color="text.secondary" noWrap>
-                {track.title} by {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Unknown artist'}
+                {track.title} · {track.artist?.display_name ?? track.user?.display_name ?? track.user?.username ?? 'Неизвестный артист'}
               </Typography>
             ))}
           </Stack>
@@ -56,7 +56,7 @@ export function CollectionCard({ collection, onPlayCollection }: CollectionCardP
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
           <ActionButton component={RouterLink} to={`/collections/${collection.id}`} variant="outlined" size="small">
-            Open
+            Открыть
           </ActionButton>
           <ActionButton
             variant="contained"
@@ -65,7 +65,7 @@ export function CollectionCard({ collection, onPlayCollection }: CollectionCardP
             disabled={!firstTrack}
             onClick={() => onPlayCollection(collection)}
           >
-            Play collection
+            Слушать подборку
           </ActionButton>
         </Stack>
       </Stack>

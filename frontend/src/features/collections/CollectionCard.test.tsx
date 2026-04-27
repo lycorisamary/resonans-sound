@@ -54,6 +54,6 @@ describe('CollectionCard', () => {
 
     expect(markup).toContain('Staff Picks');
     expect(markup).toContain('Public Track');
-    expect(markup).toContain('Play collection');
+    expect(markup).toContain('Слушать подборку');
   });
 });

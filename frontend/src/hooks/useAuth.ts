@@ -36,7 +36,7 @@ export function useAuth() {
       const tokens = await api.login(email, password);
       saveTokens(tokens);
       await loadAuthenticatedStateIntoStore();
-      setBanner('Сессия открыта. Теперь можно создавать треки, загружать source и работать с лайками.');
+      setBanner('Вход выполнен. Теперь можно создавать треки, загружать аудио и работать с лайками.');
       setCatalogView('catalog');
       navigate('/me');
     } catch (err) {

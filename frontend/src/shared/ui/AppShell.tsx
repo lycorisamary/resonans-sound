@@ -1,6 +1,6 @@
 import { ChangeEvent, FormEvent, ReactNode, useState } from 'react';
 
-import { Box, Button, Chip, Paper, Stack, Typography } from '@mui/material';
+import { Box, Button, Paper, Stack, Typography } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 
@@ -12,14 +12,12 @@ interface AppShellNavItem {
 }
 
 interface AppShellProps {
-  authLabel: string;
-  healthLabel?: string | null;
   navItems: AppShellNavItem[];
   onSearch: (value: string) => void;
   children: ReactNode;
 }
 
-export function AppShell({ authLabel, healthLabel, navItems, onSearch, children }: AppShellProps) {
+export function AppShell({ navItems, onSearch, children }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
@@ -35,7 +33,7 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
       sx={{
         minHeight: '100vh',
         background:
-          'radial-gradient(circle at top right, rgba(255,95,122,0.12), transparent 22%), radial-gradient(circle at top left, rgba(143,16,35,0.12), transparent 20%), linear-gradient(180deg, #09090d 0%, #0d0d13 100%)',
+          'radial-gradient(circle at 50% 2%, rgba(255,23,23,0.08), transparent 26%), radial-gradient(circle at 15% 22%, rgba(255,0,0,0.06), transparent 20%), radial-gradient(circle at 85% 24%, rgba(255,0,0,0.06), transparent 20%), linear-gradient(180deg, #010101 0%, #050507 46%, #020203 100%)',
         color: 'text.primary',
         pb: { xs: 15, md: 18 },
         pt: { xs: 1.5, md: 2.5 },
@@ -55,8 +53,9 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
           variant="outlined"
           sx={{
             alignSelf: { xs: 'stretch', lg: 'start' },
-            background: 'linear-gradient(180deg, rgba(12,12,18,0.98), rgba(16,16,24,0.96))',
-            borderColor: 'rgba(255,255,255,0.06)',
+            background:
+              'radial-gradient(circle at 50% 0%, rgba(255,23,23,0.1), transparent 28%), linear-gradient(180deg, rgba(8,8,9,0.98), rgba(2,2,3,0.98))',
+            borderColor: 'rgba(255,35,35,0.12)',
             borderRadius: { xs: 5, lg: 7 },
             height: { xs: 'auto', lg: 'calc(100vh - 40px)' },
             p: 2,
@@ -72,28 +71,46 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
               sx={{
                 p: 1.5,
                 borderRadius: 4,
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: 'rgba(255,23,23,0.045)',
+                border: '1px solid rgba(255,55,55,0.18)',
+                boxShadow: '0 0 26px rgba(255,23,23,0.08)',
               }}
             >
               <Box
                 sx={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #c0162f, #ff5f7a)',
-                  boxShadow: '0 0 22px rgba(192,22,47,0.36)',
+                  width: 22,
+                  height: 18,
                   flexShrink: 0,
+                  position: 'relative',
+                  '&::before, &::after': {
+                    border: '1.6px solid #ff1717',
+                    boxShadow: '0 0 10px rgba(255,23,23,0.75)',
+                    content: '""',
+                    height: 13,
+                    position: 'absolute',
+                    top: 3,
+                    width: 13,
+                  },
+                  '&::before': {
+                    borderRadius: '100% 0 100% 20%',
+                    left: 0,
+                    transform: 'rotate(-34deg) skewY(-8deg)',
+                  },
+                  '&::after': {
+                    borderRadius: '0 100% 20% 100%',
+                    right: 0,
+                    transform: 'rotate(34deg) skewY(8deg)',
+                  },
                 }}
               />
-              <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: '-0.05em' }}>
+              <Typography variant="h5" sx={{ fontWeight: 900, letterSpacing: 0, textShadow: '0 0 18px rgba(255,23,23,0.16)' }}>
                 resonance
               </Typography>
             </Stack>
 
             <Stack spacing={0.75}>
               <Typography variant="overline" sx={{ color: 'text.secondary', px: 1.25 }}>
-                Navigation
+                Навигация
               </Typography>
               {navItems.map((item) => {
                 const active = location.pathname === item.to;
@@ -110,13 +127,13 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
                       borderRadius: 3.5,
                       color: active ? '#fff' : 'text.secondary',
                       background: active
-                        ? 'linear-gradient(135deg, rgba(192,22,47,0.88), rgba(255,95,122,0.74))'
+                        ? 'linear-gradient(135deg, rgba(155,0,9,0.88), rgba(255,23,23,0.74))'
                         : 'transparent',
-                      border: active ? '1px solid rgba(255,95,122,0.35)' : '1px solid transparent',
+                      border: active ? '1px solid rgba(255,55,55,0.35)' : '1px solid transparent',
                       '&:hover': {
                         background: active
-                          ? 'linear-gradient(135deg, rgba(192,22,47,0.9), rgba(255,95,122,0.76))'
-                          : 'rgba(255,255,255,0.04)',
+                          ? 'linear-gradient(135deg, rgba(155,0,9,0.9), rgba(255,23,23,0.76))'
+                          : 'rgba(255,23,23,0.07)',
                       },
                     }}
                   >
@@ -143,16 +160,15 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
                 mt: 'auto',
                 p: 1.75,
                 borderRadius: 4,
-                background: alpha('#ffffff', 0.03),
-                border: '1px solid rgba(255,255,255,0.05)',
+                background: alpha('#ff1717', 0.045),
+                border: '1px solid rgba(255,55,55,0.14)',
               }}
             >
               <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-                Discovery-first runtime
+                Треки, подборки, артисты
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Главная теперь работает как витрина артистов, подборок и свежих релизов, а studio и account остаются отдельными
-                модулями.
+                Главная ведёт к музыке, ручному отбору и профилям артистов без лишнего шума.
               </Typography>
             </Stack>
           </Stack>
@@ -162,10 +178,10 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
           variant="outlined"
           sx={{
             background:
-              'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)), rgba(11,11,16,0.94)',
-            borderColor: 'rgba(255,255,255,0.06)',
+              'radial-gradient(circle at 50% 0%, rgba(255,23,23,0.08), transparent 26%), linear-gradient(180deg, rgba(10,10,12,0.92), rgba(3,3,4,0.96))',
+            borderColor: 'rgba(255,35,35,0.14)',
             borderRadius: { xs: 5, md: 7 },
-            boxShadow: '0 28px 80px rgba(0, 0, 0, 0.34)',
+            boxShadow: '0 28px 80px rgba(0,0,0,0.72), inset 0 0 0 1px rgba(255,255,255,0.025)',
             minHeight: 'calc(100vh - 40px)',
             overflow: 'hidden',
           }}
@@ -178,8 +194,8 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
             justifyContent="space-between"
             sx={{
               backdropFilter: 'blur(18px)',
-              background: 'rgba(11,11,16,0.72)',
-              borderBottom: '1px solid rgba(255,255,255,0.06)',
+              background: 'rgba(5,5,7,0.78)',
+              borderBottom: '1px solid rgba(255,35,35,0.14)',
               p: { xs: 1.75, md: 2.5 },
               position: 'sticky',
               top: 0,
@@ -191,7 +207,7 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
                 Resonans Sound
               </Typography>
               <Typography variant="h4" sx={{ fontSize: { xs: '1.2rem', md: '1.6rem' } }}>
-                Curated audio discovery
+                Музыка, которую можно заметить
               </Typography>
             </Box>
 
@@ -205,8 +221,8 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
               <Box
                 sx={{
                   alignItems: 'center',
-                  background: 'rgba(255,255,255,0.04)',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: 'rgba(255,23,23,0.045)',
+                  border: '1px solid rgba(255,55,55,0.16)',
                   borderRadius: 999,
                   display: 'flex',
                   gap: 1,
@@ -220,7 +236,7 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
                   component="input"
                   value={searchValue}
                   onChange={(event: ChangeEvent<HTMLInputElement>) => setSearchValue(event.target.value)}
-                  placeholder="Search tracks or artists and jump to the catalog"
+                  placeholder="Искать треки, артистов и подборки"
                   sx={{
                     background: 'transparent',
                     border: 0,
@@ -234,13 +250,8 @@ export function AppShell({ authLabel, healthLabel, navItems, onSearch, children 
                 />
               </Box>
               <Button type="submit" variant="contained">
-                Search
+                Найти
               </Button>
-            </Stack>
-
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              <Chip label={authLabel} color="secondary" variant="outlined" />
-              {healthLabel ? <Chip label={healthLabel} color="success" variant="outlined" /> : null}
             </Stack>
           </Stack>
 

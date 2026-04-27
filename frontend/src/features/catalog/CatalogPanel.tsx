@@ -22,9 +22,9 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
     <SectionCard tone="blue" sx={{ flex: 1.2 }}>
       <Stack spacing={3}>
         <PageHeader
-          eyebrow="Catalog"
+          eyebrow="Каталог"
           title="Общий каталог треков"
-          description="Весь опубликованный surface с поиском, жанрами, тегами и liked-view. Каталог остаётся живым discovery-инструментом, но больше не тянет на себя всю главную."
+          description="Все опубликованные треки с поиском, жанрами и тегами. Каталог помогает быстро найти новый звук."
           actions={
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <AppTextField
@@ -134,9 +134,9 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
         </Tabs>
 
         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {catalog.catalogSearch ? <Chip label={`Search: ${catalog.catalogSearch}`} color="secondary" variant="outlined" /> : null}
-          {catalog.catalogGenre ? <Chip label={`Genre: ${catalog.catalogGenre}`} color="secondary" variant="outlined" /> : null}
-          {catalog.catalogTag ? <Chip label={`Tag: ${catalog.catalogTag}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogSearch ? <Chip label={`Поиск: ${catalog.catalogSearch}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogGenre ? <Chip label={`Жанр: ${catalog.catalogGenre}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogTag ? <Chip label={`Тег: ${catalog.catalogTag}`} color="secondary" variant="outlined" /> : null}
         </Stack>
 
         {catalog.catalogBusy ? (
@@ -151,7 +151,7 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
             {catalog.catalogView === 'liked'
               ? auth.user
                 ? 'У вас пока нет лайкнутых треков. Первый сигнал можно поставить прямо из каталога.'
-                : 'Liked-вкладка доступна после авторизации.'
+                : 'Лайки доступны после входа.'
               : catalog.catalogSearch
                 ? 'По текущему запросу ничего не найдено. Попробуйте сбросить фильтры или изменить формулировку.'
                 : 'Каталог пока пуст. После первой успешной публикации треки появятся здесь автоматически.'}

@@ -24,12 +24,12 @@ export function CollectionsPanel({ player }: CollectionsPanelProps) {
     <SectionCard tone="orange">
       <Stack spacing={3}>
         <PageHeader
-          eyebrow="Collections"
+          eyebrow="Подборки"
           title="Подборки и ручной отбор"
-          description="Public collections курируются staff-командой после публикации. Это не user playlists и не social layer, а редакционный surface discovery-продукта."
+          description="Редакционные подборки помогают сильным трекам не потеряться в общем каталоге."
           actions={
             <ActionButton variant="outlined" onClick={() => void collections.reload()} startIcon={<RefreshRoundedIcon />}>
-              Refresh
+              Обновить
             </ActionButton>
           }
         />
@@ -38,10 +38,10 @@ export function CollectionsPanel({ player }: CollectionsPanelProps) {
         {collections.loading ? (
           <Stack direction="row" spacing={2} alignItems="center">
             <CircularProgress size={20} />
-            <Typography>Loading collections...</Typography>
+            <Typography>Загружаем подборки...</Typography>
           </Stack>
         ) : null}
-        {!collections.loading && collections.collections.length === 0 ? <Alert severity="info">No public collections yet.</Alert> : null}
+        {!collections.loading && collections.collections.length === 0 ? <Alert severity="info">Публичных подборок пока нет.</Alert> : null}
 
         <Grid container spacing={2}>
           {collections.collections.map((collection) => (
