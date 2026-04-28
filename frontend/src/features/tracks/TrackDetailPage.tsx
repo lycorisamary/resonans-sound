@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { Alert, Box, CircularProgress, Grid, Stack, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Alert, Box, Chip, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 
 import { TrackCard } from '@/entities/track/ui';
 import { UseAuthResult } from '@/hooks/useAuth';
@@ -90,19 +90,10 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
                     } • ${track.play_count} прослушиваний • ${track.like_count} лайков`}
                   />
                   <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <Chip label={track.genre ?? 'Без жанра'} color="secondary" variant="outlined" />
+                    {track.duration_seconds ? <Chip label={`${Math.floor(track.duration_seconds / 60)}:${String(track.duration_seconds % 60).padStart(2, '0')}`} variant="outlined" /> : null}
                     {track.tags?.map((tag) => (
-                      <Box
-                        key={tag}
-                        sx={{
-                          border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 999,
-                          color: 'text.secondary',
-                          px: 1.5,
-                          py: 0.75,
-                        }}
-                      >
-                        {tag}
-                      </Box>
+                      <Chip key={tag} label={tag} variant="outlined" />
                     ))}
                   </Stack>
                   <Typography color="text.secondary">
@@ -122,6 +113,14 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
                     </ActionButton>
                     <ActionButton variant="outlined" color="warning" onClick={() => void trackActions.reportTrack(track)}>
                       Пожаловаться
+                    </ActionButton>
+                    {track.artist?.slug ? (
+                      <ActionButton component={RouterLink} to={`/artists/${track.artist.slug}`} variant="outlined">
+                        К артисту
+                      </ActionButton>
+                    ) : null}
+                    <ActionButton component={RouterLink} to="/#catalog" variant="text" color="secondary">
+                      В каталог
                     </ActionButton>
                   </Stack>
                 </>
@@ -161,7 +160,14 @@ export function TrackDetailPage({ auth, player, trackActions }: TrackDetailPageP
           <PageHeader
             eyebrow="Ещё"
             title="Другие треки артиста"
-            description="Больше релизов этого артиста, доступных для прослушивания."
+            description="Больше релизов этого артиста, доступных для прослушивания, чтобы не терять контекст после одного удачного трека."
+            actions={
+              track?.artist?.slug ? (
+                <ActionButton component={RouterLink} to={`/artists/${track.artist.slug}`} variant="outlined">
+                  Открыть профиль артиста
+                </ActionButton>
+              ) : undefined
+            }
           />
           {artistTracks.length === 0 ? <Alert severity="info">Других публичных треков этого артиста пока нет.</Alert> : null}
           {artistTracks.map((relatedTrack) => (

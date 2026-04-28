@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { Alert, Avatar, Box, Chip, CircularProgress, Link, Stack, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 
 import { TrackCard } from '@/entities/track/ui';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
@@ -10,7 +10,7 @@ import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import api from '@/shared/api/client';
 import { ArtistProfile, Track } from '@/shared/api/types';
 import { getErrorMessage } from '@/shared/lib/error';
-import { PageHeader, SectionCard } from '@/shared/ui';
+import { ActionButton, PageHeader, SectionCard } from '@/shared/ui';
 
 interface ArtistDetailPageProps {
   auth: UseAuthResult;
@@ -83,7 +83,7 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
                   <Typography variant="h2" sx={{ fontSize: { xs: '2rem', md: '3.2rem' } }}>
                     {artist.display_name || artist.slug}
                   </Typography>
-                  <Typography color="text.secondary">/artists/{artist.slug}</Typography>
+                  <Typography color="text.secondary">Публичный профиль артиста</Typography>
                   {artist.location ? <Typography color="text.secondary">{artist.location}</Typography> : null}
                 </Box>
               </Stack>
@@ -106,6 +106,22 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
                   </Link>
                 ))}
               </Stack>
+
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <ActionButton
+                  variant="contained"
+                  onClick={() => void player.playTrackQueue(tracks)}
+                  disabled={tracks.length === 0}
+                >
+                  Слушать все релизы
+                </ActionButton>
+                <ActionButton component={RouterLink} to="/artists" variant="outlined">
+                  Ко всем артистам
+                </ActionButton>
+                <ActionButton component={RouterLink} to="/collections" variant="outlined">
+                  Смотреть подборки
+                </ActionButton>
+              </Stack>
             </>
           ) : null}
         </Stack>
@@ -116,7 +132,12 @@ export function ArtistDetailPage({ auth, player, trackActions }: ArtistDetailPag
           <PageHeader
             eyebrow="Дискография"
             title="Треки артиста"
-            description="Публичные релизы артиста. Можно слушать по одному треку или запустить очередь по списку."
+            description="Публичные релизы артиста. Можно слушать по одному треку, двигаться дальше по дискографии или вернуться в общую discovery-поверхность."
+            actions={
+              <ActionButton component={RouterLink} to="/#catalog" variant="outlined">
+                Вернуться в каталог
+              </ActionButton>
+            }
           />
           {!loading && tracks.length === 0 ? <Alert severity="info">У артиста пока нет публичных треков.</Alert> : null}
           {tracks.map((track) => (

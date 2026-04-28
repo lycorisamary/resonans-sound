@@ -1,4 +1,4 @@
-import { Alert, Avatar, Box, Chip, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Chip, CircularProgress, Divider, Grid, Stack, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
 import { UseAuthResult } from '@/hooks/useAuth';
@@ -7,6 +7,7 @@ import { UseCatalogResult } from '@/hooks/useCatalog';
 import { UseTrackActionsResult } from '@/hooks/useTrackActions';
 import { ActionButton, MetricTile, PageHeader, SectionCard } from '@/shared/ui';
 import { AutoAwesomeRoundedIcon, PlayArrowRoundedIcon, RefreshRoundedIcon } from '@/shared/ui/icons';
+import { ArtistSpotlightCard } from '../artists/ArtistSpotlightCard';
 import { CatalogPanel } from '../catalog/CatalogPanel';
 import { useHomeFeed } from './model/useHomeFeed';
 
@@ -20,6 +21,23 @@ interface HomePageProps {
 export function HomePage({ auth, catalog, player, trackActions }: HomePageProps) {
   const homeFeed = useHomeFeed();
   const featuredCollection = homeFeed.collections[0] ?? null;
+  const discoveryPath = [
+    {
+      eyebrow: 'Шаг 1',
+      title: 'Загрузка без ожидания',
+      description: 'Артист публикует трек сразу и получает живую страницу релиза без промежуточных ручных ворот.',
+    },
+    {
+      eyebrow: 'Шаг 2',
+      title: 'Первые прослушивания',
+      description: 'Свежие релизы появляются на витрине и в каталоге, поэтому новый трек не прячется в закрытом кабинете.',
+    },
+    {
+      eyebrow: 'Шаг 3',
+      title: 'Шанс попасть в отбор',
+      description: 'Сильные треки и артисты поднимаются в spotlight-блоки и подборки без раздувания продукта в соцсеть.',
+    },
+  ];
 
   return (
     <Stack spacing={2.5}>
@@ -50,6 +68,32 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                   Resonans Sound работает как витрина для независимых артистов: треки публикуются быстро, а лучшие попадают в ручной
                   отбор, подборки и spotlight-блоки.
                 </Typography>
+
+                <Grid container spacing={1.25}>
+                  {discoveryPath.map((step) => (
+                    <Grid item xs={12} md={4} key={step.title}>
+                      <Box
+                        sx={{
+                          height: '100%',
+                          p: 1.5,
+                          borderRadius: 4,
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          background: 'rgba(255,255,255,0.03)',
+                        }}
+                      >
+                        <Typography variant="overline" sx={{ color: 'secondary.light' }}>
+                          {step.eyebrow}
+                        </Typography>
+                        <Typography variant="h6" sx={{ mt: 0.5, mb: 0.75 }}>
+                          {step.title}
+                        </Typography>
+                        <Typography color="text.secondary" variant="body2">
+                          {step.description}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  ))}
+                </Grid>
 
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   <ActionButton component={RouterLink} to="/studio" variant="contained">
@@ -115,6 +159,20 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                   <Typography color="text.secondary">
                     {featuredCollection?.description ?? 'Ручной отбор администрации для сильных и заметных релизов этой недели.'}
                   </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                    <ActionButton component={RouterLink} to={featuredCollection ? `/collections/${featuredCollection.id}` : '/collections'} variant="contained" size="small">
+                      Открыть отбор
+                    </ActionButton>
+                    <ActionButton
+                      variant="outlined"
+                      size="small"
+                      startIcon={<PlayArrowRoundedIcon />}
+                      onClick={() => void player.playTrackQueue(featuredCollection?.tracks ?? [])}
+                      disabled={!featuredCollection || featuredCollection.tracks.length === 0}
+                    >
+                      Слушать подборку
+                    </ActionButton>
+                  </Stack>
                 </Stack>
               </Box>
             </Box>
@@ -210,7 +268,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
               <PageHeader
                 eyebrow="Свежие релизы"
                 title="Недавно добавленные"
-                description="Свежие релизы появляются здесь сразу после публикации и показывают артисту, что платформа действительно живая."
+                description="Свежие релизы появляются здесь сразу после публикации и дают артисту прямой вход в discovery-поверхность."
               />
               <Stack spacing={1.25}>
                 {homeFeed.recentTracks.map((track) => (
@@ -251,9 +309,19 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                         <Chip label={`${track.like_count} лайков`} size="small" variant="outlined" />
                       </Stack>
                     </Box>
-                    <ActionButton variant="outlined" size="small" onClick={() => void player.playTrack(track)}>
-                      Слушать
-                    </ActionButton>
+                    <Stack direction={{ xs: 'row', md: 'column' }} spacing={1}>
+                      <ActionButton variant="contained" size="small" onClick={() => void player.playTrack(track)}>
+                        Слушать
+                      </ActionButton>
+                      <ActionButton
+                        component={RouterLink}
+                        to={track.artist?.slug ? `/artists/${track.artist.slug}` : `/tracks/${track.id}`}
+                        variant="outlined"
+                        size="small"
+                      >
+                        {track.artist?.slug ? 'К артисту' : 'К релизу'}
+                      </ActionButton>
+                    </Stack>
                   </Box>
                 ))}
               </Stack>
@@ -267,47 +335,12 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
               <PageHeader
                 eyebrow="Артисты"
                 title="Новые артисты"
-                description="Витрина профилей, а не только треков: проект должен подсвечивать людей, а не превращаться в безличную свалку файлов."
+                description="Витрина профилей, а не только файлов: здесь пользователь может перейти от одного яркого трека к целому артистическому контексту."
               />
               <Grid container spacing={1.5}>
                 {homeFeed.artists.map((artist) => (
                   <Grid item xs={12} sm={6} key={artist.id}>
-                    <Box
-                      component={RouterLink}
-                      to={`/artists/${artist.slug}`}
-                      sx={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid rgba(255,255,255,0.06)',
-                        borderRadius: 4,
-                        color: 'inherit',
-                        display: 'block',
-                        p: 1.5,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <Stack spacing={1.25}>
-                        <Avatar
-                          src={artist.avatar_url ?? undefined}
-                          sx={{
-                            bgcolor: 'primary.main',
-                            width: 56,
-                            height: 56,
-                          }}
-                        >
-                          {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
-                        </Avatar>
-                        <Box>
-                          <Typography variant="h6">{artist.display_name || artist.slug}</Typography>
-                          <Typography color="text.secondary" sx={{ minHeight: 44 }}>
-                            {artist.bio || 'Публичный профиль артиста с релизами и шансом попасть в подборки.'}
-                          </Typography>
-                        </Box>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                          <Chip label={`${artist.track_count} треков`} size="small" variant="outlined" />
-                          {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
-                        </Stack>
-                      </Stack>
-                    </Box>
+                    <ArtistSpotlightCard artist={artist} compact />
                   </Grid>
                 ))}
               </Grid>
@@ -319,7 +352,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
       <SectionCard tone="orange">
         <Stack spacing={2.25}>
           <PageHeader
-                eyebrow="Сейчас слушают"
+            eyebrow="Сейчас слушают"
             title="Популярное сейчас"
             description="Этот блок нужен не как социальная механика, а как честный сигнал, где уже есть прослушивания и отклик."
           />
@@ -348,9 +381,14 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
                       <Chip label={`${track.play_count} прослушиваний`} size="small" color="secondary" variant="outlined" />
                       <Chip label={`${track.like_count} лайков`} size="small" variant="outlined" />
                     </Stack>
-                    <ActionButton variant="contained" size="small" onClick={() => void player.playTrack(track)}>
-                      Слушать
-                    </ActionButton>
+                    <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <ActionButton variant="contained" size="small" onClick={() => void player.playTrack(track)}>
+                        Слушать
+                      </ActionButton>
+                      <ActionButton component={RouterLink} to={`/tracks/${track.id}`} variant="outlined" size="small">
+                        Открыть релиз
+                      </ActionButton>
+                    </Stack>
                   </Stack>
                 </SectionCard>
               </Grid>
@@ -360,7 +398,7 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
       </SectionCard>
 
       <SectionCard tone="neutral">
-        <Stack spacing={2}>
+        <Stack spacing={2.5}>
           <PageHeader
             eyebrow="Идея"
             title="Не просто загрузка, а шанс быть замеченным"
@@ -374,6 +412,21 @@ export function HomePage({ auth, catalog, player, trackActions }: HomePageProps)
               />
             }
           />
+          <Divider sx={{ borderColor: 'rgba(255,255,255,0.06)' }} />
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.25} flexWrap="wrap" useFlexGap>
+            <ActionButton component={RouterLink} to="/studio" variant="contained">
+              Начать с загрузки
+            </ActionButton>
+            <ActionButton component={RouterLink} to="/artists" variant="outlined">
+              Смотреть артистов
+            </ActionButton>
+            <ActionButton component={RouterLink} to="/collections" variant="outlined">
+              Перейти к отборам
+            </ActionButton>
+            <ActionButton component={RouterLink} to="#catalog" variant="text" color="secondary">
+              Сразу в каталог
+            </ActionButton>
+          </Stack>
         </Stack>
       </SectionCard>
 

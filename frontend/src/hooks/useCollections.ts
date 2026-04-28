@@ -17,7 +17,7 @@ export function useCollections() {
       const response = await api.getCollections({ size: 20 });
       setCollections(response.items);
     } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load collections'));
+      setError(getErrorMessage(err, 'Не удалось загрузить подборки.'));
     } finally {
       setLoading(false);
     }

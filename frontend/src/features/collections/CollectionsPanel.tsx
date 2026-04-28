@@ -1,4 +1,4 @@
-import { Alert, CircularProgress, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Chip, CircularProgress, Grid, Stack, Typography } from '@mui/material';
 
 import { CollectionCard } from '@/features/collections/CollectionCard';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
@@ -26,13 +26,18 @@ export function CollectionsPanel({ player }: CollectionsPanelProps) {
         <PageHeader
           eyebrow="Подборки"
           title="Подборки и ручной отбор"
-          description="Редакционные подборки помогают сильным трекам не потеряться в общем каталоге."
+          description="Редакционные подборки помогают сильным трекам не потеряться в общем каталоге и задают более осмысленный путь входа в discovery."
           actions={
             <ActionButton variant="outlined" onClick={() => void collections.reload()} startIcon={<RefreshRoundedIcon />}>
               Обновить
             </ActionButton>
           }
         />
+
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Chip label={`${collections.collections.length} публичных подборок`} color="secondary" variant="outlined" />
+          <Chip label="Можно открыть подборку или сразу запустить очередь" variant="outlined" />
+        </Stack>
 
         {collections.error ? <Alert severity="error">{collections.error}</Alert> : null}
         {collections.loading ? (

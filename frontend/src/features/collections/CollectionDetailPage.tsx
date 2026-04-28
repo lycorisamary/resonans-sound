@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
-import { useParams } from 'react-router-dom';
+import { Alert, Box, Chip, CircularProgress, Stack, Typography } from '@mui/material';
+import { Link as RouterLink, useParams } from 'react-router-dom';
 
 import { TrackCard } from '@/entities/track/ui';
 import { UseAuthResult } from '@/hooks/useAuth';
@@ -49,6 +49,12 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
     void loadCollection();
   }, [id]);
 
+  const collectionArtists = collection
+    ? Array.from(
+        new Set(collection.tracks.map((track) => track.artist?.display_name ?? track.user?.display_name ?? track.user?.username).filter(Boolean))
+      ).slice(0, 5)
+    : [];
+
   return (
     <Stack spacing={2.5}>
       <SectionCard tone="orange" sx={{ overflow: 'hidden', p: 0 }}>
@@ -71,21 +77,41 @@ export function CollectionDetailPage({ auth, player, trackActions }: CollectionD
           {error ? <Alert severity="error">{error}</Alert> : null}
 
           {collection ? (
-            <PageHeader
-              eyebrow="Подборка"
-              title={collection.name}
-              description={collection.description || 'Треки, отобранные редакцией Resonance Sound.'}
-              actions={
-                <ActionButton
-                  variant="contained"
-                  startIcon={<PlayArrowRoundedIcon />}
-                  disabled={collection.tracks.length === 0}
-                  onClick={() => void player.playTrackQueue(collection.tracks)}
-                >
-                  Слушать подборку
+            <Stack spacing={2}>
+              <PageHeader
+                eyebrow="Подборка"
+                title={collection.name}
+                description={collection.description || 'Треки, отобранные редакцией Resonance Sound.'}
+                actions={
+                  <ActionButton
+                    variant="contained"
+                    startIcon={<PlayArrowRoundedIcon />}
+                    disabled={collection.tracks.length === 0}
+                    onClick={() => void player.playTrackQueue(collection.tracks)}
+                  >
+                    Слушать подборку
+                  </ActionButton>
+                }
+              />
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <Chip label={`${collection.track_count} треков`} color="secondary" variant="outlined" />
+                <Chip label="Ручной редакционный отбор" variant="outlined" />
+                {collectionArtists.map((artistName) => (
+                  <Chip key={artistName} label={artistName} variant="outlined" />
+                ))}
+              </Stack>
+              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                <ActionButton component={RouterLink} to="/collections" variant="outlined">
+                  Ко всем подборкам
                 </ActionButton>
-              }
-            />
+                <ActionButton component={RouterLink} to="/artists" variant="outlined">
+                  Смотреть артистов
+                </ActionButton>
+                <ActionButton component={RouterLink} to="/#catalog" variant="text" color="secondary">
+                  Вернуться в каталог
+                </ActionButton>
+              </Stack>
+            </Stack>
           ) : null}
         </Stack>
       </SectionCard>

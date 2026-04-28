@@ -1,7 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
-import { Alert, Avatar, Box, Chip, CircularProgress, Grid, MenuItem, Stack, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Alert, Chip, CircularProgress, Grid, MenuItem, Stack, Typography } from '@mui/material';
 
 import api from '@/shared/api/client';
 import { ArtistDiscoverySort, ArtistProfile } from '@/shared/api/types';
@@ -9,6 +8,7 @@ import { SUPPORTED_TRACK_GENRES } from '@/shared/constants/genres';
 import { getErrorMessage } from '@/shared/lib/error';
 import { ActionButton, AppTextField, PageHeader, SectionCard } from '@/shared/ui';
 import { RefreshRoundedIcon, SearchRoundedIcon } from '@/shared/ui/icons';
+import { ArtistSpotlightCard } from './ArtistSpotlightCard';
 
 export function ArtistsPanel() {
   const [artists, setArtists] = useState<ArtistProfile[]>([]);
@@ -20,6 +20,12 @@ export function ArtistsPanel() {
   const [sort, setSort] = useState<ArtistDiscoverySort>('recommended');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sortLabels: Record<ArtistDiscoverySort, string> = {
+    recommended: 'рекомендованные',
+    popular: 'популярные',
+    newest: 'новые',
+    name: 'по имени',
+  };
 
   const loadArtists = async () => {
     try {
@@ -34,7 +40,7 @@ export function ArtistsPanel() {
       });
       setArtists(response.items);
     } catch (err) {
-      setError(getErrorMessage(err, 'Could not load artists.'));
+      setError(getErrorMessage(err, 'Не удалось загрузить витрину артистов.'));
     } finally {
       setLoading(false);
     }
@@ -59,13 +65,15 @@ export function ArtistsPanel() {
     setSort('recommended');
   };
 
+  const hasActiveFilters = Boolean(search || genre || location || sort !== 'recommended');
+
   return (
     <SectionCard tone="green">
       <Stack spacing={3}>
         <PageHeader
           eyebrow="Артисты"
-          title="Публичные профили артистов"
-          description="Ищите новых авторов по имени, жанру и городу. Здесь видны только профили с опубликованной музыкой."
+          title="Артисты, за которыми стоит следить"
+          description="Публичная витрина независимых артистов: здесь проще находить не только отдельные треки, но и авторов с уже сложившимся звучанием."
           actions={
             <ActionButton variant="outlined" onClick={() => void loadArtists()} startIcon={<RefreshRoundedIcon />}>
               Обновить
@@ -108,7 +116,12 @@ export function ArtistsPanel() {
           {search ? <Chip label={`Поиск: ${search}`} color="secondary" variant="outlined" /> : null}
           {genre ? <Chip label={`Жанр: ${genre}`} color="secondary" variant="outlined" /> : null}
           {location ? <Chip label={`Город: ${location}`} color="secondary" variant="outlined" /> : null}
-          {sort !== 'recommended' ? <Chip label="Сортировка изменена" color="secondary" variant="outlined" /> : null}
+          {sort !== 'recommended' ? <Chip label={`Сортировка: ${sortLabels[sort]}`} color="secondary" variant="outlined" /> : null}
+          {hasActiveFilters ? (
+            <ActionButton variant="text" color="secondary" onClick={clearFilters} sx={{ px: 0.5 }}>
+              Сбросить всё
+            </ActionButton>
+          ) : null}
         </Stack>
 
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -118,63 +131,16 @@ export function ArtistsPanel() {
             <Typography>Загружаем артистов...</Typography>
           </Stack>
         ) : null}
-        {!loading && artists.length === 0 ? <Alert severity="info">Артисты не найдены.</Alert> : null}
+        {!loading && artists.length === 0 ? (
+          <Alert severity="info">
+            По текущему сочетанию фильтров артисты не найдены. Попробуйте убрать часть ограничений и вернуться к более широкому поиску.
+          </Alert>
+        ) : null}
 
         <Grid container spacing={2}>
           {artists.map((artist) => (
             <Grid item xs={12} md={6} xl={4} key={artist.id}>
-              <SectionCard tone="neutral" sx={{ height: '100%', p: 2.25 }}>
-                <Stack spacing={1.5}>
-                  <Box
-                    component={RouterLink}
-                    to={`/artists/${artist.slug}`}
-                    sx={{
-                      aspectRatio: '1.8 / 1',
-                      backgroundImage: artist.banner_image_url
-                        ? `linear-gradient(180deg, rgba(11,11,16,0.18), rgba(11,11,16,0.58)), url(${artist.banner_image_url})`
-                        : 'linear-gradient(135deg, #d7f5ef, #fff7ed)',
-                      backgroundPosition: 'center',
-                      backgroundSize: 'cover',
-                      borderRadius: 4,
-                      display: 'block',
-                    }}
-                  />
-
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Avatar src={artist.avatar_url ?? undefined} sx={{ bgcolor: 'primary.main', width: 52, height: 52 }}>
-                      {(artist.display_name || artist.slug).slice(0, 1).toUpperCase()}
-                    </Avatar>
-                    <Box minWidth={0}>
-                      <Typography
-                        component={RouterLink}
-                        to={`/artists/${artist.slug}`}
-                        variant="h5"
-                        sx={{ color: 'inherit', textDecoration: 'none' }}
-                        noWrap
-                      >
-                        {artist.display_name || artist.slug}
-                      </Typography>
-                      <Typography color="text.secondary" noWrap>
-                        /artists/{artist.slug}
-                      </Typography>
-                    </Box>
-                  </Stack>
-
-                  <Typography color="text.secondary" sx={{ minHeight: 72 }}>
-                    {artist.bio || 'Публичный профиль артиста с релизами, статистикой и витринным позиционированием.'}
-                  </Typography>
-
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    <Chip label={`${artist.track_count} треков`} size="small" />
-                    <Chip label={`${artist.play_count} прослушиваний`} size="small" variant="outlined" />
-                    <Chip label={`${artist.like_count} лайков`} size="small" variant="outlined" />
-                    {artist.location ? <Chip label={artist.location} size="small" variant="outlined" /> : null}
-                    {artist.profile_genres.slice(0, 2).map((item) => (
-                      <Chip key={item} label={item} size="small" variant="outlined" />
-                    ))}
-                  </Stack>
-                </Stack>
-              </SectionCard>
+              <ArtistSpotlightCard artist={artist} />
             </Grid>
           ))}
         </Grid>

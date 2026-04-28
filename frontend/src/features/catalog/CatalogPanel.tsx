@@ -17,14 +17,35 @@ interface CatalogPanelProps {
   trackActions: UseTrackActionsResult;
 }
 
+const catalogSortLabels: Record<CatalogSort, string> = {
+  newest: 'сначала новые',
+  popular: 'по популярности',
+  title: 'по названию',
+};
+
 export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPanelProps) {
+  const hasActiveFilters = Boolean(
+    catalog.catalogSearch || catalog.catalogGenre || catalog.catalogTag || catalog.selectedCategory !== 'all' || catalog.catalogSort !== 'newest'
+  );
+  const selectedCategoryName =
+    catalog.selectedCategory === 'all'
+      ? null
+      : catalog.categories.find((category) => category.slug === catalog.selectedCategory)?.name ?? 'Выбранная категория';
+  const activeFilterCount = [
+    catalog.catalogSearch,
+    catalog.catalogGenre,
+    catalog.catalogTag,
+    selectedCategoryName ?? '',
+    catalog.catalogSort !== 'newest' ? catalogSortLabels[catalog.catalogSort] : '',
+  ].filter(Boolean).length;
+
   return (
     <SectionCard tone="blue" sx={{ flex: 1.2 }}>
       <Stack spacing={3}>
         <PageHeader
           eyebrow="Каталог"
-          title="Общий каталог треков"
-          description="Все опубликованные треки с поиском, жанрами и тегами. Каталог помогает быстро найти новый звук."
+          title="Общий каталог релизов"
+          description="Каталог нужен как рабочая поверхность поиска: быстро перейти от общего обзора к нужному треку, артисту или жанровому срезу."
           actions={
             <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
               <AppTextField
@@ -44,6 +65,18 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
             </Stack>
           }
         />
+
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1} justifyContent="space-between" alignItems={{ xs: 'stretch', md: 'center' }}>
+          <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+            <Chip label={`${catalog.displayedTracks.length} релизов на экране`} color="secondary" variant="outlined" />
+            <Chip label="Открыть, слушать, лайкать и жаловаться можно прямо отсюда" variant="outlined" />
+          </Stack>
+          {hasActiveFilters ? (
+            <ActionButton variant="text" color="secondary" onClick={catalog.clearCatalogSearch} sx={{ alignSelf: { xs: 'flex-start', md: 'auto' }, px: 0.5 }}>
+              Сбросить всё ({activeFilterCount})
+            </ActionButton>
+          ) : null}
+        </Stack>
 
         <Box component="form" onSubmit={catalog.handleCatalogSearch}>
           <Grid container spacing={1.5}>
@@ -137,6 +170,8 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
           {catalog.catalogSearch ? <Chip label={`Поиск: ${catalog.catalogSearch}`} color="secondary" variant="outlined" /> : null}
           {catalog.catalogGenre ? <Chip label={`Жанр: ${catalog.catalogGenre}`} color="secondary" variant="outlined" /> : null}
           {catalog.catalogTag ? <Chip label={`Тег: ${catalog.catalogTag}`} color="secondary" variant="outlined" /> : null}
+          {selectedCategoryName ? <Chip label={`Категория: ${selectedCategoryName}`} color="secondary" variant="outlined" /> : null}
+          {catalog.catalogSort !== 'newest' ? <Chip label={`Порядок: ${catalogSortLabels[catalog.catalogSort]}`} color="secondary" variant="outlined" /> : null}
         </Stack>
 
         {catalog.catalogBusy ? (
@@ -153,7 +188,7 @@ export function CatalogPanel({ auth, catalog, player, trackActions }: CatalogPan
                 ? 'У вас пока нет лайкнутых треков. Первый сигнал можно поставить прямо из каталога.'
                 : 'Лайки доступны после входа.'
               : catalog.catalogSearch
-                ? 'По текущему запросу ничего не найдено. Попробуйте сбросить фильтры или изменить формулировку.'
+                ? 'По текущему запросу ничего не найдено. Попробуйте изменить формулировку или быстро сбросить текущие фильтры.'
                 : 'Каталог пока пуст. После первой успешной публикации треки появятся здесь автоматически.'}
           </Alert>
         ) : null}
