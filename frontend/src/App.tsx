@@ -10,11 +10,13 @@ import { CollectionDetailPage } from '@/features/collections/CollectionDetailPag
 import { CollectionsPanel } from '@/features/collections/CollectionsPanel';
 import { HomePage } from '@/features/home/HomePage';
 import { PlayerPanel } from '@/features/player/PlayerPanel';
+import { SiteFooter } from '@/features/siteContent/SiteFooter';
 import { StudioForm } from '@/features/studio/StudioForm';
 import { TrackDetailPage } from '@/features/tracks/TrackDetailPage';
 import { useAuth } from '@/hooks/useAuth';
 import { useAudioPlayer } from '@/hooks/useAudioPlayer';
 import { useCatalog } from '@/hooks/useCatalog';
+import { useSiteContent } from '@/hooks/useSiteContent';
 import { useTrackActions } from '@/hooks/useTrackActions';
 import { useCatalogStore } from '@/shared/store/appStore';
 import { AppShell, SectionCard } from '@/shared/ui';
@@ -31,6 +33,7 @@ function AppRoutes() {
   const catalog = useCatalog();
   const player = useAudioPlayer();
   const auth = useAuth();
+  const siteContent = useSiteContent();
   const trackActions = useTrackActions({ stopAndResetAudio: player.stopAndResetAudio });
   const logout = () => void auth.logout(player.stopAndResetAudio);
   const setCatalogSearchInput = useCatalogStore((state) => state.setCatalogSearchInput);
@@ -61,6 +64,7 @@ function AppRoutes() {
       <AppShell
         navItems={navItems}
         onSearch={handleShellSearch}
+        footer={<SiteFooter content={siteContent.content} error={siteContent.error} />}
       >
         <Stack spacing={2.5}>
           {catalog.initialLoading ? (
@@ -114,7 +118,7 @@ function AppRoutes() {
               }
             />
             <Route path="/tracks/:id" element={<TrackDetailPage auth={auth} player={player} trackActions={trackActions} />} />
-            <Route path="/admin" element={<AdminPanel auth={auth} player={player} />} />
+            <Route path="/admin" element={<AdminPanel auth={auth} player={player} onSiteContentUpdated={siteContent.reload} />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Stack>

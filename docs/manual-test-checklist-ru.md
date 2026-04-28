@@ -126,3 +126,13 @@ Additional staff-control checks:
   localhost origins в `CORS_ORIGINS` при `ENV=production`.
 - Через SSH tunnel открыть Grafana по инструкции из
   [`operations-hardening-runbook.md`](operations-hardening-runbook.md).
+
+## 8. Site footer and FAQ smoke
+
+- Open `/` as a guest and verify the footer contact block and FAQ render
+  without clipped text on desktop and mobile widths.
+- Call `GET /api/v1/site-content` and verify only active FAQ items are public.
+- Open `/admin` as staff and update the footer contact block plus one FAQ item.
+- Save changes, return to `/`, and verify the public footer updates without a
+  frontend deploy.
+- Verify `/api/v1/admin/site-content` is not accessible without staff auth.

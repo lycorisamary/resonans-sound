@@ -18,7 +18,7 @@ from app.db.session import engine
 from app.exceptions import DomainError, RateLimitExceededError
 
 # Import currently active routers
-from app.api import admin, artists, auth, categories, collections, interactions, tracks, users
+from app.api import admin, artists, auth, categories, collections, interactions, site_content, tracks, users
 
 
 configure_structured_logging()
@@ -243,6 +243,7 @@ app.include_router(auth.router, prefix=f"{settings.API_PREFIX}/auth", tags=["Aut
 app.include_router(categories.router, prefix=f"{settings.API_PREFIX}/categories", tags=["Categories"])
 app.include_router(artists.router, prefix=f"{settings.API_PREFIX}/artists", tags=["Artists"])
 app.include_router(collections.router, prefix=f"{settings.API_PREFIX}/collections", tags=["Collections"])
+app.include_router(site_content.router, prefix=f"{settings.API_PREFIX}/site-content", tags=["Site Content"])
 app.include_router(tracks.router, prefix=f"{settings.API_PREFIX}/tracks", tags=["Tracks"])
 app.include_router(users.router, prefix=f"{settings.API_PREFIX}/users", tags=["Users"])
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/admin", tags=["Admin"])
@@ -264,6 +265,7 @@ async def root():
         "categories": "/api/v1/categories",
         "artists": "/api/v1/artists",
         "collections": "/api/v1/collections",
+        "site_content": "/api/v1/site-content",
         "category_detail_example": "/api/v1/categories/beats",
         "tracks": "/api/v1/tracks",
     }

@@ -18,6 +18,8 @@ import {
   LoginCredentials,
   PaginatedResponse,
   RegisterCredentials,
+  SiteContent,
+  SiteContentPayload,
   StreamQuality,
   StreamUrlResponse,
   Track,
@@ -114,6 +116,11 @@ class ApiClient {
 
   async getHealth(): Promise<HealthResponse> {
     const response = await this.client.get<HealthResponse>('/health');
+    return response.data;
+  }
+
+  async getSiteContent(): Promise<SiteContent> {
+    const response = await this.client.get<SiteContent>('/site-content');
     return response.data;
   }
 
@@ -320,6 +327,16 @@ class ApiClient {
 
   async getAdminStats(): Promise<AdminSystemStats> {
     const response = await this.client.get<AdminSystemStats>('/admin/stats');
+    return response.data;
+  }
+
+  async getAdminSiteContent(): Promise<SiteContent> {
+    const response = await this.client.get<SiteContent>('/admin/site-content');
+    return response.data;
+  }
+
+  async updateAdminSiteContent(data: SiteContentPayload): Promise<SiteContent> {
+    const response = await this.client.put<SiteContent, { data: SiteContent }, SiteContentPayload>('/admin/site-content', data);
     return response.data;
   }
 

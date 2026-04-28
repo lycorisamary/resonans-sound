@@ -13,6 +13,8 @@ from app.schemas import (
     CollectionUpdate,
     PaginatedResponse,
     SystemStats,
+    SiteContentResponse,
+    SiteContentUpdate,
     TrackModeration,
     TrackReportResolve,
     TrackReportResponse,
@@ -33,6 +35,7 @@ from app.services.collections import (
 )
 from app.services.rate_limit import RateLimit, enforce_rate_limit, user_subject
 from app.services.reports import list_track_reports, resolve_track_report
+from app.services.site_content import get_admin_site_content, update_site_content
 
 
 router = APIRouter()
@@ -45,6 +48,25 @@ def admin_stats(
 ) -> SystemStats:
     """Return lightweight moderation/system stats for moderators and admins."""
     return get_system_stats(db)
+
+
+@router.get("/site-content", response_model=SiteContentResponse)
+def admin_site_content(
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> SiteContentResponse:
+    """Return editable footer contact data and FAQ items."""
+    return get_admin_site_content(db)
+
+
+@router.put("/site-content", response_model=SiteContentResponse)
+def update_admin_site_content(
+    payload: SiteContentUpdate,
+    current_user: User = Depends(get_moderator_user),
+    db: Session = Depends(get_db),
+) -> SiteContentResponse:
+    """Replace editable footer contact data and FAQ items."""
+    return update_site_content(db=db, admin_user=current_user, payload=payload)
 
 
 @router.get("/moderation", response_model=PaginatedResponse)

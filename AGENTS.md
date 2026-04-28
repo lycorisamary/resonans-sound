@@ -83,6 +83,9 @@ explicitly changes direction.
   approved tracks in collection order and advances automatically
 - Track BPM and key signature are not part of the active runtime surface; track
   metadata uses the supported genre list plus free-form tags
+- Public site content is active runtime: the footer contact block and FAQ are
+  read publicly through `/api/v1/site-content` and edited only by staff through
+  `/api/v1/admin/site-content`
 
 ## Current Technical Notes
 
@@ -102,6 +105,9 @@ explicitly changes direction.
   user playlists or a general social playlist feature
 - Existing physical `reports` is now active as the staff-reviewed track report
   surface; comments/follows remain planned-only
+- `site_settings` and `site_faq_items` store the editable public footer
+  contact block and FAQ; defaults are seeded by Alembic migration, not by
+  runtime schema mutation
 - Track access, streaming, deletion, and upload rules live in
   `backend/app/policies/`
 - `hidden` tracks are staff-controlled: they are not public, owners cannot
@@ -131,6 +137,8 @@ explicitly changes direction.
   backend API
 - Staff collection track add uses searchable approved-track lookup in the
   admin feature module, not a static all-track select
+- Footer and FAQ editing lives in `features/admin/SiteContentPanel.tsx`, while
+  the public footer is rendered by `features/siteContent/SiteFooter.tsx`
 
 ## Working Rules For Agents
 

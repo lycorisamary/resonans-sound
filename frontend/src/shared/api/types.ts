@@ -272,6 +272,43 @@ export interface CollectionReorderPayload {
   track_ids: number[];
 }
 
+export interface SiteFAQItem {
+  id: number;
+  question: string;
+  answer: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface SiteFAQItemPayload {
+  id?: number | null;
+  question: string;
+  answer: string;
+  sort_order: number;
+  is_active: boolean;
+}
+
+export interface SiteContent {
+  contact_title: string;
+  contact_email?: string | null;
+  contact_telegram?: string | null;
+  contact_phone?: string | null;
+  contact_website?: string | null;
+  footer_note?: string | null;
+  faq_items: SiteFAQItem[];
+  updated_at?: string | null;
+}
+
+export interface SiteContentPayload {
+  contact_title: string;
+  contact_email?: string | null;
+  contact_telegram?: string | null;
+  contact_phone?: string | null;
+  contact_website?: string | null;
+  footer_note?: string | null;
+  faq_items: SiteFAQItemPayload[];
+}
+
 export interface AdminSystemStats {
   total_users: number;
   total_tracks: number;

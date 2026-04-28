@@ -429,6 +429,76 @@ class CollectionResponse(BaseModel):
     tracks: List[TrackResponse] = Field(default_factory=list)
 
 
+# Site content schemas
+class SiteFAQItemBase(BaseModel):
+    question: str = Field(..., min_length=1, max_length=255)
+    answer: str = Field(..., min_length=1, max_length=4000)
+    sort_order: int = Field(0, ge=0, le=1000)
+    is_active: bool = True
+
+    @field_validator("question", "answer")
+    @classmethod
+    def clean_faq_text(cls, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("FAQ text must not be blank")
+        return cleaned
+
+
+class SiteFAQItemResponse(SiteFAQItemBase):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+
+
+class SiteFAQItemUpdate(SiteFAQItemBase):
+    id: Optional[int] = None
+
+
+class SiteContentResponse(BaseModel):
+    contact_title: str
+    contact_email: Optional[str] = None
+    contact_telegram: Optional[str] = None
+    contact_phone: Optional[str] = None
+    contact_website: Optional[str] = None
+    footer_note: Optional[str] = None
+    faq_items: List[SiteFAQItemResponse] = Field(default_factory=list)
+    updated_at: Optional[datetime] = None
+
+
+class SiteContentUpdate(BaseModel):
+    contact_title: str = Field(..., min_length=1, max_length=120)
+    contact_email: Optional[str] = Field(None, max_length=255)
+    contact_telegram: Optional[str] = Field(None, max_length=120)
+    contact_phone: Optional[str] = Field(None, max_length=80)
+    contact_website: Optional[str] = Field(None, max_length=500)
+    footer_note: Optional[str] = Field(None, max_length=4000)
+    faq_items: List[SiteFAQItemUpdate] = Field(default_factory=list, max_length=12)
+
+    @field_validator("contact_title")
+    @classmethod
+    def clean_contact_title(cls, value):
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("contact_title must not be blank")
+        return cleaned
+
+    @field_validator("contact_email", "contact_telegram", "contact_phone", "contact_website", "footer_note")
+    @classmethod
+    def clean_site_content_text(cls, value):
+        return _clean_optional_text(value)
+
+    @field_validator("contact_website")
+    @classmethod
+    def validate_contact_website(cls, value):
+        if value is None:
+            return None
+        parsed = urlparse(value)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ValueError("contact_website must be an absolute http(s) URL")
+        return value
+
+
 # Report Schemas
 class TrackReportCreate(BaseModel):
     track_id: int = Field(..., gt=0)

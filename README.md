@@ -29,6 +29,7 @@ Implemented in `main` right now:
   lists, editable profile metadata, and MinIO-backed avatar/banner uploads
 - public staff-curated collections with approved-track filtering and ordered playback
 - staff collection management for drafts, publishing, searchable track membership, ordering, and collection covers
+- public footer contact/FAQ content with staff editing from `/admin`
 - staff post-publication controls for hiding, restoring, and deleting tracks
 - frontend split into feature/entity/shared layers with React Router routes
 - Zustand-backed auth/catalog/player state
@@ -89,6 +90,7 @@ Currently active routes in `main`:
 - `GET /api/v1/collections`
 - `GET /api/v1/collections/{id}`
 - `GET /api/v1/collections/{id}/cover`
+- `GET /api/v1/site-content`
 - `GET /api/v1/tracks`
 - `GET /api/v1/tracks/mine`
 - `POST /api/v1/tracks`
@@ -117,6 +119,8 @@ Currently active routes in `main`:
 - `POST /api/v1/admin/collections/{id}/tracks`
 - `DELETE /api/v1/admin/collections/{id}/tracks/{track_id}`
 - `PUT /api/v1/admin/collections/{id}/tracks/reorder`
+- `GET /api/v1/admin/site-content`
+- `PUT /api/v1/admin/site-content`
 
 ## Documentation
 

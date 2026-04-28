@@ -14,10 +14,11 @@ interface AppShellNavItem {
 interface AppShellProps {
   navItems: AppShellNavItem[];
   onSearch: (value: string) => void;
+  footer?: ReactNode;
   children: ReactNode;
 }
 
-export function AppShell({ navItems, onSearch, children }: AppShellProps) {
+export function AppShell({ navItems, onSearch, footer, children }: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchValue, setSearchValue] = useState('');
@@ -256,6 +257,7 @@ export function AppShell({ navItems, onSearch, children }: AppShellProps) {
           </Stack>
 
           <Box sx={{ p: { xs: 1.75, md: 2.5 } }}>{children}</Box>
+          {footer}
         </Paper>
       </Box>
     </Box>

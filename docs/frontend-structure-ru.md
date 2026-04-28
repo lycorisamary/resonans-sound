@@ -84,6 +84,10 @@ API-вызовы по случайным компонентам.
 - `features/admin/AdminPanel.tsx` — staff orchestration
 - `features/admin/collections/AdminCollectionsPanel.tsx` — staff CRUD по
   подборкам
+- `features/admin/SiteContentPanel.tsx` — staff editing for footer contacts
+  and FAQ content
+- `features/siteContent/SiteFooter.tsx` — public responsive footer mounted by
+  the app shell
 
 Правило: если правка относится к конкретному экрану, начинайте с файла внутри
 `features/`, а не с `App.tsx`.
@@ -96,6 +100,7 @@ API-вызовы по случайным компонентам.
 - `useCatalog.ts` — bootstrap приложения, public catalog, filters/search
 - `useAudioPlayer.ts` — audio element, stream URL, quality fallback, reporting
 - `useCollections.ts` — загрузка публичных подборок
+- `useSiteContent.ts` — public footer/FAQ loading and refresh after admin save
 - `useTrackActions.ts` — create/update/delete track, like/report, cover/audio
   upload
 

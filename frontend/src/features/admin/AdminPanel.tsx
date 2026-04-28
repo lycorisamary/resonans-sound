@@ -5,6 +5,7 @@ import { Alert, Box, Card, CardContent, Chip, CircularProgress, MenuItem, Stack,
 import { TrackArtwork } from '@/entities/track/ui';
 import { getTrackStatusLabel } from '@/entities/track/model/track';
 import { AdminCollectionsPanel } from '@/features/admin/collections/AdminCollectionsPanel';
+import { SiteContentPanel } from '@/features/admin/SiteContentPanel';
 import { UseAuthResult } from '@/hooks/useAuth';
 import { UseAudioPlayerResult } from '@/hooks/useAudioPlayer';
 import api from '@/shared/api/client';
@@ -23,6 +24,7 @@ import {
 interface AdminPanelProps {
   auth: UseAuthResult;
   player: UseAudioPlayerResult;
+  onSiteContentUpdated?: () => void | Promise<void>;
 }
 
 type StatusFilter = 'all' | TrackStatus;
@@ -47,7 +49,7 @@ function canPlayInStaffPanel(track: Track): boolean {
   return track.status === 'approved' || Boolean(track.original_url || track.mp3_128_url || track.mp3_320_url);
 }
 
-export function AdminPanel({ auth, player }: AdminPanelProps) {
+export function AdminPanel({ auth, player, onSiteContentUpdated }: AdminPanelProps) {
   if (!auth.user) {
     return (
       <SectionCard tone="orange">
@@ -70,6 +72,7 @@ export function AdminPanel({ auth, player }: AdminPanelProps) {
     <Stack spacing={3}>
       <AdminTrackControl auth={auth} player={player} />
       <AdminReportsPanel player={player} />
+      <SiteContentPanel onSaved={onSiteContentUpdated} />
       <AdminCollectionsPanel auth={auth} player={player} />
     </Stack>
   );

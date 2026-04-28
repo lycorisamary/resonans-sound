@@ -16,6 +16,8 @@ The current implementation still centers the MVP around a few core tables:
 - `reports`
 - `playlists`
 - `playlist_tracks`
+- `site_settings`
+- `site_faq_items`
 - `admin_logs`
 - `api_tokens`
 
@@ -36,6 +38,7 @@ The active ORM runtime is split by context:
 - `app.models.interaction`
 - `app.models.report`
 - `app.models.collection`
+- `app.models.site_content`
 - `app.models.admin`
 - `app.models.token`
 
@@ -104,6 +107,7 @@ The current schema already covers the active MVP slice:
 - staff-managed collections
 - public artist profiles with profile images, profile links, and approved-track
   artist pages
+- editable public footer contact and FAQ content
 
 That is why the project still does not need a separate normalized media-assets
 subsystem for the current stage.
@@ -233,7 +237,22 @@ It currently stores:
 
 This is enough for the current moderation history block in the frontend.
 
-## 11. Data Ownership Rules
+## 11. Current Site Content In DB
+
+`site_settings` and `site_faq_items` are active runtime tables for the public
+footer contact block and FAQ. They do not introduce a social layer or planned
+domain into runtime.
+
+Runtime rules:
+
+- public reads use `GET /api/v1/site-content`
+- only `admin` and `moderator` can edit content through
+  `/api/v1/admin/site-content`
+- public responses include only active FAQ items
+- default content is inserted by Alembic migration
+- staff edits are recorded in `admin_logs`
+
+## 12. Data Ownership Rules
 
 - PostgreSQL owns business truth
 - MinIO stores binary files only

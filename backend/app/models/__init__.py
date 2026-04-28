@@ -4,6 +4,7 @@ from app.models.category import Category
 from app.models.collection import Collection, CollectionTrack
 from app.models.interaction import Interaction, InteractionType
 from app.models.report import Report, ReportReason, ReportStatus
+from app.models.site_content import SiteFAQItem, SiteSettings
 from app.models.token import APIToken
 from app.models.track import Track, TrackStatus
 from app.models.track_play import TrackPlayEvent
@@ -22,6 +23,8 @@ __all__ = [
     "Report",
     "ReportReason",
     "ReportStatus",
+    "SiteFAQItem",
+    "SiteSettings",
     "Track",
     "TrackPlayEvent",
     "TrackStatus",

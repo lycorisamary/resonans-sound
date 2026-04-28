@@ -237,3 +237,16 @@
   unchanged and `App.tsx` stays route-only.
 - This keeps artist profiles as the active runtime domain without adding
   follows, comments or user playlists.
+
+## 2026-04-28 Site footer and FAQ update
+
+- Public footer contacts and FAQ are now editable site content, not hard-coded
+  copy.
+- Public clients read the footer through `GET /api/v1/site-content`; inactive
+  FAQ items stay out of public responses.
+- Staff can edit contacts and FAQ from `/admin` through
+  `/api/v1/admin/site-content`.
+- The feature uses `site_settings` and `site_faq_items` created by Alembic
+  migration `20260428_000011_site_content.py`.
+- Frontend rendering stays modular: `features/siteContent/SiteFooter.tsx`,
+  `features/admin/SiteContentPanel.tsx`, and `hooks/useSiteContent.ts`.

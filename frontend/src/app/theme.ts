@@ -71,7 +71,7 @@ export const theme = createTheme({
     MuiCssBaseline: {
       styleOverrides: {
         body: {
-          minWidth: 360,
+          minWidth: 320,
           color: '#fff7f7',
           background:
             'radial-gradient(circle at 50% 2%, rgba(255,23,23,0.08), transparent 26%), radial-gradient(circle at 15% 22%, rgba(255,0,0,0.06), transparent 20%), radial-gradient(circle at 85% 24%, rgba(255,0,0,0.06), transparent 20%), linear-gradient(180deg, #010101 0%, #050507 46%, #020203 100%)',
@@ -92,8 +92,10 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 14,
+          lineHeight: 1.2,
           paddingInline: 18,
           paddingBlock: 10,
+          whiteSpace: 'normal',
         },
         contained: {
           background: 'linear-gradient(135deg, #9b0009, #ff1717 58%, #ff5757)',
@@ -106,6 +108,18 @@ export const theme = createTheme({
         root: {
           borderRadius: 999,
           fontWeight: 700,
+          maxWidth: '100%',
+        },
+        label: {
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        },
+      },
+    },
+    MuiTypography: {
+      styleOverrides: {
+        root: {
+          overflowWrap: 'anywhere',
         },
       },
     },
